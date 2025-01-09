@@ -1,28 +1,35 @@
 import streamlit as st
 
-st.set_page_config(
-    page_title="Hello",
-    page_icon="👋",
-)
+# Define your main page content
+def main():
+    st.title("Multipage Streamlit App")
+    st.write("Welcome to the multipage app!")
 
-st.write("# Welcome to Streamlit! 👋")
+    # Add a navigation sidebar
+    st.sidebar.title("Navigation")
+    page = st.sidebar.radio("Choose a page", ("Home", "Page 1", "Page 2"))
 
-st.sidebar.success("Select a demo above.")
+    # Display the corresponding page based on user selection
+    if page == "Home":
+        home_page()
+    elif page == "Page 1":
+        page_1()
+    elif page == "Page 2":
+        page_2()
 
-st.markdown(
-    """
-    Streamlit is an open-source app framework built specifically for
-    Machine Learning and Data Science projects.
-    **👈 Select a demo from the sidebar** to see some examples
-    of what Streamlit can do!
-    ### Want to learn more?
-    - Check out [streamlit.io](https://streamlit.io)
-    - Jump into our [documentation](https://docs.streamlit.io)
-    - Ask a question in our [community
-        forums](https://discuss.streamlit.io)
-    ### See more complex demos
-    - Use a neural net to [analyze the Udacity Self-driving Car Image
-        Dataset](https://github.com/streamlit/demo-self-driving)
-    - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
-"""
-)
+# Define your different pages as functions
+def home_page():
+    st.subheader("Home Page")
+    st.write("This is the home page of your app.")
+    
+def page_1():
+    st.subheader("Page 1")
+    st.write("Welcome to Page 1!")
+    
+def page_2():
+    st.subheader("Page 2")
+    st.write("Welcome to Page 2!")
+
+# Run the main function
+if __name__ == "__main__":
+    main()
