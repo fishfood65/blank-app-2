@@ -7,7 +7,7 @@ def main():
 
     # Add a navigation sidebar
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Choose a page", ("Home", "Page 1", "Page 2"))
+    page = st.sidebar.selectbox("Choose a page", ("Home", "Page 1", "Page 2"))
 
     # Display the corresponding page based on user selection
     if page == "Home":
