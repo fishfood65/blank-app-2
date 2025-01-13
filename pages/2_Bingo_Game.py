@@ -2,6 +2,8 @@ import streamlit as st
 import csv
 import io
 
+st.set_page_config(layout="wide")  # Use wide layout
+
 # List of updated questions
 questions = [
     "🐕 Dog's Name", "🏥 Vet Contact Info (Name, Phone Number, Address)", "🥣 Describe the brand/type of food your dog eats", 
