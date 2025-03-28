@@ -14,7 +14,7 @@ st.markdown(
     TBM POC is a to be named POC 
 
     ### Want to try it out? Start by picking out a pet game.
-    - [Cat Game](https://blank-app-9veokruhyi5.streamlit.app/cat_app)
+    - [Cat Game](https://blank-app-9veokruhyi5.streamlit.app/Cat_Bingo_Game)
     - [Dog Game](https://blank-app-9veokruhyi5.streamlit.app/Dog_Bingo_Game)
     ### Next take the output and go below
     - [Pet Guide Generator](https://blank-app-9veokruhyi5.streamlit.app/Pet_Guide_Generator)
