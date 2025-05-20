@@ -2,7 +2,6 @@ import streamlit as st
 import csv
 import io
 
-st.set_page_config(layout="wide")  # Use wide layout
 
 # List of updated questions
 questions = [

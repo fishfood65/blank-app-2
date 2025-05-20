@@ -13,12 +13,7 @@ from PIL import Image
 import io
 import uuid
 import json
-from bs4 import BeautifulSoup
-
-st.set_page_config(
-    page_title="Hello",
-    page_icon="👋",
-)
+#from bs4 import BeautifulSoup
 
 st.write("# Welcome to Home Hero Academy! 👋")
 
