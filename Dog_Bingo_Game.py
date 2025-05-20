@@ -1,136 +1,193 @@
 import streamlit as st
 import csv
 import io
+from datetime import datetime
+from docx import Document
 
+# --------------------------- #
+# INITIALIZATION
+# --------------------------- #
 
-# List of updated questions
 questions = [
-    "🐕 Dog's Name", "🏥 Vet Contact Info (Name, Phone Number, Address)", "🥣 Describe the brand/type of food your dog eats", 
-    "🧳 Walk Routine (Time, Duration, Location, Behavior)", "🛁 Bathing Schedule", "🧸 Favorite Toys", "🎯 Current Training Goals",
-    "🦴 Name the Breed", "⛑️ Emergency Vet Contact Info (Name, Phone Number, Address)", "🍖 Describe the portion size for each meal", 
-    "📍 Favorite Walk Location", "💈 Brushing Schedule", "🐶 Play Styles", "🥁 Training Progress/Challenges",
-    "🎂 Dog’s Age and Weight", "💊 List all medical conditions or allergies", "🕥 Feeding Schedule", "🐶 Walking Equipment", 
-    "💅 Nail Trimming", "🎾 Favorite Activities", "📚 Training Methods", "🔖 Dog’s microchip number", "🕥 Medication Schedule with Dosage",
-    "🍗 Name your dog’s treats or snacks", "🐾 Walk Behavior", "👂 Ear Cleaning", "❗ Fear/Anxiety Triggers", 
-    "🏫 Trainer Contact (Name, Phone, Email)", "🖼️ Describe the Dog’s Appearance from Memory", "💊 Medication Delivery Instructions", 
-    "🕥 How often do you give your dog treats or snacks", "🍭 Treats for Walk", "🦷 Teeth Brushing", "📢 Commands Known", 
-    "🌴 Travel carte or car travel setup", "✂️ Dog is Spayed or Neutered", "🗄️ Health & Vaccination History", "💧 Water bowl refill schedule", 
-    "💤 Sleep Schedule", "🌟 Special Grooming Needs", "🔍 Behavioral Issues", "🚗 Car Sickness?", 
-    "🏘️ Place and date the Dog was adopted", "📆 Date of Dog’s next check-up or vaccination", "Bonus: Special Instructions for Sitters/Walkers", 
-    "🎾 Special Activities or Playtimes", "🚶‍♂️ Bonus: Pet Walker Contact Info", "🐶 Socialization with other dogs, children, and strangers", 
-    "🏠 Bonus: Pet Sitter Contact Info"
+    "🐕 Dog's Name", "🏥 Vet Contact Info", "🥣 Food brand/type", 
+    "🧳 Walk Routine", "🛁 Bathing Schedule", "🧸 Favorite Toys", "🎯 Training Goals",
+    "🦴 Breed", "⛑️ Emergency Vet Contact Info", "🍖 Meal portion size", 
+    "📍 Favorite Walk Location", "💈 Brushing Schedule", "🐶 Play Styles", "🥁 Training Challenges",
+    "🎂 Age and Weight", "💊 Medical Conditions", "🕥 Feeding Schedule", "🐶 Walking Equipment", 
+    "💅 Nail Trimming", "🎾 Favorite Activities", "📚 Training Methods", "🔖 Microchip Number", 
+    "🕥 Medication Schedule", "🍗 Treats/Snacks", "🐾 Walk Behavior", "👂 Ear Cleaning", 
+    "❗ Fear Triggers", "🏫 Trainer Contact", "🖼️ Appearance Description", "💊 Medication Instructions", 
+    "🕥 Treat Frequency", "🍭 Treats for Walks", "🦷 Teeth Brushing", "📢 Commands Known", 
+    "🌴 Travel Setup", "✂️ Spayed/Neutered", "🗄️ Health History", "💧 Water Refill Schedule", 
+    "💤 Sleep Schedule", "🌟 Grooming Needs", "🔍 Behavioral Issues", "🚗 Car Sickness?", 
+    "🏘️ Adoption Info", "📆 Next Check-up Date", "📋 Sitter Instructions", 
+    "🎾 Special Playtimes", "🚶‍♂️ Walker Contact", "🐶 Socialization", "🏠 Sitter Contact"
 ]
 
-# Store the questions in session state only once
-if 'questions' not in st.session_state:
-    st.session_state.questions = questions
+# Session State Defaults
+st.session_state.setdefault('questions', questions)
+st.session_state.setdefault('answers', [['' for _ in range(7)] for _ in range(7)])
+st.session_state.setdefault('saved_dogs', [])
+st.session_state.setdefault('dog_index', 1)
+st.session_state.setdefault('editing_index', None)
 
-# Initialize the session state for answers (Now 7 rows x 7 columns)
-if 'answers' not in st.session_state:
-    st.session_state.answers = [['' for _ in range(7)] for _ in range(7)]  # 7 rows x 7 columns
+# --------------------------- #
+# FUNCTIONS
+# --------------------------- #
 
-# Function to create the bingo board with text inputs
-def create_bingo_board():
-    # Create an empty board (7x7)
-    bingo_board = [st.session_state.questions[i:i + 7] for i in range(0, 49, 7)]  # 49 questions, 7 per row
-
-    # Use Streamlit columns to create a grid with 7 columns
-    #cols = st.columns(7, border=True)  # 7 columns in the grid
-
-   # for col_index, col in enumerate(cols):
-        # Each column will contain one question from each row in that column
-   #     with col:
-    for row_index in range(7): # There are 7 rows
-        cols = st.columns(7, border=True) # Create 7 columns per row
-        for col_index in range(7): # 7 columns per row
-            question = bingo_board[row_index][col_index]  # Get the question for this column-row pair
-            answer = st.session_state.answers[row_index][col_index]  # Get the current answer for this question
-
-            # Create an expander with the question as the label
-            with cols[col_index]:
-            # Create an expander for each question in the column
-                with st.expander(f"{question}"):  # Use the question and answer status as the expander label
-                    # Display the question and allow the user to input the answer
-                    answer = st.text_area(
-                        "Answer Here", 
-                        key=f"q{col_index}{row_index}", 
-                        value=st.session_state.answers[col_index][row_index],
-                        placeholder="Enter your answer here",
-                        label_visibility="collapsed"
-                    )
-                    # Store the answer in session state if it changes
-                    if answer != st.session_state.answers[col_index][row_index]:
-                        st.session_state.answers[col_index][row_index] = answer
-                    
-                    # Display whether the question has been answered
-                    if answer:
-                        st.write("✔️ Answered")
-                    else:
-                        st.write("❓ Not Answered")
-
-    # After each user input, check for Bingo (row, column, or diagonal completion)
-    bingo_completed = check_bingo(st.session_state.answers)
-
-    if bingo_completed:
-        st.success("🎉 Bingo! You've completed a row, column, or diagonal!")
-        # Show the download button after Bingo
-        export_csv_button()
-
-# Function to check for Bingo
 def check_bingo(answers):
-    # Check rows for completeness (7 rows, 7 columns)
-    for i in range(7):  # 7 rows
-        if all(answers[i][j] != '' for j in range(7)):  # 7 columns
+    for i in range(7):
+        if all(answers[i][j] for j in range(7)) or all(answers[j][i] for j in range(7)):
             return True
-
-    # Check columns for completeness (7 columns, 7 rows)
-    for i in range(7):  # 7 columns
-        if all(answers[j][i] != '' for j in range(7)):  # 7 rows
-            return True
-    
-    # Check diagonals for completeness
-    # Diagonal from top-left to bottom-right
-    if all(answers[i][i] != '' for i in range(7)):  # 7 diagonal elements
+    if all(answers[i][i] for i in range(7)) or all(answers[i][6 - i] for i in range(7)):
         return True
-    # Diagonal from top-right to bottom-left
-    if all(answers[i][6-i] != '' for i in range(7)):  # 7 diagonal elements
-        return True
-    
     return False
 
-# Function to export answers to CSV with questions and corresponding answers
-def export_csv_button():
-    # Prepare the CSV data
+def flatten_answers_to_dict():
+    return {
+        st.session_state.questions[row * 7 + col]: st.session_state.answers[row][col]
+        for row in range(7) for col in range(7)
+        if st.session_state.answers[row][col].strip()
+    }
+
+def get_dog_name():
+    try:
+        return st.session_state.answers[0][0].strip() or "UnnamedDog"
+    except:
+        return "UnnamedDog"
+
+def convert_to_csv(data_list):
+    if not data_list:
+        return ""
     output = io.StringIO()
-    writer = csv.writer(output)
-    
-    # Write the header row (questions as the first column)
-    writer.writerow(["Question", "Answer"])
-    
-    # Write each question and its corresponding answer
-    for i in range(7):  # Iterate over rows 0 to 6 (7 rows)
-        for j in range(7):  # Iterate over columns 0 to 6 (7 columns)
-            question = st.session_state.questions[i * 7 + j]  # Get the correct question from the list
-            answer = st.session_state.answers[i][j]  # Get the corresponding answer
-            
-            # Write the question and its corresponding answer
-            writer.writerow([question, answer])
-    
-    # Move to the beginning of the StringIO buffer
-    output.seek(0)
-    
-    # Create a download button
-    st.download_button(
-        label="Download Answers as CSV",
-        data=output.getvalue(),
-        file_name="dog_care_bingo_answers.csv",
-        mime="text/csv"
-    )
+    writer = csv.DictWriter(output, fieldnames=data_list[0].keys())
+    writer.writeheader()
+    writer.writerows(data_list)
+    return output.getvalue()
 
-# Title and description
-st.title("Essential Dog Care Quiz - Bingo Board")
-st.write("Complete the bingo board by answering questions about your dog's care. "
-         "Enter your responses in the boxes below.")
+def export_all_dogs_to_docx(saved_dogs):
+    doc = Document()
+    doc.add_heading("Comprehensive Dog Care Report", 0)
+    for i, dog in enumerate(saved_dogs, 1):
+        name = dog.get("🐕 Dog's Name", f"Dog #{i}")
+        doc.add_heading(f"{i}. {name}", level=1)
+        for q, a in dog.items():
+            doc.add_heading(q, level=2)
+            doc.add_paragraph(a)
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf
 
-# Call the function to display the board
-create_bingo_board()
+def load_dog_for_edit(index):
+    selected = st.session_state.saved_dogs[index]
+    new_answers = [['' for _ in range(7)] for _ in range(7)]
+    for i in range(49):
+        row, col = divmod(i, 7)
+        question = st.session_state.questions[i]
+        new_answers[row][col] = selected.get(question, "")
+    st.session_state.answers = new_answers
+    st.session_state.editing_index = index
+    st.experimental_rerun()
+
+def save_current_dog():
+    dog_data = flatten_answers_to_dict()
+    if st.session_state.editing_index is not None:
+        st.session_state.saved_dogs[st.session_state.editing_index] = dog_data
+        st.success("✅ Dog entry updated!")
+        st.session_state.editing_index = None
+    else:
+        st.session_state.saved_dogs.append(dog_data)
+        st.success("✅ New dog saved!")
+        st.session_state.dog_index += 1
+    st.session_state.answers = [['' for _ in range(7)] for _ in range(7)]
+    st.experimental_rerun()
+
+# --------------------------- #
+# MAIN UI
+# --------------------------- #
+
+st.title("🐾 Dog Bingo Care Form")
+
+with st.expander("📖 How to Play Dog Care Bingo", expanded=False):
+    st.markdown("""
+    Welcome to the **Dog Bingo Care**! Use this tool to fill out important care details for each of your dogs.
+    
+    ### 🐶 Workflow:
+    1. **Answer questions** in the bingo grid to describe your dog's care.
+    2. Once you complete any full row, column, or diagonal:
+       - ✅ You'll see a **"Bingo complete!"** success message.
+       - 💾 Click **"Save Dog Entry"** to store the dog's information.
+       - ⬇️ Download their care plan as a **CSV file** if desired.
+    3. After saving, a **new blank form** will appear for the next dog.
+    4. Repeat for all your dogs!
+
+    ### ✏️ Editing a Saved Dog:
+    - Scroll to the bottom to see a list of saved dogs.
+    - Click **✏️ Edit** next to a dog’s name to update their answers.
+    - Save your changes to overwrite the existing entry.
+
+    ### 📤 Export Options:
+    - Download **all dog entries** as a combined CSV file.
+    - Export a **formatted DOCX file**, with one section per dog.
+
+    > 💡 You can use this tool for boarding, pet sitters, dog walkers, or emergency planning.
+    """)
+
+header_text = f"🐶 Dog #{st.session_state.dog_index}" if st.session_state.editing_index is None else "✏️ Editing Dog"
+st.header(header_text)
+
+bingo_board = [st.session_state.questions[i:i + 7] for i in range(0, 49, 7)]
+
+for row_index in range(7):
+    cols = st.columns(7)
+    for col_index in range(7):
+        question = bingo_board[row_index][col_index]
+        current_value = st.session_state.answers[row_index][col_index]
+        with cols[col_index]:
+            with st.expander(f"{question}"):
+                new_value = st.text_area(
+                    "Answer Here",
+                    key=f"q{col_index}_{row_index}",
+                    value=current_value,
+                    placeholder="Enter your answer",
+                    label_visibility="collapsed"
+                )
+                st.session_state.answers[row_index][col_index] = new_value
+                st.markdown("✔️ Answered" if new_value else "❓ Not Answered")
+
+# --------------------------- #
+# ACTIONS
+# --------------------------- #
+
+if check_bingo(st.session_state.answers):
+    st.success("🎉 Bingo complete!")
+
+    if st.button("💾 Save Dog Entry"):
+        save_current_dog()
+
+    dog_data = flatten_answers_to_dict()
+    dog_name = get_dog_name()
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    filename = f"{dog_name}_{timestamp}.csv"
+    csv_data = convert_to_csv([dog_data])
+    st.download_button("⬇️ Download This Dog's Info as CSV", csv_data, file_name=filename, mime="text/csv")
+
+# --------------------------- #
+# DOG LIST, EDIT, EXPORT
+# --------------------------- #
+
+if st.session_state.saved_dogs:
+    st.markdown("### 📦 Saved Dogs:")
+    for i, dog in enumerate(st.session_state.saved_dogs):
+        name = dog.get("🐕 Dog's Name", f"Dog #{i+1}")
+        cols = st.columns([5, 1])
+        cols[0].markdown(f"**{i+1}. {name}**")
+        if cols[1].button("✏️ Edit", key=f"edit_{i}"):
+            load_dog_for_edit(i)
+
+    all_csv = convert_to_csv(st.session_state.saved_dogs)
+    st.download_button("⬇️ Download All Dogs as CSV", all_csv, file_name="all_dogs.csv", mime="text/csv")
+
+    docx_buf = export_all_dogs_to_docx(st.session_state.saved_dogs)
+    st.download_button("📄 Download All Dogs as DOCX", docx_buf, file_name="all_dogs.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
