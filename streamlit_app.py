@@ -16,5 +16,5 @@ pages = [
 # 2️⃣  Display navigation and run the chosen page
 # ------------------------------------------------------------------
 pg = st.navigation(pages)     # shows the sidebar selector
-st.set_page_config(page_title="My Streamlit Suite", page_icon="🚀")
+st.set_page_config(page_title="My Streamlit Suite", page_icon="🚀", layout="wide")
 pg.run()                      # execute the selected page
