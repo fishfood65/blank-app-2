@@ -16,7 +16,7 @@ httpx
 idna
 Jinja2
 jsonschema
-jsonschema-specification
+#jsonschema-specification
 lxml
 MarkupSafe
 mistralai
