@@ -1,22 +1,20 @@
 import streamlit as st
 
-st.set_page_config(
-    page_title="Hello",
-    page_icon="👋",
-)
+# ------------------------------------------------------------------
+# 1️⃣  Register pages (order here = order in sidebar)
+# ------------------------------------------------------------------
+pages = [
+    st.Page("starting_page.py",        title="Main",         icon="📍"),
+    st.Page("Dog_Bingo_Game.py", title="Dog Game",  icon="🐶"),
+    st.Page("Cat_Bingo_Game.py",     title="Cat Game",      icon="🐱"),
+    st.Page("Pet_Guide_Generator.py",     title="Pet Guide",      icon="📋"),
+    st.Page("home_app.py",     title="Home Guide",      icon="🏡"),
+    st.Page("mychatapp.py",     title="Chat Q&A",      icon="🗣️")
+]
 
-st.write("# Welcome to TBM POC! 👋")
-
-st.sidebar.success("Select a link above.")
-
-st.markdown(
-    """
-    TBM POC is a to be named POC 
-
-    ### Want to try it out? Start by picking out a pet game.
-    - [Cat Game](https://blank-app-9veokruhyi5.streamlit.app/Cat_Bingo_Game)
-    - [Dog Game](https://blank-app-9veokruhyi5.streamlit.app/Dog_Bingo_Game)
-    ### Next take the output and go below
-    - [Pet Guide Generator](https://blank-app-9veokruhyi5.streamlit.app/Pet_Guide_Generator)
-"""
-)
+# ------------------------------------------------------------------
+# 2️⃣  Display navigation and run the chosen page
+# ------------------------------------------------------------------
+pg = st.navigation(pages)     # shows the sidebar selector
+st.set_page_config(page_title="My Streamlit Suite", page_icon="🚀")
+pg.run()                      # execute the selected page
