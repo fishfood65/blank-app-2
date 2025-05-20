@@ -48,7 +48,6 @@ typing_extensions
 tzdata
 urllib3
 watchdog
-mistralai
 python-dotenv
 html2docx
 transformers
