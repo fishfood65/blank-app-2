@@ -9,6 +9,8 @@ import json
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import os
+import pandas as pd
+import re
 
 # Set your MISTRAL API key
 
@@ -89,6 +91,27 @@ def load_pet_for_edit(index, state_prefix, questions):
     st.session_state[f"answers_{state_prefix}"] = new_answers
     st.session_state[f"editing_index_{state_prefix}"] = index
     st.experimental_rerun()
+
+def get_saved_pets_by_species(species_list=None):
+    """
+    Returns a dictionary of saved pets grouped by species from Streamlit session state.
+
+    Args:
+        species_list (list): Optional list of species keys (default: ['dog', 'cat'])
+
+    Returns:
+        dict: { 'dog': [...], 'cat': [...], ... } with saved pets per species
+    """
+    if species_list is None:
+        species_list = ["dog", "cat"]
+
+    result = {}
+
+    for species in species_list:
+        key = f"saved_{species}s"
+        result[species] = st.session_state.get(key, [])
+
+    return result
 
 def render_pet_tab(pet_type, questions, state_prefix):
     st.header(f"{pet_type.capitalize()} Care Form")
@@ -209,34 +232,118 @@ def select_runbook_date_range():
 
     return choice, start_date, end_date
 
-# --------------------------- #
-# METADATA QUESTIONS
-# --------------------------- #
+def extract_pet_scheduled_tasks(questions, saved_pets, start_date, end_date):
+    """
+    Extracts daily, weekly, and one-time pet care tasks.
+    Returns a long-form DataFrame with Day, Pet, Task, Tag.
+    """
+    schedule_rows = []
 
-dog_questions = [
-    {"id": "name", "label": "🐕 Pet Name", "category": "Basic Info"},
-    {"id": "vet", "label": "🏥 Vet Contact Info", "category": "Health"},
-    {"id": "food", "label": "🥣 Food brand/type", "category": "Feeding"},
-    {"id": "walk", "label": "🧳 Walk Routine", "category": "Exercise"},
-    {"id": "bath", "label": "🛁 Bathing Schedule", "category": "Grooming"},
-    {"id": "toys", "label": "🧸 Favorite Toys", "category": "Behavior"},
-    {"id": "training", "label": "🎯 Training Goals", "category": "Behavior"},
-] + [{"id": f"dog_q{i}", "label": f"Dog Q{i+8}", "category": "Other"} for i in range(42)]
+    # Recurring task keyword categories
+    recurring_keywords = {
+        "feeding": ["feed", "feeding schedule", "food", "treats"],
+        "medication": ["medication", "pill", "dose", "schedule"],
+        "walk": ["walk", "walking", "exercise"],
+        "grooming": ["brush", "bathing", "grooming", "nail", "teeth", "ear cleaning"],
+        "play": ["play", "toys", "activities"],
+        "litter": ["litter", "waste", "box"],
+        "water": ["water", "bowl"]
+    }
 
-cat_questions = [
-    {"id": "name", "label": "🐈 Pet Name", "category": "Basic Info"},
-    {"id": "vet", "label": "🏥 Vet Contact Info", "category": "Health"},
-    {"id": "food", "label": "🥣 Food brand/type", "category": "Feeding"},
-    {"id": "litter", "label": "🚽 Litter Box Routine", "category": "Hygiene"},
-    {"id": "groom", "label": "🧼 Brushing Schedule", "category": "Grooming"},
-    {"id": "toys", "label": "🧶 Favorite Toys", "category": "Behavior"},
-    {"id": "nap", "label": "🛏 Napping Spots", "category": "Behavior"},
-] + [{"id": f"cat_q{i}", "label": f"Cat Q{i+8}", "category": "Other"} for i in range(42)]
+    # Keywords to flag one-time events with dates
+    one_time_keywords = ["pill", "appointment", "check-up", "vaccination", "vet", "visit"]
 
-all_question_metadata = {
-    "dog": dog_questions,
-    "cat": cat_questions
-}
+    def label_matches(label, keywords):
+        return any(kw in label.lower() for kw in keywords)
+
+    def extract_dates(text):
+        # Parse dates like "June 5", "6/5/24", etc.
+        patterns = [
+            r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?",
+            r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?"
+        ]
+        matches = []
+        for pattern in patterns:
+            matches += re.findall(pattern, text, flags=re.IGNORECASE)
+        return matches
+
+    def extract_weekday_mentions(text):
+        weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        return [day for day in weekdays if day.lower() in text.lower()]
+
+    def normalize_date(date_str):
+        try:
+            return pd.to_datetime(date_str, errors="coerce").date()
+        except:
+            return None
+
+    emoji_tags = {
+        "[Daily]": "🔁 Daily",
+        "[Weekly]": "📅 Weekly",
+        "[One-Time]": "🗓️ One-Time",
+        "[Assumed-Daily]": "🔄 Assumed Daily"
+    }
+
+    for pet in saved_pets:
+        pet_name = pet.get("🐕 Pet Name", "Unnamed Pet")
+        for q in questions:
+            label = q["label"]
+            answer = pet.get(label, "").strip()
+            if not answer:
+                continue
+
+            base_task = f"{pet_name}: {label} – {answer}"
+
+            # 1. Daily (recurring)
+            for keywords in recurring_keywords.values():
+                if label_matches(label, keywords):
+                    current_date = start_date
+                    while current_date <= end_date:
+                        schedule_rows.append({
+                            "Day": current_date.strftime('%A'),
+                            "Pet": pet_name,
+                            "Task": f"{label} – {answer}",
+                            "Tag": emoji_tags["[Daily]"]
+                        })
+                        current_date += timedelta(days=1)
+                    break
+
+            # 2. Weekly (e.g., "every Monday")
+            for weekday in extract_weekday_mentions(answer):
+                schedule_rows.append({
+                    "Day": weekday,
+                    "Pet": pet_name,
+                    "Task": f"{label} – {answer}",
+                    "Tag": emoji_tags["[Weekly]"]
+                })
+
+            # 3. One-Time (e.g., "pill on June 5")
+            if label_matches(label, one_time_keywords):
+                for ds in extract_dates(answer):
+                    parsed_date = normalize_date(ds)
+                    if parsed_date and start_date <= parsed_date <= end_date:
+                        schedule_rows.append({
+                            "Day": parsed_date.strftime('%A'),
+                            "Pet": pet_name,
+                            "Task": f"{label} – {answer}",
+                            "Tag": emoji_tags["[One-Time]"]
+                        })
+
+    df = pd.DataFrame(schedule_rows)
+    df = df.sort_values(by=["Day", "Tag", "Pet"]).reset_index(drop=True)
+    return df
+
+def build_combined_pet_schedule_df(saved_data_by_species, metadata_by_species, start_date, end_date):
+    all_saved_pets = []
+    all_questions = []
+
+    for species in ["dog", "cat"]:
+        if species in saved_data_by_species:
+            all_saved_pets.extend(saved_data_by_species[species])
+            all_questions.extend(metadata_by_species.get(species, []))
+
+    return extract_pet_scheduled_tasks(all_questions, all_saved_pets, start_date, end_date)
+
 
 # --------------------------- #
 # QUESTION SETS
@@ -346,89 +453,135 @@ cat_questions = [
     {"id": "sitter_contact", "label": "🏠 Bonus: Pet Sitter Contact Info", "category": "Logistics"}
 ]
 
+all_question_metadata = {
+    "dog": dog_questions,
+    "cat": cat_questions
+}
+
 # --------------------------- #
 # PREVIEW --- need to add start_date, end_date, questions, answers
 # --------------------------- #
 
-def generate_runbook_from_categories_with_docx(start_date, end_date, questions, answers, api_key=os.getenv("MISTRAL_TOKEN"), doc_heading="Pet Sitting Runbook"):
+def generate_prompt_for_all_pets_combined(saved_data_by_species, metadata_by_species, start_date, end_date):
     """
-    1. Groups answers by category
-    2. Sends structured prompt to Mistral
-    3. Creates a styled DOCX file with markdown formatting
+    Generate a multi-pet, multi-species AI prompt, grouped by species and then by pet,
+    including a structured day-by-day care schedule.
     """
-    grouped = defaultdict(list)
 
-    for row_idx, row in enumerate(answers):
-        for col_idx, answer in enumerate(row):
-            answer = answer.strip()
-            if not answer:
-                continue
+    prompt_sections = []
 
-            flat_index = row_idx * 7 + col_idx
-            if flat_index >= len(questions):
-                continue
+    all_saved_pets = []
+    all_questions = []
 
-            q_meta = questions[flat_index]
-            label = q_meta["label"]
-            category = q_meta.get("category", "Additional Notes")
-            grouped[category].append(f"**{label}**: {answer}")
+    for species in ["dog", "cat"]:
+        pets = saved_data_by_species.get(species, [])
+        if not pets:
+            continue
 
-    structured_json = json.dumps(grouped, indent=2)
+        metadata = metadata_by_species[species]
+        all_saved_pets.extend(pets)
+        all_questions.extend(metadata)
 
-    prompt = f"""
-You are an AI assistant tasked with generating a **comprehensive Pet Sitting Runbook** for the care period from **{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}**.
+        species_icon = "🐶" if species == "dog" else "🐱"
+        species_label = "Dogs" if species == "dog" else "Cats"
+
+        prompt_sections.append(f"# {species_icon} {species_label}")
+
+        for i, pet in enumerate(pets, 1):
+            name = pet.get("🐕 Pet Name", f"{species_label[:-1]} #{i}")
+            pet_block = [f"## {species_icon} {name}"]
+            categories = defaultdict(list)
+
+            for question, answer in pet.items():
+                for q in metadata:
+                    if q["label"] == question:
+                        cat = q.get("category", "Additional Notes")
+                        categories[cat].append(f"**{q['label']}**: {answer}")
+                        break
+
+            for category, qa_list in categories.items():
+                pet_block.append(f"### {category}")
+                pet_block.extend(qa_list)
+                pet_block.append("")  # spacing
+
+            prompt_sections.extend(pet_block)
+
+    prompt_body = "\n".join(prompt_sections)
+
+    # ✅ Build the full prompt
+    final_prompt = f"""
+You are an AI assistant tasked with generating a **comprehensive Multi-Pet Sitting Runbook** for both dogs and cats during the care period from **{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}**.
+
+This care window covers **{(end_date - start_date).days + 1} days**.
 
 ---
 
 ### 📝 Instructions:
-- Use the provided category-grouped Q&A to write a clear, organized care plan.
-- Include:
-  - Basic Info
-  - Health
-  - Feeding
-  - Grooming
-  - Routine
-  - Enrichment / Training
-  - Emergency Contacts
-  - Other Notes
-- Format using markdown headings.
-- If any section is missing, insert _"No details provided."_
+1. Group pets by species (dogs first, then cats).
+2. For each pet, create a detailed care plan organized by category.
+3. Use markdown-style formatting with headings and subheadings.
+4. Be clear, friendly, and actionable. Use bullet points for routines.
+5. If any section is missing, insert _"No information provided."_.
 
 ---
 
-### 📦 Care Instructions (grouped):
+### 📦 Structured Pet Input:
 
-```json
-{structured_json}
-Now generate the full pet sitting runbook.
+{prompt_body}
+
+---
+
+### 📆 Weekly Pet Care Schedule (Day × Task Grid)
+
+Please summarize care tasks by day of the week, including both:
+- Recurring daily tasks (feeding, walking, water, etc.)
+- One-time scheduled tasks (e.g. "Give pill on June 5")
+
+Only include tasks within the care period: **{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}**
+
+Now generate the full runbook grouped by species and structured by pet.
 """
+
+    return final_prompt
+    
+def generate_docx_from_prompt(prompt: str, api_key: str, doc_heading: str = "Pet Sitting Runbook") -> tuple[io.BytesIO, str]:
+    """
+    Generate a styled DOCX runbook from a full prompt string using the Mistral API.
+
+    Args:
+        prompt: Full LLM prompt (already assembled).
+        api_key: Mistral API token.
+        doc_heading: Title of the DOCX document.
+
+    Returns:
+        (BytesIO stream, raw AI output text)
+    """
     try:
         with st.spinner("🧠 Generating runbook with Mistral..."):
             client = Mistral(api_key=api_key)
-            # Call Mistral chat
             completion = client.chat.complete(
-                   model="mistral-small-latest",
-                    messages=[SystemMessage(content=prompt)],
-                    max_tokens=2000,
-                    temperature=0.5,
-                )
-
+                model="mistral-small-latest",
+                messages=[
+                    ChatMessage(role=Role.SYSTEM, content="You are a helpful assistant that formats pet sitting instructions into clear, organized prose."),
+                    ChatMessage(role=Role.USER, content=prompt)
+                ],
+                max_tokens=3000,
+                temperature=0.5,
+            )
             runbook_text = completion.choices[0].message.content
-
     except Exception as e:
         st.error(f"Mistral API error: {e}")
         return None, ""
 
-    # Create DOCX
+    # Convert markdown-style output into a .docx
     doc = Document()
     doc.add_heading(doc_heading, 0)
 
-    for line in runbook_text.split("\n"):
+    for line in runbook_text.splitlines():
         line = line.strip()
         if not line:
             continue
         if line.startswith("# "):
-            doc.add_page_break()
             doc.add_heading(line[2:].strip(), level=1)
         elif line.startswith("## "):
             doc.add_heading(line[3:].strip(), level=2)
@@ -445,7 +598,6 @@ Now generate the full pet sitting runbook.
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
-
     return buffer, runbook_text
 
 # --------------------------- #
@@ -484,29 +636,58 @@ with tab3:
     # Section for date range selection
 choice, start_date, end_date = select_runbook_date_range()
 
-if start_date and end_date:
-    st.write(f"🧾 You can now generate a runbook for {choice} timeframe: {start_date} → {end_date}")
+# Dynamically gather pet data from session state
+saved_data_by_species = {}
+metadata_by_species = {}
 
-    user_confirmation = st.checkbox("✅ Confirm AI Prompt")
-    st.session_state["user_confirmation"] = user_confirmation # store confirmation in session
+for species in ["dog", "cat"]:
+    saved_key = f"saved_{species}s"
+    question_key = f"{species}_questions"
 
-    if user_confirmation:
-        prompt = generate_runbook_from_categories_with_docx()
-        st.session_state["generated_prompt"] = prompt
-    else:
-        st.session_state["generated_prompt"] = None
+    if saved_key in st.session_state and st.session_state[saved_key]:
+        saved_data_by_species[species] = st.session_state[saved_key]
+        metadata_by_species[species] = st.session_state[question_key]  # This should be loaded earlier
 
-    st.session_state.progress["level_1_completed"] = True
+if saved_data_by_species:
+    st.markdown("## 🧠 Generate Combined Multi-Pet Runbook")
 
-    
-    if st.button("✅ Generate Runbook"):
-        doc_stream, runbook_text = generate_runbook_from_categories_with_docx()
-        if doc_stream:
-            st.subheader("📋 Runbook Preview")
-            st.code(runbook_text, language="markdown")
-            st.download_button(
-                label="📄 Download Runbook (.docx)",
-                data=doc_stream,
-                file_name="pet_sitting_runbook.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    schedule_df = extract_pet_scheduled_tasks(
+    questions=dog_questions + cat_questions,
+    saved_pets=get_all_saved_pets()
+    start_date=start_date,
+    end_date=end_date
+)
+
+    prompt = generate_prompt_for_all_pets_combined(
+        saved_data_by_species=saved_data_by_species,
+        metadata_by_species=metadata_by_species,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+    with st.expander("📋 Review AI Prompt", expanded=True):
+        st.code(prompt, language="markdown")
+
+    # Ask user to confirm prompt
+    confirm = st.checkbox("✅ I confirm this AI prompt is correct and ready for generation.")
+
+    if confirm:
+        if st.button("🚀 Generate Pet Sitting Runbook"):
+            docx_buffer, runbook_text = generate_docx_from_prompt(
+                prompt=prompt,
+                api_key=os.getenv("MISTRAL_TOKEN"),
+                doc_heading="Multi-Pet Sitting Runbook"  # ✅ added missing comma
             )
+
+            if docx_buffer:
+                st.subheader("📋 Runbook Preview")
+                st.code(runbook_text, language="markdown")
+                st.download_button(
+                    label="📄 Download Runbook (.docx)",
+                    data=docx_buffer,
+                    file_name="multi_pet_runbook.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+else:
+    st.info("🪄 Fill out at least one dog or cat form to enable combined runbook generation.")
+
