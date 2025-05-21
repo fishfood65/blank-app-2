@@ -11,6 +11,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 import os
 import pandas as pd
 import re
+from utils.data_access import get_saved_pets_by_species, get_all_saved_pets
 
 # Set your MISTRAL API key
 
