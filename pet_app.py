@@ -11,7 +11,9 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 import os
 import pandas as pd
 import re
-from utils.data_access import get_saved_pets_by_species, get_all_saved_pets
+from utils.data_access import (
+    get_saved_pets_by_species,
+)
 
 # Set your MISTRAL API key
 
@@ -92,27 +94,6 @@ def load_pet_for_edit(index, state_prefix, questions):
     st.session_state[f"answers_{state_prefix}"] = new_answers
     st.session_state[f"editing_index_{state_prefix}"] = index
     st.experimental_rerun()
-
-def get_saved_pets_by_species(species_list=None):
-    """
-    Returns a dictionary of saved pets grouped by species from Streamlit session state.
-
-    Args:
-        species_list (list): Optional list of species keys (default: ['dog', 'cat'])
-
-    Returns:
-        dict: { 'dog': [...], 'cat': [...], ... } with saved pets per species
-    """
-    if species_list is None:
-        species_list = ["dog", "cat"]
-
-    result = {}
-
-    for species in species_list:
-        key = f"saved_{species}s"
-        result[species] = st.session_state.get(key, [])
-
-    return result
 
 def render_pet_tab(pet_type, questions, state_prefix):
     st.header(f"{pet_type.capitalize()} Care Form")
@@ -334,18 +315,6 @@ def extract_pet_scheduled_tasks(questions, saved_pets, start_date, end_date):
     df = df.sort_values(by=["Day", "Tag", "Pet"]).reset_index(drop=True)
     return df
 
-def build_combined_pet_schedule_df(saved_data_by_species, metadata_by_species, start_date, end_date):
-    all_saved_pets = []
-    all_questions = []
-
-    for species in ["dog", "cat"]:
-        if species in saved_data_by_species:
-            all_saved_pets.extend(saved_data_by_species[species])
-            all_questions.extend(metadata_by_species.get(species, []))
-
-    return extract_pet_scheduled_tasks(all_questions, all_saved_pets, start_date, end_date)
-
-
 # --------------------------- #
 # QUESTION SETS
 # --------------------------- #
@@ -463,12 +432,21 @@ all_question_metadata = {
 # PREVIEW --- need to add start_date, end_date, questions, answers
 # --------------------------- #
 
-def generate_prompt_for_all_pets_combined(saved_data_by_species, metadata_by_species, start_date, end_date):
+def generate_prompt_for_all_pets_combined(saved_data_by_species, metadata_by_species, start_date, end_date,schedule_markdown=None):
     """
-    Generate a multi-pet, multi-species AI prompt, grouped by species and then by pet,
-    including a structured day-by-day care schedule.
-    """
+    Generate a multi-pet, multi-species AI prompt, grouped by species and pet,
+    with optional appended markdown-formatted schedule.
 
+    Args:
+        saved_data_by_species (dict): e.g. { "dog": [...], "cat": [...] }
+        metadata_by_species (dict): e.g. { "dog": [...], "cat": [...] }
+        start_date (date): care period start
+        end_date (date): care period end
+        schedule_markdown (str): optional markdown string from schedule_df.to_markdown()
+
+    Returns:
+        str: Final prompt for AI input
+    """
     prompt_sections = []
 
     all_saved_pets = []
@@ -507,41 +485,42 @@ def generate_prompt_for_all_pets_combined(saved_data_by_species, metadata_by_spe
 
             prompt_sections.extend(pet_block)
 
+    # Compile markdown sections
     prompt_body = "\n".join(prompt_sections)
 
-    # ✅ Build the full prompt
+    # Base prompt
     final_prompt = f"""
 You are an AI assistant tasked with generating a **comprehensive Multi-Pet Sitting Runbook** for both dogs and cats during the care period from **{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}**.
-
-This care window covers **{(end_date - start_date).days + 1} days**.
 
 ---
 
 ### 📝 Instructions:
-1. Group pets by species (dogs first, then cats).
-2. For each pet, create a detailed care plan organized by category.
-3. Use markdown-style formatting with headings and subheadings.
-4. Be clear, friendly, and actionable. Use bullet points for routines.
-5. If any section is missing, insert _"No information provided."_.
+- Group pets by species (dogs first, then cats).
+- For each pet, create a detailed care plan organized by category.
+- Use markdown-style formatting with headings and subheadings.
+- Be clear, friendly, and actionable. Use bullet points for routines.
+- If any section is missing, insert _"No information provided."_.
 
 ---
 
 ### 📦 Structured Pet Input:
 
 {prompt_body}
+"""
+
+    # Append schedule markdown if available
+    if schedule_markdown:
+        final_prompt += f"""
 
 ---
 
 ### 📆 Weekly Pet Care Schedule (Day × Task Grid)
 
-Please summarize care tasks by day of the week, including both:
-- Recurring daily tasks (feeding, walking, water, etc.)
-- One-time scheduled tasks (e.g. "Give pill on June 5")
-
-Only include tasks within the care period: **{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}**
-
-Now generate the full runbook grouped by species and structured by pet.
+{schedule_markdown}
 """
+
+    # Final instruction to LLM
+    final_prompt += "\n\nNow generate the full runbook grouped by species and pet."
 
     return final_prompt
     
@@ -638,8 +617,11 @@ with tab3:
 choice, start_date, end_date = select_runbook_date_range()
 
 # Dynamically gather pet data from session state
-saved_data_by_species = {}
-metadata_by_species = {}
+saved_data_by_species = get_saved_pets_by_species()
+metadata_by_species = {
+    species: st.session_state.get(f"{species}_questions", [])
+    for species in saved_data_by_species.keys()
+}
 
 for species in ["dog", "cat"]:
     saved_key = f"saved_{species}s"
@@ -649,22 +631,36 @@ for species in ["dog", "cat"]:
         saved_data_by_species[species] = st.session_state[saved_key]
         metadata_by_species[species] = st.session_state[question_key]  # This should be loaded earlier
 
+# ✅ Step 2: Confirm data exists before proceeding
 if saved_data_by_species:
     st.markdown("## 🧠 Generate Combined Multi-Pet Runbook")
 
-    schedule_df = extract_pet_scheduled_tasks(
-    questions=dog_questions + cat_questions,
-    saved_pets=get_all_saved_pets()
-    start_date=start_date,
-    end_date=end_date
-)
+    # ✅ Step 3: Sanity Check Before Scheduling or Prompting
+    required_keys = ["dog_questions", "cat_questions", "saved_dogs", "saved_cats"]
+    missing_keys = [k for k in required_keys if k not in st.session_state]
+
+    if missing_keys:
+        st.error(f"⚠️ Missing session keys: {', '.join(missing_keys)}. Please complete all forms before generating the runbook.")
+    elif not st.session_state["saved_dogs"] and not st.session_state["saved_cats"]:
+        st.warning("🐾 No pets have been saved yet. Please fill out at least one form.")
+    elif "start_date" not in st.session_state or "end_date" not in st.session_state:
+        st.warning("📅 Please select a care date range before generating the runbook.")
+    else:
+        # ✅ All checks passed — safe to build schedule
+        schedule_df = extract_pet_scheduled_tasks(
+            questions=sum(metadata_by_species.values(), []),  # flatten metadata
+            saved_pets=sum(saved_data_by_species.values(), []),  # flatten pets
+            start_date=st.session_state["start_date"],
+            end_date=st.session_state["end_date"]
+            )       
 
     prompt = generate_prompt_for_all_pets_combined(
         saved_data_by_species=saved_data_by_species,
         metadata_by_species=metadata_by_species,
         start_date=start_date,
-        end_date=end_date
-    )
+        end_date=end_date,
+        schedule_markdown=schedule_df.to_markdown(index=False)
+        )
 
     with st.expander("📋 Review AI Prompt", expanded=True):
         st.code(prompt, language="markdown")
