@@ -6,7 +6,7 @@ from utils.utils_pet_helpers import (
     export_all_pets_to_docx,
     load_pet_for_edit,
     extract_pet_scheduled_tasks_grouped,
-    get_pet_display_name
+    get_pet_display_name,
 )
 import streamlit as st
 from mistralai import Mistral, UserMessage, SystemMessage
@@ -269,6 +269,33 @@ def select_runbook_date_range():
 
     return choice, start_date, end_date, valid_dates
 
+def generate_grouped_schedule_markdown(schedule_df):
+    """
+    Generate markdown output grouped by pet with subtables for their schedule.
+
+    Returns:
+        str: Markdown string suitable for prompt injection or preview
+    """
+    import pandas as pd
+
+    if schedule_df.empty:
+        return "_No schedule data available._"
+
+    sections = []
+    for pet, pet_group in schedule_df.groupby("Pet"):
+        pet_section = [f"#### 🐾 {pet}'s Schedule\n"]
+        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
+            day_group = pet_group[pet_group["Day"] == day]
+            if day_group.empty:
+                continue
+            day_section = f"**📆 {day}**\n"
+            table_md = day_group[["Task", "Tag", "Category"]].to_markdown(index=False)
+            pet_section.append(day_section)
+            pet_section.append(table_md)
+            pet_section.append("")  # spacing
+        sections.append("\n".join(pet_section))
+    return "\n\n".join(sections)
+
 def generate_prompt_for_all_pets_combined(saved_data_by_species, metadata_by_species, start_date, end_date,schedule_markdown=None):
     """
     Generate a multi-pet, multi-species AI prompt, grouped by species and pet,
@@ -490,7 +517,7 @@ with tab3:
             metadata_by_species=metadata_by_species,
             start_date=start_date,
             end_date=end_date,
-            schedule_markdown=schedule_df.to_markdown(index=False)
+            schedule_markdown=generate_grouped_schedule_markdown(schedule_df)
         )
 
         with st.expander("📋 Review AI Prompt", expanded=True):
