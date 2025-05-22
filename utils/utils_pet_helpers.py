@@ -166,16 +166,18 @@ def extract_pet_scheduled_tasks_grouped(questions, saved_pets, valid_dates):
             "favorite", "toys", "play styles", "fear", "behavioral",
             "socialization", "appearance", "trainer", "photo", "description", "training goals",
             "training methods", "training challenges", "walking equipment", "walk behavior",
-            "food brand/type your dog eats", "commands known"
+            "food brand/type your dog eats", "commands known", "history", "vaccination", "car"
         ]
         label_lower = label.lower()
         return any(kw in label_lower for kw in exclusions)
 
-    def add_task(day, pet, task, tag, category):
-        key = (day, pet, task)
+    def add_task(date_obj, pet, task, tag, category):
+        day_name = date_obj.strftime('%A')
+        key = (str(date_obj), pet, task)
         if key not in added_tasks:
             schedule_rows.append({
-                "Day": day,
+                "Date": str(date_obj),
+                "Day": day_name,
                 "Pet": pet,
                 "Task": task,
                 "Tag": tag,
@@ -196,17 +198,16 @@ def extract_pet_scheduled_tasks_grouped(questions, saved_pets, valid_dates):
             interval = extract_week_interval(answer)
             weekday_mentions = extract_weekday_mentions(answer)
 
-            # Daily
-            if (
-                category != "Other"
-                and not interval
-                and not weekday_mentions
-                and "monthly" not in answer.lower()
-            ):
-                for d in valid_dates:
-                    add_task(d.strftime('%A'), pet_name, task_text, emoji_tags["[Daily]"], category)
+            task_already_scheduled = False
 
-            # Every X weeks
+            # 1. One-time dates
+            for ds in extract_dates(answer):
+                parsed_date = normalize_date(ds)
+                if parsed_date and parsed_date in valid_dates:
+                    add_task(parsed_date, pet_name, task_text, emoji_tags["[One-Time]"], category)
+                    task_already_scheduled = True
+
+            # 2. Every X weeks
             if interval:
                 if weekday_mentions:
                     for wd in weekday_mentions:
@@ -216,44 +217,53 @@ def extract_pet_scheduled_tasks_grouped(questions, saved_pets, valid_dates):
                             base_date = matching_dates[0]
                             for d in matching_dates:
                                 if (d - base_date).days % (interval * 7) == 0:
-                                    add_task(d.strftime('%A'), pet_name, task_text, f"↔️ Every {interval} Weeks", category)
+                                    add_task(d, pet_name, task_text, f"↔️ Every {interval} Weeks", category)
+                                    task_already_scheduled = True
                 else:
                     base_date = valid_dates[0]
                     for d in valid_dates:
                         if (d - base_date).days % (interval * 7) == 0:
-                            add_task(d.strftime('%A'), pet_name, task_text, f"↔️ Every {interval} Weeks", category)
+                            add_task(d, pet_name, task_text, f"↔️ Every {interval} Weeks", category)
+                            task_already_scheduled = True
                     warnings.append(
                         f"⚠️ '{label}' mentions every {interval} weeks but no weekday. Defaulted to {base_date.strftime('%A')}."
                     )
 
-            # Weekly
+            # 3. Weekly (mentions like Monday/Friday)
             if weekday_mentions and not interval:
                 for wd in weekday_mentions:
                     weekday_idx = weekday_to_int[wd]
                     for d in valid_dates:
                         if d.weekday() == weekday_idx:
-                            add_task(d.strftime('%A'), pet_name, task_text, emoji_tags["[Weekly]"], category)
+                            add_task(d, pet_name, task_text, emoji_tags["[Weekly]"], category)
+                            task_already_scheduled = True
 
-            # Monthly
+            # 4. Monthly
             if "monthly" in answer.lower():
                 base_date = pd.to_datetime(valid_dates[0])
                 current_date = base_date
                 while current_date.date() <= valid_dates[-1]:
                     if current_date.date() in valid_dates:
-                        add_task(current_date.strftime('%A'), pet_name, task_text, emoji_tags["[Monthly]"], category)
+                        add_task(current_date.date(), pet_name, task_text, emoji_tags["[Monthly]"], category)
+                        task_already_scheduled = True
                     current_date += pd.DateOffset(months=1)
                 warnings.append(
-                    f"⚠️ '{label}' mentions monthly frequency with no specific weekday. Scheduled starting {base_date.strftime('%Y-%m-%d')}."
+                    f"⚠️ '{label}' mentions monthly frequency with no specific weekday. Scheduled from {base_date.strftime('%Y-%m-%d')}."
                 )
 
-            # One-time
-            for ds in extract_dates(answer):
-                parsed_date = normalize_date(ds)
-                if parsed_date and parsed_date in valid_dates:
-                    add_task(parsed_date.strftime('%A'), pet_name, task_text, emoji_tags["[One-Time]"], category)
+            # 5. Fallback Daily
+            if (
+                not task_already_scheduled and
+                category != "Other" and
+                not interval and
+                not weekday_mentions and
+                "monthly" not in answer.lower()
+            ):
+                for d in valid_dates:
+                    add_task(d, pet_name, task_text, emoji_tags["[Daily]"], category)
 
     df = pd.DataFrame(schedule_rows)
-    df = df.sort_values(by=["Pet", "Day", "Category", "Tag", "Task"]).reset_index(drop=True)
+    df = df.sort_values(by=["Pet", "Date", "Day", "Category", "Tag", "Task"]).reset_index(drop=True)
     return df, warnings
 
 def get_pet_display_name(pet_dict):

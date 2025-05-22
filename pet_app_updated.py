@@ -12,6 +12,7 @@ import streamlit as st
 from mistralai import Mistral, UserMessage, SystemMessage
 import csv
 import io
+from io import BytesIO
 from datetime import datetime, timedelta, date
 from docx import Document
 from collections import defaultdict
@@ -271,29 +272,37 @@ def select_runbook_date_range():
 
 def generate_grouped_schedule_markdown(schedule_df):
     """
-    Generate markdown output grouped by pet with subtables for their schedule.
+    Generate markdown grouped by Pet → Date (with Day) → Tasks.
+
+    Args:
+        schedule_df (pd.DataFrame): Output from extract_pet_scheduled_tasks_grouped()
 
     Returns:
-        str: Markdown string suitable for prompt injection or preview
+        str: Markdown string ready for display or prompt use.
     """
-    import pandas as pd
-
     if schedule_df.empty:
         return "_No schedule data available._"
 
+    # Ensure proper sorting
+    schedule_df["Date"] = pd.to_datetime(schedule_df["Date"])
+    schedule_df = schedule_df.sort_values(by=["Pet", "Date", "Category", "Tag"])
+
     sections = []
+
     for pet, pet_group in schedule_df.groupby("Pet"):
-        pet_section = [f"#### 🐾 {pet}'s Schedule\n"]
-        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
-            day_group = pet_group[pet_group["Day"] == day]
-            if day_group.empty:
-                continue
-            day_section = f"**📆 {day}**\n"
-            table_md = day_group[["Task", "Tag", "Category"]].to_markdown(index=False)
-            pet_section.append(day_section)
+        pet_section = [f"### 🐾 {pet}'s Schedule\n"]
+
+        for date, date_group in pet_group.groupby("Date"):
+            day = date.strftime("%A")
+            date_str = date.strftime("%Y-%m-%d")
+            date_section = f"**📅 {day}, {date_str}**\n"
+            table_md = date_group[["Task", "Tag", "Category"]].to_markdown(index=False)
+            pet_section.append(date_section)
             pet_section.append(table_md)
             pet_section.append("")  # spacing
+
         sections.append("\n".join(pet_section))
+
     return "\n\n".join(sections)
 
 def generate_prompt_for_all_pets_combined(saved_data_by_species, metadata_by_species, start_date, end_date,schedule_markdown=None):
@@ -313,8 +322,8 @@ def generate_prompt_for_all_pets_combined(saved_data_by_species, metadata_by_spe
     """
     prompt_sections = []
 
-    all_saved_pets = []
-    all_questions = []
+    #all_saved_pets = []
+    #all_questions = []
 
     for species in ["dog", "cat"]:
         pets = saved_data_by_species.get(species, [])
@@ -322,30 +331,28 @@ def generate_prompt_for_all_pets_combined(saved_data_by_species, metadata_by_spe
             continue
 
         metadata = metadata_by_species[species]
-        all_saved_pets.extend(pets)
-        all_questions.extend(metadata)
-
+        #all_saved_pets.extend(pets)
+        #all_questions.extend(metadata)
         species_icon = "🐶" if species == "dog" else "🐱"
         species_label = "Dogs" if species == "dog" else "Cats"
 
         prompt_sections.append(f"# {species_icon} {species_label}")
 
         for i, pet in enumerate(pets, 1):
-            name = get_pet_display_name(pet)
+            name = get_pet_display_name(pet) or f"{species_label[:-1]} #{i}"
             pet_block = [f"## {species_icon} {name}"]
             categories = defaultdict(list)
 
             for question, answer in pet.items():
                 for q in metadata:
                     if q["label"] == question:
-                        cat = q.get("category", "Additional Notes")
-                        categories[cat].append(f"**{q['label']}**: {answer}")
+                        category = q.get("category", "Additional Notes")
+                        categories[category].append(f"**{q['label']}**: {answer}")
                         break
 
             for category, qa_list in categories.items():
                 pet_block.append(f"### {category}")
                 pet_block.extend(qa_list)
-                pet_block.append("")  # spacing
 
             prompt_sections.extend(pet_block)
 
@@ -370,7 +377,7 @@ You are an AI assistant tasked with generating a **comprehensive Multi-Pet Sitti
 ### 📦 Structured Pet Input:
 
 {prompt_body}
-"""
+""".strip()
 
     # Append schedule markdown if available
     if schedule_markdown:
@@ -378,7 +385,7 @@ You are an AI assistant tasked with generating a **comprehensive Multi-Pet Sitti
 
 ---
 
-### 📆 Weekly Pet Care Schedule (Day × Task Grid)
+### 📆 Weekly Pet Care Schedule (Grouped by Pet → Date)
 
 {schedule_markdown}
 """
@@ -387,6 +394,99 @@ You are an AI assistant tasked with generating a **comprehensive Multi-Pet Sitti
     final_prompt += "\n\nNow generate the full runbook grouped by species and pet."
 
     return final_prompt
+
+def add_schedule_to_docx(doc, schedule_df):
+    """
+    Adds grouped schedule tables to the DOCX: grouped by Pet → Date
+    """
+    if schedule_df.empty:
+        return
+
+    doc.add_page_break()
+    doc.add_heading("📆 Pet Care Schedule", level=1)
+
+    schedule_df["Date"] = pd.to_datetime(schedule_df["Date"])
+    schedule_df = schedule_df.sort_values(by=["Pet", "Date", "Category", "Tag"])
+
+    for pet, pet_group in schedule_df.groupby("Pet"):
+        doc.add_heading(f"🐾 {pet}", level=2)
+
+        for date, date_group in pet_group.groupby("Date"):
+            day = date.strftime("%A")
+            doc.add_heading(f"{day}, {date.strftime('%Y-%m-%d')}", level=3)
+
+            table = doc.add_table(rows=1, cols=3)
+            table.style = "Table Grid"
+            hdr_cells = table.rows[0].cells
+            hdr_cells[0].text = "Task"
+            hdr_cells[1].text = "Tag"
+            hdr_cells[2].text = "Category"
+
+            for _, row in date_group.iterrows():
+                cells = table.add_row().cells
+                cells[0].text = row["Task"]
+                cells[1].text = row["Tag"]
+                cells[2].text = row["Category"]
+
+            doc.add_paragraph("")  # spacing
+
+
+def generate_docx_from_prompt_with_schedule(prompt, api_key, schedule_df=None, doc_heading="Multi-Pet Sitting Runbook"):
+    """
+    Sends prompt to Mistral and generates a styled DOCX runbook.
+    Includes the care schedule as formatted tables.
+    Returns: (docx_buffer, runbook_text)
+    """
+    try:
+        client = Mistral(api_key=api_key)
+        completion = client.chat.complete(
+            model="mistral-small-latest",
+            messages=[UserMessage(role="user", content=prompt)],
+            temperature=0.5,
+            max_tokens=3000
+        )
+        runbook_text = completion.choices[0].message.content.strip()
+        # Optional: remove LLM-generated markdown schedule header
+        runbook_text = re.sub(r"(?i)^### 📆.*Schedule.*$", "", runbook_text, flags=re.MULTILINE).strip()
+
+    except Exception as e:
+        return None, f"❌ Error from Mistral API: {e}"
+
+    # --- Build DOCX ---
+    doc = Document()
+    doc.add_heading(doc_heading, level=0)
+
+    # Parse and format markdown-style content
+    for line in runbook_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        elif line.startswith("# "):
+            doc.add_page_break()
+            doc.add_heading(line[2:].strip(), level=1)
+        elif line.startswith("## "):
+            doc.add_heading(line[3:].strip(), level=2)
+        elif line.startswith("### "):
+            doc.add_heading(line[4:].strip(), level=3)
+        elif line.startswith("- ") or line.startswith("* "):
+            doc.add_paragraph(line[2:].strip(), style="List Bullet")
+        elif re.match(r"\d+\.\s", line):
+            doc.add_paragraph(line[line.find('.')+2:].strip(), style="List Number")
+        else:
+            para = doc.add_paragraph(line)
+            para.style.font.size = Pt(11)
+
+    # Add schedule tables if provided
+    if schedule_df is not None:
+        add_schedule_to_docx(doc, schedule_df)
+
+    # Save DOCX to buffer
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+
+    return buffer, runbook_text
+
 
 
 def generate_docx_from_prompt(prompt: str, api_key: str, doc_heading: str = "Pet Sitting Runbook") -> tuple[io.BytesIO, str]:
@@ -407,7 +507,7 @@ def generate_docx_from_prompt(prompt: str, api_key: str, doc_heading: str = "Pet
             completion = client.chat.complete(
                 model="mistral-small-latest",
                 messages=[SystemMessage(content=prompt)],
-                max_tokens=2000,
+                max_tokens=2048,
                 temperature=0.5,
                 )
             runbook_text = completion.choices[0].message.content
@@ -521,20 +621,22 @@ with tab3:
         )
 
         with st.expander("📋 Review AI Prompt", expanded=True):
-            st.code(prompt, language="markdown")
+            #st.code(prompt, language="markdown")
+            st.markdown(prompt)
 
             confirm = st.checkbox("✅ I confirm this AI prompt is correct and ready for generation.")
 
             if confirm and st.button("🚀 Generate Pet Sitting Runbook"):
-                docx_buffer, runbook_text = generate_docx_from_prompt(
+                docx_buffer, runbook_text = generate_docx_from_prompt_with_schedule(
                     prompt=prompt,
                     api_key=os.getenv("MISTRAL_TOKEN"),
+                    schedule_df=schedule_df,
                     doc_heading="Multi-Pet Sitting Runbook"
                 )
 
                 if docx_buffer:
                     st.subheader("📋 Runbook Preview")
-                    st.code(runbook_text, language="markdown")
+                    st.markdown(runbook_text)
                     st.download_button(
                         label="📄 Download Runbook (.docx)",
                         data=docx_buffer,
