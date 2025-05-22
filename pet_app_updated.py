@@ -5,7 +5,8 @@ from utils.utils_pet_helpers import (
     convert_to_csv,
     export_all_pets_to_docx,
     load_pet_for_edit,
-    extract_pet_scheduled_tasks
+    extract_pet_scheduled_tasks_with_intervals,
+    get_pet_display_name
 )
 import streamlit as st
 from mistralai import Mistral, UserMessage, SystemMessage
@@ -303,7 +304,7 @@ def generate_prompt_for_all_pets_combined(saved_data_by_species, metadata_by_spe
         prompt_sections.append(f"# {species_icon} {species_label}")
 
         for i, pet in enumerate(pets, 1):
-            name = pet.get("🐕 Pet Name", f"{species_label[:-1]} #{i}")
+            name = get_pet_display_name(pet)
             pet_block = [f"## {species_icon} {name}"]
             categories = defaultdict(list)
 
@@ -476,11 +477,14 @@ with tab3:
 
     else:
         # ✅ All checks passed — safe to build schedule and prompt
-        schedule_df = extract_pet_scheduled_tasks(
+        schedule_df, warnings = extract_pet_scheduled_tasks_with_intervals(
             questions=sum(metadata_by_species.values(), []),
             saved_pets=sum(saved_data_by_species.values(), []),
             valid_dates=valid_dates
         )
+        if warnings:
+            for note in warnings:
+                st.warning(note)
 
         prompt = generate_prompt_for_all_pets_combined(
             saved_data_by_species=saved_data_by_species,

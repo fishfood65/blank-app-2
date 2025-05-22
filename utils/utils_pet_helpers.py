@@ -45,6 +45,18 @@ def convert_to_csv(data_list):
     writer.writerows(data_list)
     return output.getvalue()
 
+def get_updated_exclusion_keywords():
+    return [
+        "contact", "phone", "email", "sitter", "walker",
+        "favorite", "toys", "play styles", "fear", "behavioral",
+        "socialization", "appearance", "trainer", "photo", "description",
+        "walking equipment", "walk behavior", "food brand/type your dog eats"
+    ]
+
+def should_exclude_label(label):
+    label_lower = label.lower()
+    return any(kw in label_lower for kw in get_updated_exclusion_keywords())
+
 def export_all_pets_to_docx(saved_pets, species, all_question_metadata):
     doc = Document()
     doc.add_heading(f"{species.capitalize()} Care Report", 0)
@@ -78,15 +90,16 @@ def load_pet_for_edit(index, state_prefix, questions):
     st.session_state[f"editing_index_{state_prefix}"] = index
     st.rerun()
 
-def extract_pet_scheduled_tasks(questions, saved_pets, valid_dates):
+def extract_pet_scheduled_tasks_with_intervals(questions, saved_pets, valid_dates):
     """
     Extracts pet care tasks based on valid_dates, labels, and user answers.
-    Returns a long-form DataFrame with Day, Pet, Task, Tag.
+    Supports daily, weekly, every X weeks, monthly, and one-time tasks.
+    Returns a long-form DataFrame and a list of warnings.
     """
-
     schedule_rows = []
+    warnings = []
+    added_tasks = set()  # Prevent duplicates
 
-    # Recurring task keyword categories
     recurring_keywords = {
         "feeding": ["feed", "feeding schedule", "food", "treats"],
         "medication": ["medication", "pill", "dose", "schedule"],
@@ -97,14 +110,25 @@ def extract_pet_scheduled_tasks(questions, saved_pets, valid_dates):
         "water": ["water", "bowl"]
     }
 
-    # One-time task keywords
     one_time_keywords = ["pill", "appointment", "check-up", "vaccination", "vet", "visit"]
+
+    emoji_tags = {
+        "[Daily]": "🔁 Daily",
+        "[Weekly]": "📅 Weekly",
+        "[One-Time]": "🗓️ One-Time",
+        "[X-Weeks]": "↔️ Every X Weeks",
+        "[Monthly]": "📆 Monthly"
+    }
+
+    weekday_to_int = {
+        "Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3,
+        "Friday": 4, "Saturday": 5, "Sunday": 6
+    }
 
     def label_matches(label, keywords):
         return any(kw in label.lower() for kw in keywords)
 
     def extract_dates(text):
-        # Extract natural language dates like "June 5", "6/5/24"
         patterns = [
             r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?",
             r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?"
@@ -115,8 +139,7 @@ def extract_pet_scheduled_tasks(questions, saved_pets, valid_dates):
         return matches
 
     def extract_weekday_mentions(text):
-        weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        return [day for day in weekdays if day.lower() in text.lower()]
+        return [day for day in weekday_to_int if day.lower() in text.lower()]
 
     def normalize_date(date_str):
         try:
@@ -124,56 +147,112 @@ def extract_pet_scheduled_tasks(questions, saved_pets, valid_dates):
         except:
             return None
 
-    emoji_tags = {
-        "[Daily]": "🔁 Daily",
-        "[Weekly]": "📅 Weekly",
-        "[One-Time]": "🗓️ One-Time",
-        "[Assumed-Daily]": "🔄 Assumed Daily"
-    }
+    def extract_week_interval(text):
+        match = re.search(r"every (\d+) week", text.lower())
+        if match:
+            return int(match.group(1))
+        if "biweekly" in text.lower():
+            return 2
+        return None
+
+    def extract_monthly_recurrence(text):
+        return (
+            "monthly" in text.lower() or
+            "every month" in text.lower() or
+            re.search(r"every \d+ month", text.lower())
+        )
+
+    def get_pet_display_name(pet_dict):
+        for k, v in pet_dict.items():
+            if "name" in k.lower() and isinstance(v, str) and v.strip():
+                return v.strip()
+        return "Unnamed Pet"
+
+    def add_task(day, pet, task, tag):
+        key = (day, pet, task)
+        if key not in added_tasks:
+            schedule_rows.append({"Day": day, "Pet": pet, "Task": task, "Tag": tag})
+            added_tasks.add(key)
 
     for pet in saved_pets:
-        pet_name = pet.get("🐕 Pet Name", "Unnamed Pet")
+        pet_name = get_pet_display_name(pet)
+
         for q in questions:
             label = q["label"]
             answer = pet.get(label, "").strip()
-            if not answer:
+            if not answer or should_exclude_label(label):
                 continue
 
-            base_task = f"{pet_name}: {label} – {answer}"
+            weekday_mentions = extract_weekday_mentions(answer)
+            interval = extract_week_interval(answer)
+            task_text = f"{label} – {answer}"
 
-            # 1. Daily (recurring tasks)
-            for keywords in recurring_keywords.values():
-                if label_matches(label, keywords):
-                    for date_obj in valid_dates:
-                        schedule_rows.append({
-                            "Day": date_obj.strftime('%A'),
-                            "Pet": pet_name,
-                            "Task": f"{label} – {answer}",
-                            "Tag": emoji_tags["[Daily]"]
-                        })
-                    break
+            # 1. Daily recurring ONLY if no interval or weekday explicitly mentioned
+            if (
+                any(label_matches(label, kws) for kws in recurring_keywords.values()) and
+                not extract_week_interval(answer) and
+                not extract_weekday_mentions(answer) and
+                not extract_monthly_recurrence(answer)
+            ):
+                for d in valid_dates:
+                    add_task(d.strftime('%A'), pet_name, task_text, emoji_tags["[Daily]"])
 
-            # 2. Weekly (mentions like "every Monday")
-            for weekday in extract_weekday_mentions(answer):
-                schedule_rows.append({
-                    "Day": weekday,
-                    "Pet": pet_name,
-                    "Task": f"{label} – {answer}",
-                    "Tag": emoji_tags["[Weekly]"]
-                })
+            # 2. Weekly (specific weekdays)
+            for wd in weekday_mentions:
+                weekday_int = weekday_to_int[wd]
+                for d in valid_dates:
+                    if d.weekday() == weekday_int:
+                        add_task(d.strftime('%A'), pet_name, task_text, emoji_tags["[Weekly]"])
 
-            # 3. One-Time tasks with explicit dates
+            # 3. Every X weeks
+            if interval:
+                if weekday_mentions:
+                    for wd in weekday_mentions:
+                        weekday_int = weekday_to_int[wd]
+                        matching_dates = [d for d in valid_dates if d.weekday() == weekday_int]
+                        if not matching_dates:
+                            continue
+                        base_date = matching_dates[0]
+                        for d in matching_dates:
+                            if (d - base_date).days % (interval * 7) == 0:
+                                add_task(d.strftime('%A'), pet_name, task_text, f"↔️ Every {interval} Weeks")
+                else:
+                    base_date = valid_dates[0]
+                    for d in valid_dates:
+                        if (d - base_date).days % (interval * 7) == 0:
+                            add_task(d.strftime('%A'), pet_name, task_text, f"↔️ Every {interval} Weeks")
+                    warnings.append(
+                        f"⚠️ '{label}' mentions every {interval} weeks but no weekday. Defaulted to {base_date.strftime('%A')}."
+                    )
+
+            # 4. Monthly
+            if extract_monthly_recurrence(answer) and not weekday_mentions:
+                base_date = pd.to_datetime(valid_dates[0])
+                current_date = base_date
+                while current_date.date() <= valid_dates[-1]:
+                    if current_date.date() in valid_dates:
+                        add_task(current_date.strftime('%A'), pet_name, task_text, emoji_tags["[Monthly]"])
+                    current_date += pd.DateOffset(months=1)
+                warnings.append(
+                    f"⚠️ '{label}' mentions monthly frequency with no weekday. Scheduled starting {base_date.strftime('%Y-%m-%d')} monthly."
+                )
+
+            # 5. One-time events
             if label_matches(label, one_time_keywords):
                 for ds in extract_dates(answer):
                     parsed_date = normalize_date(ds)
                     if parsed_date and parsed_date in valid_dates:
-                        schedule_rows.append({
-                            "Day": parsed_date.strftime('%A'),
-                            "Pet": pet_name,
-                            "Task": f"{label} – {answer}",
-                            "Tag": emoji_tags["[One-Time]"]
-                        })
+                        add_task(parsed_date.strftime('%A'), pet_name, task_text, emoji_tags["[One-Time]"])
 
     df = pd.DataFrame(schedule_rows)
     df = df.sort_values(by=["Day", "Tag", "Pet"]).reset_index(drop=True)
-    return df
+    return df, warnings
+
+def get_pet_display_name(pet_dict):
+    """Try to retrieve a pet's name from any key that looks like 'Name'."""
+    for k in pet_dict:
+        if "name" in k.lower():
+            val = pet_dict[k].strip()
+            if val:
+                return val
+    return "Unnamed Pet"

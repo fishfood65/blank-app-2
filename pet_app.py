@@ -647,12 +647,15 @@ if saved_data_by_species:
         st.warning("📅 Please select a care date range before generating the runbook.")
     else:
         # ✅ All checks passed — safe to build schedule
-        schedule_df = extract_pet_scheduled_tasks(
+        schedule_df, warnings = extract_pet_scheduled_tasks(
             questions=sum(metadata_by_species.values(), []),  # flatten metadata
             saved_pets=sum(saved_data_by_species.values(), []),  # flatten pets
-            start_date=st.session_state["start_date"],
-            end_date=st.session_state["end_date"]
+            valid_dates=valid_dates     
             )       
+        
+        if warnings:
+            for note in warnings:
+                st.warning(note)
 
     prompt = generate_prompt_for_all_pets_combined(
         saved_data_by_species=saved_data_by_species,
