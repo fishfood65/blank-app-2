@@ -249,8 +249,8 @@ def select_runbook_date_range():
             st.error("⚠️ Start date must be before end date.")
             return None, None, None, []
 
-        if (end_date - start_date).days > 180:
-            st.error("⚠️ The selected period must be no longer than 6 months.")
+        if (end_date - start_date).days > 31:
+            st.error("⚠️ The selected period must be no longer than 1 months.")
             return None, None, None, []
 
         refinement = st.radio("Filter days within selected range:", ["All Days", "Weekdays Only", "Weekend Only"], horizontal=True)
@@ -260,8 +260,8 @@ def select_runbook_date_range():
 
     elif choice == "General":
         start_date = today
-        end_date = today + timedelta(days=30)
-        st.info(f"📅 General 1-month schedule starting {start_date}")
+        end_date = today + timedelta(days=7)
+        st.info(f"📅 1-week schedule starting {start_date}")
         valid_dates = get_filtered_dates(start_date, end_date, "All Days")
 
     else:
