@@ -1,4 +1,4 @@
-from utils_pet_helpers import (
+from utils.utils_pet_helpers import (
     check_bingo,
     flatten_answers_to_dict,
     get_pet_name,
@@ -11,7 +11,7 @@ import streamlit as st
 from mistralai import Mistral, UserMessage, SystemMessage
 import csv
 import io
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from docx import Document
 from collections import defaultdict
 import json
@@ -25,129 +25,14 @@ from utils.data_access import (
 )
 api_key = os.getenv("MISTRAL_TOKEN")
 client = Mistral(api_key=api_key)
+
 if not api_key:
     api_key = st.text_input("Enter your Mistral API key:", type="password")
 if api_key:
     st.success("API key successfully loaded.")
 else:
    st.error("API key is not set.")
-def render_pet_tab(pet_type, questions, state_prefix):
-    st.header(f"{pet_type.capitalize()} Care Form")
 
-    st.session_state.setdefault(f'answers_{state_prefix}', [['' for _ in range(7)] for _ in range(7)])
-    st.session_state.setdefault(f'saved_{state_prefix}s', [])
-    st.session_state.setdefault(f'{state_prefix}_index', 1)
-    st.session_state.setdefault(f'editing_index_{state_prefix}', None)
-
-    answers = st.session_state[f'answers_{state_prefix}']
-    saved_pets = st.session_state[f'saved_{state_prefix}s']
-    editing_index = st.session_state[f'editing_index_{state_prefix}']
-    index = st.session_state[f'{state_prefix}_index']
-
-    st.subheader(f"{'✏️ Editing' if editing_index is not None else '🐾'} {pet_type.capitalize()} #{index}")
-
-    bingo_board = [questions[i:i + 7] for i in range(0, 49, 7)]
-
-    for row_index in range(7):
-        cols = st.columns(7)
-        for col_index in range(7):
-            question = bingo_board[row_index][col_index]
-            q_label = question['label']
-            current_value = answers[row_index][col_index]
-            with cols[col_index]:
-                with st.expander(q_label):
-                    new_value = st.text_area(
-                        "Answer Here",
-                        key=f"{state_prefix}_q{col_index}_{row_index}",
-                        value=current_value,
-                        placeholder="Enter your answer",
-                        label_visibility="collapsed"
-                    )
-                    answers[row_index][col_index] = new_value
-                    st.markdown("✔️ Answered" if new_value else "❓ Not Answered")
-
-    if check_bingo(answers):
-        st.success("🎉 Bingo complete!")
-
-        if st.button("💾 Save Entry", key=f"save_{state_prefix}"):
-            data = flatten_answers_to_dict(questions, answers)
-            if editing_index is not None:
-                st.session_state[f"saved_{state_prefix}s"][editing_index] = data
-                st.session_state[f"editing_index_{state_prefix}"] = None
-                st.success("✅ Entry updated!")
-            else:
-                st.session_state[f"saved_{state_prefix}s"].append(data)
-                st.session_state[f"{state_prefix}_index"] += 1
-                st.success("✅ New entry saved!")
-            st.session_state[f"answers_{state_prefix}"] = [['' for _ in range(7)] for _ in range(7)]
-            st.experimental_rerun()
-
-        pet_name = get_pet_name(answers)
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        filename = f"{pet_name}_{timestamp}.csv"
-        csv_data = convert_to_csv([flatten_answers_to_dict(questions, answers)])
-        st.download_button("⬇️ Download This Entry as CSV", csv_data, file_name=filename, mime="text/csv", key=f"dl_single_{state_prefix}")
-
-    if saved_pets:
-        st.markdown("### 📋 Saved Entries:")
-        for i, pet in enumerate(saved_pets):
-            name = pet.get("🐕 Pet Name", f"{pet_type.capitalize()} #{i+1}")
-            cols = st.columns([5, 1])
-            cols[0].markdown(f"**{i+1}. {name}**")
-            if cols[1].button("✏️ Edit", key=f"edit_{state_prefix}_{i}"):
-                load_pet_for_edit(i, state_prefix, questions)
-
-        all_csv = convert_to_csv(saved_pets)
-        st.download_button(f"⬇️ Download All {pet_type.capitalize()}s as CSV", all_csv, file_name=f"all_{pet_type}s.csv", mime="text/csv", key=f"dl_all_csv_{state_prefix}")
-        docx_buf = export_all_pets_to_docx(saved_pets, pet_type)
-        st.download_button(f"📄 Download All {pet_type.capitalize()}s as DOCX", docx_buf, file_name=f"all_{pet_type}s.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_all_docx_{state_prefix}")
-def select_runbook_date_range():
-    """
-    Display a section for the user to choose a date range or timeframe for runbook generation.
-
-    Returns:
-        tuple: (choice, start_date, end_date)
-            - choice: selected option from the radio
-            - start_date: calculated or selected start date
-            - end_date: calculated or selected end date
-    """
-    st.subheader("Choose Date(s) or Timeframe")
-    st.write("Choose a timeframe you would like a runbook generated for.")
-
-    options = ["Pick Dates", "Weekdays Only", "Weekend Only", "Default"]
-    choice = st.radio("Choose an option:", options)
-
-    start_date, end_date = None, None
-    today = datetime.now().date()
-
-    if choice == "Pick Dates":
-        start_date = st.date_input("Select Start Date:", today)
-        end_date = st.date_input("Select End Date:", today + timedelta(days=7))
-        st.write(f"📅 You selected specific dates from **{start_date}** to **{end_date}**.")
-
-    elif choice == "Weekdays Only":
-        # Find the next Monday
-        days_ahead = (0 - today.weekday() + 7) % 7  # 0 = Monday
-        start_date = today + timedelta(days=days_ahead)
-        end_date = start_date + timedelta(days=4)
-        st.info(f"📅 Auto-selected **Weekdays Only**: {start_date} to {end_date}")
-
-    elif choice == "Weekend Only":
-        # Find the next Saturday
-        days_ahead = (5 - today.weekday() + 7) % 7  # 5 = Saturday
-        start_date = today + timedelta(days=days_ahead)
-        end_date = start_date + timedelta(days=1)
-        st.info(f"📅 Auto-selected **Weekend Only**: {start_date} to {end_date}")
-
-    elif choice == "Default":
-        start_date = today
-        end_date = today + timedelta(days=7)
-        st.info(f"📅 Default schedule: {start_date} to {end_date}")
-
-    else:
-        st.warning("Invalid choice.")
-
-    return choice, start_date, end_date
 dog_questions = [
     {"id": "name", "label": "🐕 Dog's Name", "category": "Basic Info"},
     {"id": "vet_contact", "label": "🏥 Vet Contact Info (Name, Phone Number, Address)", "category": "Health"},
@@ -254,6 +139,135 @@ all_question_metadata = {
     "dog": dog_questions,
     "cat": cat_questions
 }
+
+# Ensure metadata is present in session state
+import copy
+st.session_state.setdefault("dog_questions", copy.deepcopy(dog_questions))
+st.session_state.setdefault("cat_questions", copy.deepcopy(cat_questions))
+
+def render_pet_tab(pet_type, questions, state_prefix):
+    st.header(f"{pet_type.capitalize()} Care Form")
+
+    st.session_state.setdefault(f'answers_{state_prefix}', [['' for _ in range(7)] for _ in range(7)])
+    st.session_state.setdefault(f'saved_{state_prefix}s', [])
+    st.session_state.setdefault(f'{state_prefix}_index', 1)
+    st.session_state.setdefault(f'editing_index_{state_prefix}', None)
+
+    answers = st.session_state[f'answers_{state_prefix}']
+    saved_pets = st.session_state[f'saved_{state_prefix}s']
+    editing_index = st.session_state[f'editing_index_{state_prefix}']
+    index = st.session_state[f'{state_prefix}_index']
+
+    st.subheader(f"{'✏️ Editing' if editing_index is not None else '🐾'} {pet_type.capitalize()} #{index}")
+
+    bingo_board = [questions[i:i + 7] for i in range(0, 49, 7)]
+
+    for row_index in range(7):
+        cols = st.columns(7)
+        for col_index in range(7):
+            question = bingo_board[row_index][col_index]
+            q_label = question['label']
+            current_value = answers[row_index][col_index]
+            with cols[col_index]:
+                with st.expander(q_label):
+                    new_value = st.text_area(
+                        "Answer Here",
+                        key=f"{state_prefix}_q{col_index}_{row_index}",
+                        value=current_value,
+                        placeholder="Enter your answer",
+                        label_visibility="collapsed"
+                    )
+                    answers[row_index][col_index] = new_value
+                    st.markdown("✔️ Answered" if new_value else "❓ Not Answered")
+
+    if check_bingo(answers):
+        st.success("🎉 Bingo complete!")
+
+        if st.button("💾 Save Entry", key=f"save_{state_prefix}"):
+            data = flatten_answers_to_dict(questions, answers)
+            if editing_index is not None:
+                st.session_state[f"saved_{state_prefix}s"][editing_index] = data
+                st.session_state[f"editing_index_{state_prefix}"] = None
+                st.success("✅ Entry updated!")
+            else:
+                st.session_state[f"saved_{state_prefix}s"].append(data)
+                st.session_state[f"{state_prefix}_index"] += 1
+                st.success("✅ New entry saved!")
+            st.session_state[f"answers_{state_prefix}"] = [['' for _ in range(7)] for _ in range(7)]
+            st.rerun()
+
+        pet_name = get_pet_name(answers)
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        filename = f"{pet_name}_{timestamp}.csv"
+        csv_data = convert_to_csv([flatten_answers_to_dict(questions, answers)])
+        st.download_button("⬇️ Download This Entry as CSV", csv_data, file_name=filename, mime="text/csv", key=f"dl_single_{state_prefix}")
+
+    if saved_pets:
+        st.markdown("### 📋 Saved Entries:")
+        for i, pet in enumerate(saved_pets):
+            name = pet.get("🐕 Pet Name", f"{pet_type.capitalize()} #{i+1}")
+            cols = st.columns([5, 1])
+            cols[0].markdown(f"**{i+1}. {name}**")
+            if cols[1].button("✏️ Edit", key=f"edit_{state_prefix}_{i}"):
+                load_pet_for_edit(i, state_prefix, questions)
+
+        all_csv = convert_to_csv(saved_pets)
+        st.download_button(f"⬇️ Download All {pet_type.capitalize()}s as CSV", all_csv, file_name=f"all_{pet_type}s.csv", mime="text/csv", key=f"dl_all_csv_{state_prefix}")
+        docx_buf = export_all_pets_to_docx(saved_pets, pet_type, all_question_metadata)
+        st.download_button(f"📄 Download All {pet_type.capitalize()}s as DOCX", docx_buf, file_name=f"all_{pet_type}s.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_all_docx_{state_prefix}")
+
+def daterange(start, end):
+    for n in range((end - start).days + 1):
+        yield start + timedelta(n)
+
+def get_filtered_dates(start_date, end_date, refinement):
+    if refinement == "Weekdays Only":
+        return [d for d in daterange(start_date, end_date) if d.weekday() < 5]
+    elif refinement == "Weekend Only":
+        return [d for d in daterange(start_date, end_date) if d.weekday() >= 5]
+    else:  # All Days
+        return list(daterange(start_date, end_date))
+
+def select_runbook_date_range():
+    st.subheader("📅 Choose Date(s) or Timeframe")
+    st.write("Choose a timeframe you would like a runbook generated for.")
+
+    options = ["Pick Dates", "General"]
+    choice = st.radio("Choose an option:", options)
+
+    start_date, end_date = None, None
+    valid_dates = []
+    today = datetime.now().date()
+
+    if choice == "Pick Dates":
+        start_date = st.date_input("Select Start Date:", today, key="start_date_input")
+        end_date = st.date_input("Select End Date:", today + timedelta(days=7), key="end_date_input")
+
+        if start_date >= end_date:
+            st.error("⚠️ Start date must be before end date.")
+            return None, None, None, []
+
+        if (end_date - start_date).days > 180:
+            st.error("⚠️ The selected period must be no longer than 6 months.")
+            return None, None, None, []
+
+        refinement = st.radio("Filter days within selected range:", ["All Days", "Weekdays Only", "Weekend Only"], horizontal=True)
+        st.info(f"📅 Using dates from **{start_date}** to **{end_date}** ({refinement})")
+        valid_dates = get_filtered_dates(start_date, end_date, refinement)
+        choice = f"Pick Dates ({refinement})"
+
+    elif choice == "General":
+        start_date = today
+        end_date = today + timedelta(days=30)
+        st.info(f"📅 General 1-month schedule starting {start_date}")
+        valid_dates = get_filtered_dates(start_date, end_date, "All Days")
+
+    else:
+        st.warning("⚠️ Invalid choice selected.")
+        return None, None, None, []
+
+    return choice, start_date, end_date, valid_dates
+
 def generate_prompt_for_all_pets_combined(saved_data_by_species, metadata_by_species, start_date, end_date,schedule_markdown=None):
     """
     Generate a multi-pet, multi-species AI prompt, grouped by species and pet,
@@ -345,6 +359,8 @@ You are an AI assistant tasked with generating a **comprehensive Multi-Pet Sitti
     final_prompt += "\n\nNow generate the full runbook grouped by species and pet."
 
     return final_prompt
+
+
 def generate_docx_from_prompt(prompt: str, api_key: str, doc_heading: str = "Pet Sitting Runbook") -> tuple[io.BytesIO, str]:
     """
     Generate a styled DOCX runbook from a full prompt string using the Mistral API.
@@ -362,13 +378,10 @@ def generate_docx_from_prompt(prompt: str, api_key: str, doc_heading: str = "Pet
             client = Mistral(api_key=api_key)
             completion = client.chat.complete(
                 model="mistral-small-latest",
-                messages=[
-                    ChatMessage(role=Role.SYSTEM, content="You are a helpful assistant that formats pet sitting instructions into clear, organized prose."),
-                    ChatMessage(role=Role.USER, content=prompt)
-                ],
-                max_tokens=3000,
+                messages=[SystemMessage(content=prompt)],
+                max_tokens=2000,
                 temperature=0.5,
-            )
+                )
             runbook_text = completion.choices[0].message.content
     except Exception as e:
         st.error(f"Mistral API error: {e}")
@@ -400,6 +413,7 @@ def generate_docx_from_prompt(prompt: str, api_key: str, doc_heading: str = "Pet
     doc.save(buffer)
     buffer.seek(0)
     return buffer, runbook_text
+
 st.title("🐾 Pet Care Bingo Game")
 with st.expander("📖 How to Use This Game", expanded=False):
     st.markdown("""
@@ -413,7 +427,7 @@ with st.expander("📖 How to Use This Game", expanded=False):
 
     Tip: Use this app to prepare pet care docs for sitters, walkers, or emergency planning!
     """)
-tab1, tab2, tab3 = st.tabs(["🐶 Dogs", "🐱 Cats", "Preview"])
+tab1, tab2, tab3 = st.tabs(["🐶 Dogs", "🐱 Cats", "Runbook Generator"])
 with tab1:
     render_pet_tab("dog", dog_questions, "dog")
 with tab2:
@@ -421,21 +435,28 @@ with tab2:
 with tab3:
     st.header("An owl")
     st.image("https://static.streamlit.io/examples/owl.jpg", width=200)
-choice, start_date, end_date = select_runbook_date_range()
-saved_data_by_species = get_saved_pets_by_species()
-metadata_by_species = {
-    species: st.session_state.get(f"{species}_questions", [])
-    for species in saved_data_by_species.keys()
-}
-for species in ["dog", "cat"]:
-    saved_key = f"saved_{species}s"
-    question_key = f"{species}_questions"
+    choice, start_date, end_date, valid_dates = select_runbook_date_range()
 
-    if saved_key in st.session_state and st.session_state[saved_key]:
-        saved_data_by_species[species] = st.session_state[saved_key]
-        metadata_by_species[species] = st.session_state[question_key]
-if saved_data_by_species:
-    st.markdown("## 🧠 Generate Combined Multi-Pet Runbook")
+    if start_date and end_date:
+        st.session_state["start_date"] = start_date
+        st.session_state["end_date"] = end_date
+        st.session_state["valid_dates"] = valid_dates
+
+    saved_data_by_species = get_saved_pets_by_species()
+    metadata_by_species = {
+        species: st.session_state.get(f"{species}_questions", [])
+        for species in saved_data_by_species.keys()
+        }
+    for species in ["dog", "cat"]:
+        saved_key = f"saved_{species}s"
+        question_key = f"{species}_questions"
+
+        if saved_key in st.session_state and st.session_state[saved_key]:
+            saved_data_by_species[species] = st.session_state[saved_key]
+            metadata_by_species[species] = st.session_state.get(question_key, [])
+
+    if saved_data_by_species:
+        st.markdown("## 🧠 Generate Combined Multi-Pet Runbook")
 
     # ✅ Step 3: Sanity Check Before Scheduling or Prompting
     required_keys = ["dog_questions", "cat_questions", "saved_dogs", "saved_cats"]
@@ -443,49 +464,52 @@ if saved_data_by_species:
 
     if missing_keys:
         st.error(f"⚠️ Missing session keys: {', '.join(missing_keys)}. Please complete all forms before generating the runbook.")
+
     elif not st.session_state["saved_dogs"] and not st.session_state["saved_cats"]:
         st.warning("🐾 No pets have been saved yet. Please fill out at least one form.")
+
     elif "start_date" not in st.session_state or "end_date" not in st.session_state:
         st.warning("📅 Please select a care date range before generating the runbook.")
-    else:
-        # ✅ All checks passed — safe to build schedule
-        schedule_df = extract_pet_scheduled_tasks(
-            questions=sum(metadata_by_species.values(), []),  # flatten metadata
-            saved_pets=sum(saved_data_by_species.values(), []),  # flatten pets
-            start_date=st.session_state["start_date"],
-            end_date=st.session_state["end_date"]
-            )       
 
-    prompt = generate_prompt_for_all_pets_combined(
-        saved_data_by_species=saved_data_by_species,
-        metadata_by_species=metadata_by_species,
-        start_date=start_date,
-        end_date=end_date,
-        schedule_markdown=schedule_df.to_markdown(index=False)
+    elif not valid_dates:
+        st.warning("📅 No valid dates available from your date selection.")
+
+    else:
+        # ✅ All checks passed — safe to build schedule and prompt
+        schedule_df = extract_pet_scheduled_tasks(
+            questions=sum(metadata_by_species.values(), []),
+            saved_pets=sum(saved_data_by_species.values(), []),
+            valid_dates=valid_dates
         )
 
-    with st.expander("📋 Review AI Prompt", expanded=True):
-        st.code(prompt, language="markdown")
+        prompt = generate_prompt_for_all_pets_combined(
+            saved_data_by_species=saved_data_by_species,
+            metadata_by_species=metadata_by_species,
+            start_date=start_date,
+            end_date=end_date,
+            schedule_markdown=schedule_df.to_markdown(index=False)
+        )
 
-    # Ask user to confirm prompt
-    confirm = st.checkbox("✅ I confirm this AI prompt is correct and ready for generation.")
+        with st.expander("📋 Review AI Prompt", expanded=True):
+            st.code(prompt, language="markdown")
 
-    if confirm:
-        if st.button("🚀 Generate Pet Sitting Runbook"):
-            docx_buffer, runbook_text = generate_docx_from_prompt(
-                prompt=prompt,
-                api_key=os.getenv("MISTRAL_TOKEN"),
-                doc_heading="Multi-Pet Sitting Runbook"  # ✅ added missing comma
-            )
+            confirm = st.checkbox("✅ I confirm this AI prompt is correct and ready for generation.")
 
-            if docx_buffer:
-                st.subheader("📋 Runbook Preview")
-                st.code(runbook_text, language="markdown")
-                st.download_button(
-                    label="📄 Download Runbook (.docx)",
-                    data=docx_buffer,
-                    file_name="multi_pet_runbook.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            if confirm and st.button("🚀 Generate Pet Sitting Runbook"):
+                docx_buffer, runbook_text = generate_docx_from_prompt(
+                    prompt=prompt,
+                    api_key=os.getenv("MISTRAL_TOKEN"),
+                    doc_heading="Multi-Pet Sitting Runbook"
                 )
-else:
-    st.info("🪄 Fill out at least one dog or cat form to enable combined runbook generation.")
+
+                if docx_buffer:
+                    st.subheader("📋 Runbook Preview")
+                    st.code(runbook_text, language="markdown")
+                    st.download_button(
+                        label="📄 Download Runbook (.docx)",
+                        data=docx_buffer,
+                        file_name="multi_pet_runbook.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
+                else:
+                    st.error("❌ Runbook generation failed. Please try again.")

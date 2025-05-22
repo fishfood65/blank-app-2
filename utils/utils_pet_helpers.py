@@ -45,7 +45,7 @@ def convert_to_csv(data_list):
     writer.writerows(data_list)
     return output.getvalue()
 
-def export_all_pets_to_docx(saved_pets, species):
+def export_all_pets_to_docx(saved_pets, species, all_question_metadata):
     doc = Document()
     doc.add_heading(f"{species.capitalize()} Care Report", 0)
     for i, pet in enumerate(saved_pets, 1):
@@ -76,13 +76,14 @@ def load_pet_for_edit(index, state_prefix, questions):
         new_answers[row][col] = selected.get(label, "")
     st.session_state[f"answers_{state_prefix}"] = new_answers
     st.session_state[f"editing_index_{state_prefix}"] = index
-    st.experimental_rerun()
+    st.rerun()
 
-def extract_pet_scheduled_tasks(questions, saved_pets, start_date, end_date):
+def extract_pet_scheduled_tasks(questions, saved_pets, valid_dates):
     """
-    Extracts daily, weekly, and one-time pet care tasks.
+    Extracts pet care tasks based on valid_dates, labels, and user answers.
     Returns a long-form DataFrame with Day, Pet, Task, Tag.
     """
+
     schedule_rows = []
 
     # Recurring task keyword categories
@@ -96,14 +97,14 @@ def extract_pet_scheduled_tasks(questions, saved_pets, start_date, end_date):
         "water": ["water", "bowl"]
     }
 
-    # Keywords to flag one-time events with dates
+    # One-time task keywords
     one_time_keywords = ["pill", "appointment", "check-up", "vaccination", "vet", "visit"]
 
     def label_matches(label, keywords):
         return any(kw in label.lower() for kw in keywords)
 
     def extract_dates(text):
-        # Parse dates like "June 5", "6/5/24", etc.
+        # Extract natural language dates like "June 5", "6/5/24"
         patterns = [
             r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?",
             r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?"
@@ -140,21 +141,19 @@ def extract_pet_scheduled_tasks(questions, saved_pets, start_date, end_date):
 
             base_task = f"{pet_name}: {label} – {answer}"
 
-            # 1. Daily (recurring)
+            # 1. Daily (recurring tasks)
             for keywords in recurring_keywords.values():
                 if label_matches(label, keywords):
-                    current_date = start_date
-                    while current_date <= end_date:
+                    for date_obj in valid_dates:
                         schedule_rows.append({
-                            "Day": current_date.strftime('%A'),
+                            "Day": date_obj.strftime('%A'),
                             "Pet": pet_name,
                             "Task": f"{label} – {answer}",
                             "Tag": emoji_tags["[Daily]"]
                         })
-                        current_date += timedelta(days=1)
                     break
 
-            # 2. Weekly (e.g., "every Monday")
+            # 2. Weekly (mentions like "every Monday")
             for weekday in extract_weekday_mentions(answer):
                 schedule_rows.append({
                     "Day": weekday,
@@ -163,11 +162,11 @@ def extract_pet_scheduled_tasks(questions, saved_pets, start_date, end_date):
                     "Tag": emoji_tags["[Weekly]"]
                 })
 
-            # 3. One-Time (e.g., "pill on June 5")
+            # 3. One-Time tasks with explicit dates
             if label_matches(label, one_time_keywords):
                 for ds in extract_dates(answer):
                     parsed_date = normalize_date(ds)
-                    if parsed_date and start_date <= parsed_date <= end_date:
+                    if parsed_date and parsed_date in valid_dates:
                         schedule_rows.append({
                             "Day": parsed_date.strftime('%A'),
                             "Pet": pet_name,
