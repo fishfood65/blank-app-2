@@ -5,7 +5,7 @@ from utils.utils_pet_helpers import (
     convert_to_csv,
     export_all_pets_to_docx,
     load_pet_for_edit,
-    extract_pet_scheduled_tasks_with_intervals,
+    extract_pet_scheduled_tasks_grouped,
     get_pet_display_name
 )
 import streamlit as st
@@ -477,14 +477,13 @@ with tab3:
 
     else:
         # ✅ All checks passed — safe to build schedule and prompt
-        schedule_df, warnings = extract_pet_scheduled_tasks_with_intervals(
+        schedule_df, schedule_warnings = extract_pet_scheduled_tasks_grouped(
             questions=sum(metadata_by_species.values(), []),
             saved_pets=sum(saved_data_by_species.values(), []),
             valid_dates=valid_dates
         )
-        if warnings:
-            for note in warnings:
-                st.warning(note)
+        for w in schedule_warnings:
+            st.warning(w)
 
         prompt = generate_prompt_for_all_pets_combined(
             saved_data_by_species=saved_data_by_species,
