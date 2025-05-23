@@ -1,4 +1,3 @@
-
 import streamlit as st
 import json
 import csv
@@ -13,6 +12,18 @@ def init_section(section_name):
     if section_name not in st.session_state["input_data"]:
         st.session_state["input_data"][section_name] = []
 
+def log_interaction(action_type, label, value, section_name):
+    """Log a user interaction for troubleshooting or auditing."""
+    if "interaction_log" not in st.session_state:
+        st.session_state["interaction_log"] = []
+    st.session_state["interaction_log"].append({
+        "timestamp": datetime.now().isoformat(),
+        "action": action_type,
+        "question": label,
+        "answer": value,
+        "section": section_name
+    })
+
 def capture_input(label, input_fn, section_name, *args, **kwargs):
     """Displays input using input_fn and stores label, value, timestamp under a section."""
     init_section(section_name)
@@ -23,6 +34,7 @@ def capture_input(label, input_fn, section_name, *args, **kwargs):
         "timestamp": datetime.now().isoformat()
     }
     st.session_state["input_data"][section_name].append(entry)
+    log_interaction("input", label, value, section_name)
     autosave_input_data()
     return value
 
@@ -37,12 +49,20 @@ def preview_input_data():
         for item in entries:
             st.markdown(f"- **{item['question']}**: {item['answer']} _(at {item['timestamp']})_")
 
+def preview_interaction_log():
+    """Display a log of all user interactions."""
+    if "interaction_log" not in st.session_state or not st.session_state["interaction_log"]:
+        st.info("No interactions logged yet.")
+        return
+    st.markdown("### 🧾 Interaction History")
+    for log in st.session_state["interaction_log"]:
+        st.markdown(f"- [{log['timestamp']}] {log['action'].capitalize()} — **{log['question']}** → `{log['answer']}` _(Section: {log['section']})_")
+
 def autosave_input_data():
     """Automatically save data to session file (local or cloud placeholder)."""
     if "input_data" in st.session_state:
         st.session_state["autosaved_json"] = json.dumps(st.session_state["input_data"], indent=2)
-        # Placeholder: save to cloud (e.g., S3, Firebase)
-        # save_to_cloud(st.session_state["autosaved_json"])
+        # Placeholder: save_to_cloud(st.session_state["autosaved_json"])
 
 def export_input_data_as_json(file_name="input_data.json"):
     """Export the collected input data as JSON."""
