@@ -545,15 +545,17 @@ def generate_docx_from_prompt(prompt: str, api_key: str, doc_heading: str = "Pet
 st.title("🐾 Pet Care Bingo Game")
 with st.expander("📖 How to Use This Game", expanded=False):
     st.markdown("""
-    Use this form to collect detailed care information for your dogs and cats.
-
+    Use this game to collect detailed care information for your dogs and cats.  
+    
+    💡**Tip:** Use this app to prepare pet care docs for sitters, walkers, or emergency planning!     
+                 
     ### How It Works:
     - Fill out the bingo grid for one pet.
     - When you complete a row/column/diagonal, you can save and export the info.
     - Switch between tabs to manage dogs and cats separately.
     - You can edit saved entries, and download all data as CSV or DOCX.
+    - Finally, click the last tab `Runbook Generator` to create a personalized runbook with your saved details.
 
-    Tip: Use this app to prepare pet care docs for sitters, walkers, or emergency planning!
     """)
 tab1, tab2, tab3 = st.tabs(["🐶 Dogs", "🐱 Cats", "Runbook Generator"])
 with tab1:
