@@ -51,6 +51,17 @@ def capture_input(label, input_fn, section_name, *args, **kwargs):
     autosave_input_data()
     return value
 
+def flatten_answers_to_dict(questions, answers):
+    """
+    Converts a flat list of questions and answers into a dictionary,
+    filtering out empty answers.
+    """
+    return {
+        question: answer
+        for question, answer in zip(questions, answers)
+        if str(answer).strip()
+    }
+
 def preview_input_data():
     """Display a summary of all collected input data."""
     if "input_data" not in st.session_state or not st.session_state["input_data"]:
