@@ -16,6 +16,16 @@ import uuid
 import json
 #from bs4 import BeautifulSoup
 
+# --- Level name mappings for display ---
+LEVEL_LABELS = {
+    "home": "Level 1 - 🏠 Home Basics",
+    "mail_trash_handling": "Level 3 - 📬 Mail & Trash Setup",
+    "emergency_kit": "Level 2 - 🧰 Emergency Preparedness",
+    "emergency_kit_critical_documents": "🚨 Level 5 - Vital Records Kit",
+    "bonus_level": "✨ Bonus Level",
+    "home_security": "Level 4 - 🔐 Home Security and Services",
+}
+
 st.write("# Welcome to Home Hero Academy! 👋")
 
 st.markdown(
@@ -96,20 +106,22 @@ def save_progress(progress):
 
 def main():
 
-    # Initialize progress tracking if not present
+# Initialize or retrieve level progress tracking
+# "level_progress" is set for Level 1 - 5
+# See LEVEL_LABELS, at the top, for definition of each Level
+# This tracks whether each key section of the app has been completed
+# Used by check_home_progress() to calculate total progress
+
     if "level_progress" not in st.session_state:
-        st.session_state["level_progress"] = {
-            "home": False,
-            "mail_trash_handling": False,
-            "emergency_kit": False,
-            "bonus_level": False,
-            "home_security": False,
-        }
+        st.session_state["level_progress"] = {key: False for key in LEVEL_LABELS}
 
     # Show progress
     percent_complete, completed_levels = check_home_progress(st.session_state["level_progress"])
-    st.info(f"🏁 Progress: {percent_complete}% complete")
-    st.markdown(f"✅ Completed Levels: {', '.join(completed_levels) if completed_levels else 'None'}")
+
+    friendly_labels = [LEVEL_LABELS.get(level, level) for level in completed_levels]
+    st.progress(percent_complete)
+    st.markdown(f"🏁 **{percent_complete}% complete**")
+    st.markdown(f"✅ Completed Levels: {', '.join(friendly_labels) if friendly_labels else 'None'}")
     
     download_session_state_as_csv()
     
@@ -128,20 +140,6 @@ def main():
         index=levels.index(st.session_state.section),
         key="sidebar_level_radio"
     )
-
-    # Progress indicators…
-    st.markdown("#### 🧭 Progress")
-    completed = sum(
-        1 for i in range(1, 6)
-        if st.session_state.progress.get(f"level_{i}_completed", False)
-    )
-    total_levels = 5
-    percent_complete = int(completed / total_levels * 100)
-
-    st.progress(percent_complete)
-
-    # (Optional) show numeric fraction
-    st.write(f"{completed} of {total_levels} levels completed ({percent_complete}%)")
 
     # Enforce Level 1 lock
     if selected != "Level 1" and not st.session_state.progress.get("level_1_completed", False):
@@ -1112,8 +1110,9 @@ def home():
     else:
         st.session_state["generated_prompt"] = None
 
-    st.session_state.progress["level_1_completed"] = True
-    save_progress(st.session_state.progress)
+  # Mark this level as completed in the shared progress tracker
+    st.session_state["level_progress"]["home"] = True
+
 
 
 # Show prompt in expander
