@@ -1,5 +1,5 @@
 from utils.utils_home_helpers import check_home_progress
-from utils.input_tracker import capture_input, flatten_answers_to_dict
+from utils.input_tracker import capture_input, flatten_answers_to_dict, get_answer, extract_and_log_providers
 import streamlit as st
 import re
 from mistralai import Mistral, UserMessage, SystemMessage
@@ -484,8 +484,8 @@ def query_utility_providers():
     Queries Mistral AI for public utility providers based on city and ZIP code 
     stored in st.session_state. Stores and returns results in session state.
     """
-    city = st.session_state.get("city", "").strip()
-    zip_code = st.session_state.get("zip_code", "").strip()
+    city = get_answer("City", "Home Basics")
+    zip_code = get_answer("ZIP Code", "Home Basics")
 
     if not city or not zip_code:
         st.warning("City and ZIP code must be provided in session state.")
@@ -522,23 +522,8 @@ Water Provider: <company name>
         st.error(f"Error querying Mistral API: {str(e)}")
         content = ""
 
-    def extract(label):
-        match = re.search(rf"{label} Provider:\s*(.+)", content)
-        return match.group(1).strip() if match else "Not found"
-
-    electricity = extract("Electricity")
-    natural_gas = extract("Natural Gas")
-    water = extract("Water")
-
-    st.session_state["electricity_provider"] = electricity
-    st.session_state["natural_gas_provider"] = natural_gas
-    st.session_state["water_provider"] = water
-
-    return {
-        "electricity": electricity,
-        "natural_gas": natural_gas,
-        "water": water
-    }
+    result = extract_and_log_providers(content)
+    return result
 
 def utilities_emergency_runbook_prompt(
             city=st.session_state.get("city", ""),
@@ -1077,9 +1062,14 @@ def home():
     st.write("Let's gather some information. Please enter your details:")
 
     # Input fields
-    st.session_state.city = st.text_input("City", value=st.session_state.get("city", ""))
-    st.session_state.zip_code = st.text_input("ZIP Code", value=st.session_state.get("zip_code", ""))
-    st.session_state.internet_provider = st.text_input("Internet Provider", value=st.session_state.get("internet_provider", ""))
+    city = capture_input("City", st.text_input, "Home Basics")
+    zip_code = capture_input("ZIP Code", st.text_input, "Home Basics")
+    internet_provider = capture_input("Internet Provider", st.text_input, "Home Basics")
+    
+    # Optional: maintain old session variables for compatibility
+    st.session_state.city = city  
+    st.session_state.zip_code = zip_code
+    st.session_state.internet_provider = internet_provider
 
     # Step 1: Fetch utility providers
     if st.button("Find My Utility Providers"):

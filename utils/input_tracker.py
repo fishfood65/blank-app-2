@@ -7,6 +7,7 @@ from docx import Document
 import pandas as pd
 import plotly.express as px
 from uuid import uuid4
+import re
 
 def get_or_create_session_id():
     """Assigns a persistent unique ID per session"""
@@ -50,6 +51,21 @@ def capture_input(label, input_fn, section_name, *args, **kwargs):
     log_interaction("input", label, value, section_name)
     autosave_input_data()
     return value
+
+def get_answer(question_label, section=None):
+    """
+    Retrieve an answer by its question label.
+    If section is specified, searches only within that section.
+    """
+    data = st.session_state.get("input_data", {})
+    
+    sections = [section] if section else data.keys()
+
+    for sec in sections:
+        for item in data.get(sec, []):
+            if item["question"] == question_label:
+                return item["answer"]
+    return None
 
 def flatten_answers_to_dict(questions, answers):
     """
@@ -133,6 +149,96 @@ def export_input_data_as_docx(file_name="input_data.docx"):
             file_name=file_name,
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
+
+def interaction_dashboard():
+    if "interaction_log" not in st.session_state or not st.session_state["interaction_log"]:
+        st.info("No interaction data to visualize.")
+        return
+
+    df = pd.DataFrame(st.session_state["interaction_log"])
+    st.markdown("### 📊 Interaction Dashboard")
+
+    section_filter = st.selectbox("Filter by section", options=["All"] + sorted(df["section"].unique().tolist()))
+    if section_filter != "All":
+        df = df[df["section"] == section_filter]
+
+    st.dataframe(df)
+
+    st.markdown("#### 🔄 Inputs per Section")
+    fig = px.histogram(df, x="section", color="action", barmode="group")
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("#### ⏱ Interaction Timeline")
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    timeline = px.scatter(df, x="timestamp", y="section", color="user_id", hover_data=["question", "answer"])
+    st.plotly_chart(timeline, use_container_width=True)
+
+
+
+def log_provider_result(label, value, section="Utility Providers"):
+    """
+    Logs a single provider result into input_data, with basic validation.
+    - Skips empty, 'not found', or 'n/a' values
+    - Raises an error for invalid labels
+    """
+    if not label or not isinstance(label, str):
+        raise ValueError("Provider label must be a non-empty string.")
+
+    if not isinstance(value, str) or value.strip().lower() in ["", "not found", "n/a"]:
+        return  # Skip logging invalid or placeholder values
+
+    if "input_data" not in st.session_state:
+        st.session_state["input_data"] = {}
+    if section not in st.session_state["input_data"]:
+        st.session_state["input_data"][section] = []
+
+    st.session_state["input_data"][section].append({
+        "question": f"{label} Provider",
+        "answer": value,
+        "timestamp": datetime.now().isoformat()
+    })
+
+    if "interaction_log" not in st.session_state:
+        st.session_state["interaction_log"] = []
+    session_id = st.session_state.get("session_id", "anonymous")
+    user_id = st.session_state.get("user_id", "anonymous")
+
+    st.session_state["interaction_log"].append({
+        "timestamp": datetime.now().isoformat(),
+        "user_id": user_id,
+        "session_id": session_id,
+        "action": "autolog",
+        "question": f"{label} Provider",
+        "answer": value,
+        "section": section
+    })
+
+
+def extract_and_log_providers(content):
+    """Extracts Electricity, Natural Gas, and Water providers from content and logs them."""
+
+    def extract(label):
+        match = re.search(rf"{label} Provider:\s*(.+)", content)
+        return match.group(1).strip() if match else "Not found"
+
+    electricity = extract("Electricity")
+    natural_gas = extract("Natural Gas")
+    water = extract("Water")
+
+    log_provider_result("Electricity", electricity)
+    log_provider_result("Natural Gas", natural_gas)
+    log_provider_result("Water", water)
+
+    # Optionally store in session directly
+    st.session_state["electricity_provider"] = electricity
+    st.session_state["natural_gas_provider"] = natural_gas
+    st.session_state["water_provider"] = water
+
+    return {
+        "electricity": electricity,
+        "natural_gas": natural_gas,
+        "water": water
+    }
 
 # Placeholder for future enhancement: Cloud saving logic
 # def save_to_cloud(json_data):
