@@ -53,3 +53,4 @@ html2docx
 transformers
 PyPDF2
 FPDF
+tabulate
