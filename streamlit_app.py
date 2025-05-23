@@ -5,9 +5,9 @@ import streamlit as st
 # ------------------------------------------------------------------
 pages = [
     st.Page("starting_page.py",        title="Main",         icon="📍"),
-    st.Page("Dog_Bingo_Game.py", title="Dog Game",  icon="🐶"),
-    st.Page("Cat_Bingo_Game.py",     title="Cat Game",      icon="🐱"),
-    st.Page("Pet_Guide_Generator.py",     title="Pet Guide",      icon="📋"),
+    #st.Page("Dog_Bingo_Game.py", title="Dog Game",  icon="🐶"),
+    #st.Page("Cat_Bingo_Game.py",     title="Cat Game",      icon="🐱"),
+    #st.Page("Pet_Guide_Generator.py",     title="Pet Guide",      icon="📋"),
     st.Page("pet_app_updated.py",     title="Pet Game",      icon="📋"),
     st.Page("home_app.py",     title="Home Guide",      icon="🏡"),
     st.Page("mychatapp.py",     title="Chat Q&A",      icon="🗣️")
