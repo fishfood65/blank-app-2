@@ -4,6 +4,19 @@ import csv
 import io
 from datetime import datetime
 from docx import Document
+import pandas as pd
+import plotly.express as px
+from uuid import uuid4
+
+def get_or_create_session_id():
+    """Assigns a persistent unique ID per session"""
+    if "session_id" not in st.session_state:
+        st.session_state["session_id"] = str(uuid4())
+    return st.session_state["session_id"]
+
+def set_user_id(user_id):
+    """Lets you manually tag a user (e.g., via login form or input"""
+    st.session_state["user_id"] = user_id
 
 def init_section(section_name):
     """Initialize a new section to group questions and answers."""

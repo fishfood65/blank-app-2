@@ -54,3 +54,4 @@ transformers
 PyPDF2
 FPDF
 tabulate
+plotly.express
