@@ -112,16 +112,24 @@ def main():
 # This tracks whether each key section of the app has been completed
 # Used by check_home_progress() to calculate total progress
 
+    st.markdown("#### 🧭 Progress")
+
     if "level_progress" not in st.session_state:
         st.session_state["level_progress"] = {key: False for key in LEVEL_LABELS}
 
     # Show progress
     percent_complete, completed_levels = check_home_progress(st.session_state["level_progress"])
+    total_levels = len(st.session_state["level_progress"])
+    num_completed = len(completed_levels)
 
     friendly_labels = [LEVEL_LABELS.get(level, level) for level in completed_levels]
     st.progress(percent_complete)
-    st.markdown(f"🏁 **{percent_complete}% complete**")
-    st.markdown(f"✅ Completed Levels: {', '.join(friendly_labels) if friendly_labels else 'None'}")
+    st.markdown(
+        f"""
+        ✅ **Completed {num_completed} out of {total_levels} levels**  
+        🗂️ **Completed Levels:** {', '.join(friendly_labels) if friendly_labels else 'None'}
+        """
+    )
     
     download_session_state_as_csv()
     
