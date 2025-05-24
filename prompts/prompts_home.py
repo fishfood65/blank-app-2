@@ -30,6 +30,19 @@ from PIL import Image
 import io
 import uuid
 import json
+
+# Generate the AI prompt
+api_key = os.getenv("MISTRAL_TOKEN")
+client = Mistral(api_key=api_key)
+
+if not api_key:
+    api_key = st.text_input("Enter your Mistral API key:", type="password")
+
+if api_key:
+    st.success("API key successfully loaded.")
+else:
+   st.error("API key is not set.")
+   
 #### Prompts Here #####
 
 def query_utility_providers():
