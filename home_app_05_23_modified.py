@@ -699,7 +699,14 @@ def mail_trash_handling(): ### need to be able to pull out a schedule out from t
     # ─── Tab 3: Prompt Review & Generate ───────────────────────
     with tab3:
 
-        # Move this outside the expander
+        choice, start_date, end_date, valid_dates = select_runbook_date_range()
+
+        if start_date and end_date:
+            st.session_state["start_date"] = start_date
+            st.session_state["end_date"] = end_date
+            st.session_state["valid_dates"] = valid_dates
+       
+       # Move this outside the expander
         confirm_key_mail_trash = "confirm_ai_prompt_mail_trash"
         user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key_mail_trash)
         st.session_state["user_confirmation"] = user_confirmation # store confirmation in session

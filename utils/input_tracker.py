@@ -145,29 +145,58 @@ def get_filtered_dates(start_date, end_date, refinement):
         return list(daterange(start_date, end_date))
     
 def select_runbook_date_range():
+    section = "Runbook Date Range"
     st.subheader("📅 Choose Date(s) or Timeframe")
     st.write("Choose a timeframe you would like a runbook generated for.")
 
     options = ["Pick Dates", "General"]
-    choice = st.radio("Choose an option:", options)
+    choice = capture_input(
+        "Runbook Timeframe Option",
+        st.radio,
+        section,
+        options=options,
+        index=0,
+        key="runbook_timeframe_option"
+    )
 
     start_date, end_date = None, None
     valid_dates = []
     today = datetime.now().date()
 
     if choice == "Pick Dates":
-        start_date = st.date_input("Select Start Date:", today, key="start_date_input")
-        end_date = st.date_input("Select End Date:", today + timedelta(days=7), key="end_date_input")
+        start_date = capture_input(
+            "Start Date",
+            st.date_input,
+            section,
+            value=today,
+            key="start_date_input"
+        )
+        end_date = capture_input(
+            "End Date",
+            st.date_input,
+            section,
+            value=today + timedelta(days=7),
+            key="end_date_input"
+        )
 
         if start_date >= end_date:
             st.error("⚠️ Start date must be before end date.")
             return None, None, None, []
 
         if (end_date - start_date).days > 31:
-            st.error("⚠️ The selected period must be no longer than 1 months.")
+            st.error("⚠️ The selected period must be no longer than 1 month.")
             return None, None, None, []
 
-        refinement = st.radio("Filter days within selected range:", ["All Days", "Weekdays Only", "Weekend Only"], horizontal=True)
+        refinement = capture_input(
+            "Date Range Refinement",
+            st.radio,
+            section,
+            options=["All Days", "Weekdays Only", "Weekend Only"],
+            index=0,
+            horizontal=True,
+            key="refinement_option"
+        )
+
         st.info(f"📅 Using dates from **{start_date}** to **{end_date}** ({refinement})")
         valid_dates = get_filtered_dates(start_date, end_date, refinement)
         choice = f"Pick Dates ({refinement})"
@@ -193,22 +222,79 @@ def preview_interaction_log():
     for log in st.session_state["interaction_log"]:
         st.markdown(f"- [{log['timestamp']}] {log['action'].capitalize()} — **{log['question']}** → `{log['answer']}` _(Section: {log['section']})_")
 
+def custom_serializer(obj):
+    # Handle datetime and date objects
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()  # ✅ Convert to ISO string like "2025-05-24"
+    
+    # If it's some other unsupported type, raise an error
+    raise TypeError(f"Type {type(obj)} not serializable")
+
 def autosave_input_data():
     """Automatically save data to session file (local or cloud placeholder)."""
     if "input_data" in st.session_state:
-        st.session_state["autosaved_json"] = json.dumps(st.session_state["input_data"], indent=2)
+        st.session_state["autosaved_json"] = json.dumps(
+        st.session_state["input_data"],
+        indent=2,
+        default=custom_serializer  # ✅ use your custom handler
+        )
         # Placeholder: save_to_cloud(st.session_state["autosaved_json"])
 
 def export_input_data_as_json(file_name="input_data.json"):
     """Export the collected input data as JSON."""
     if "input_data" in st.session_state:
-        json_data = json.dumps(st.session_state["input_data"], indent=2)
+        json_data = json.dumps(
+            st.session_state["input_data"], 
+            indent=2, 
+            default=custom_serializer # ✅ Handles date/datetime
+            )
         st.download_button(
             label="📥 Download as JSON",
             data=json_data,
             file_name=file_name,
             mime="application/json"
         )
+
+import json
+from datetime import datetime, date
+
+def is_iso_date(string: str) -> bool:
+    """Check if a string matches an ISO 8601 date format (YYYY-MM-DD)."""
+    try:
+        datetime.strptime(string, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+def restore_dates(obj):
+    """Recursively convert ISO date strings into datetime.date objects."""
+    if isinstance(obj, dict):
+        return {k: restore_dates(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [restore_dates(item) for item in obj]
+    elif isinstance(obj, str) and is_iso_date(obj):
+        return datetime.strptime(obj, "%Y-%m-%d").date()
+    return obj
+
+def import_input_data_from_json(json_str: str):
+    """
+    Load JSON string, convert ISO-formatted dates back into date objects,
+    and save into session state.
+    """
+    try:
+        parsed = json.loads(json_str)
+        restored = restore_dates(parsed)
+        st.session_state["input_data"] = restored
+        st.success("✅ Input data successfully imported and restored.")
+    except Exception as e:
+        st.error(f"❌ Failed to import input data: {e}")
+
+# Streamlit code usage to re-import JSON data and automatically convert ISO date strings back into datetime.date objects.
+#uploaded_file = st.file_uploader("Upload previously exported input JSON", type=["json"])
+#if uploaded_file:
+#    json_str = uploaded_file.read().decode("utf-8")
+#    if st.button("📤 Import JSON Data"):
+#       import_input_data_from_json(json_str)
 
 def convert_to_csv(data_list):
     if not data_list:
@@ -390,6 +476,10 @@ def check_missing_utility_inputs():
         missing.append("Water Provider")
 
     return missing
+
+
+
+
 
 # Placeholder for future enhancement: Cloud saving logic
 # def save_to_cloud(json_data):
