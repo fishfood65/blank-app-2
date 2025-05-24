@@ -380,3 +380,83 @@ def generate_flat_home_schedule_markdown(schedule_df):
         sections.append(f"{header}\n{table}\n")
 
     return "\n".join(sections).strip()
+
+from docx.shared import Inches
+from PIL import Image
+import io
+
+def add_home_schedule_to_docx(doc, schedule_df):
+    """
+    Adds grouped home schedule (by Source and Date) to a DOCX file.
+    Embeds matching images below tasks if task text matches image label.
+
+    Args:
+        doc (Document): python-docx Document object
+        schedule_df (pd.DataFrame): DataFrame with Task, Tag, Date, Source, etc.
+    """
+    import pandas as pd
+
+    if schedule_df.empty:
+        return
+
+    # Normalize schedule
+    schedule_df["Category"] = "home"
+    schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
+    schedule_df = schedule_df.sort_values(by=["Source", "Date", "Tag", "Task"])
+
+    # Build image map from st.session_state["trash_images"]
+    image_map = {}
+    if "trash_images" in st.session_state:
+        for label, img_bytes in st.session_state["trash_images"].items():
+            if img_bytes:
+                keyword = label.replace(" Image", "").strip().lower()
+                image_map[keyword] = img_bytes
+
+    # Start DOCX content
+    doc.add_page_break()
+    doc.add_heading("📆 Home Maintenance Schedule", level=1)
+
+    for source, source_group in schedule_df.groupby("Source"):
+        doc.add_heading(f"🗂️ {source}", level=2)
+
+        for date, date_group in source_group.groupby("Date"):
+            day = date.strftime("%A")
+            date_str = date.strftime("%Y-%m-%d")
+            doc.add_heading(f"{day}, {date_str}", level=3)
+
+            table = doc.add_table(rows=1, cols=3)
+            table.style = "Table Grid"
+            hdr_cells = table.rows[0].cells
+            hdr_cells[0].text = "Task"
+            hdr_cells[1].text = "Tag"
+            hdr_cells[2].text = "Category"
+
+            for _, row in date_group.iterrows():
+                task_text = str(row["Task"])
+                tag = str(row["Tag"])
+                category = str(row["Category"])
+
+                # Add row to table
+                row_cells = table.add_row().cells
+                row_cells[0].text = task_text
+                row_cells[1].text = tag
+                row_cells[2].text = category
+
+                # Match task to image by prefix/suffix
+                task_lower = task_text.lower()
+                for keyword, image_bytes in image_map.items():
+                    if keyword in task_lower:
+                        doc.add_paragraph("📷 Associated Image:")
+                        try:
+                            image_stream = io.BytesIO(image_bytes)
+                            image = Image.open(image_stream)
+                            image.thumbnail((500, 500))  # Resize to prevent oversized images
+                            image_stream_out = io.BytesIO()
+                            image.save(image_stream_out, format="PNG")
+                            image_stream_out.seek(0)
+                            doc.add_picture(image_stream_out, width=Inches(3.5))
+                        except Exception as e:
+                            doc.add_paragraph(f"⚠️ Failed to embed image for '{keyword}': {e}")
+                        break  # Only one image per task
+
+        doc.add_paragraph("")  # spacing between groups
