@@ -17,6 +17,7 @@ def generate_docx_from_split_prompts(
     prompts: List[str],
     api_key: str,
     *,
+    section_titles: Optional[List[str]] = None,
     model: str = "mistral-small-latest",
     doc_heading: str = "Runbook",
     temperature: float = 0.5,
@@ -25,6 +26,15 @@ def generate_docx_from_split_prompts(
     """
     Splits prompts into individual LLM calls to manage token limits,
     stitches together the results, and returns a formatted DOCX and combined response.
+
+    Args:
+        prompts: A list of prompt strings to process.
+        api_key: Your Mistral API key.
+        section_titles: Optional titles for each prompt section (must match prompt count if provided).
+        model, doc_heading, temperature, max_tokens: LLM configuration and output formatting.
+
+    Returns:
+        Tuple of (DOCX file as BytesIO, concatenated LLM response text).
     """
 
     combined_output = []
@@ -42,7 +52,12 @@ def generate_docx_from_split_prompts(
                     temperature=temperature,
                 )
                 response_text = completion.choices[0].message.content
-                combined_output.append(f"### Section {i+1}\n\n{response_text.strip()}")
+
+                # Determine title if provided
+                section_label = f"### {section_titles[i]}" if section_titles and i < len(section_titles) else ""
+                output = f"{section_label}\n\n{response_text.strip()}" if section_label else response_text.strip()
+                combined_output.append(output)
+
         except Exception as e:
             st.error(f"❌ Error processing prompt {i+1}: {e}")
             continue
