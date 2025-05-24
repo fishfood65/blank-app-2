@@ -2,7 +2,7 @@ import streamlit as st
 import json
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from docx import Document
 import pandas as pd
 import plotly.express as px
@@ -131,6 +131,58 @@ def preview_input_data():
         st.markdown(f"#### 📁 {section}")
         for item in entries:
             st.markdown(f"- **{item['question']}**: {item['answer']} _(at {item['timestamp']})_")
+
+def daterange(start, end):
+    for n in range((end - start).days + 1):
+        yield start + timedelta(n)
+
+def get_filtered_dates(start_date, end_date, refinement):
+    if refinement == "Weekdays Only":
+        return [d for d in daterange(start_date, end_date) if d.weekday() < 5]
+    elif refinement == "Weekend Only":
+        return [d for d in daterange(start_date, end_date) if d.weekday() >= 5]
+    else:  # All Days
+        return list(daterange(start_date, end_date))
+    
+def select_runbook_date_range():
+    st.subheader("📅 Choose Date(s) or Timeframe")
+    st.write("Choose a timeframe you would like a runbook generated for.")
+
+    options = ["Pick Dates", "General"]
+    choice = st.radio("Choose an option:", options)
+
+    start_date, end_date = None, None
+    valid_dates = []
+    today = datetime.now().date()
+
+    if choice == "Pick Dates":
+        start_date = st.date_input("Select Start Date:", today, key="start_date_input")
+        end_date = st.date_input("Select End Date:", today + timedelta(days=7), key="end_date_input")
+
+        if start_date >= end_date:
+            st.error("⚠️ Start date must be before end date.")
+            return None, None, None, []
+
+        if (end_date - start_date).days > 31:
+            st.error("⚠️ The selected period must be no longer than 1 months.")
+            return None, None, None, []
+
+        refinement = st.radio("Filter days within selected range:", ["All Days", "Weekdays Only", "Weekend Only"], horizontal=True)
+        st.info(f"📅 Using dates from **{start_date}** to **{end_date}** ({refinement})")
+        valid_dates = get_filtered_dates(start_date, end_date, refinement)
+        choice = f"Pick Dates ({refinement})"
+
+    elif choice == "General":
+        start_date = today
+        end_date = today + timedelta(days=7)
+        st.info(f"📅 1-week schedule starting {start_date}")
+        valid_dates = get_filtered_dates(start_date, end_date, "All Days")
+
+    else:
+        st.warning("⚠️ Invalid choice selected.")
+        return None, None, None, []
+
+    return choice, start_date, end_date, valid_dates
 
 def preview_interaction_log():
     """Display a log of all user interactions."""
