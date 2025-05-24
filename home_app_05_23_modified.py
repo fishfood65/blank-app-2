@@ -42,6 +42,8 @@ from PIL import Image
 import io
 import uuid
 import json
+from docx.shared import Inches
+
 #from bs4 import BeautifulSoup
 
 # --- Level name mappings for display ---

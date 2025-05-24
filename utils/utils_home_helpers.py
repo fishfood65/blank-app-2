@@ -9,6 +9,9 @@ import plotly.express as px
 from uuid import uuid4
 import re
 from collections import defaultdict
+from docx.shared import Inches
+from PIL import Image
+import io
 
 
 def check_home_progress(progress_dict):
@@ -380,10 +383,6 @@ def generate_flat_home_schedule_markdown(schedule_df):
         sections.append(f"{header}\n{table}\n")
 
     return "\n".join(sections).strip()
-
-from docx.shared import Inches
-from PIL import Image
-import io
 
 def add_home_schedule_to_docx(doc, schedule_df):
     """
