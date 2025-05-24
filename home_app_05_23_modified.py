@@ -21,12 +21,14 @@ import json
 # --- Level name mappings for display ---
 LEVEL_LABELS = {
     "home": "Level 1 - 🏠 Home Basics",
-    "mail_trash_handling": "Level 3 - 📬 Mail & Trash Setup",
     "emergency_kit": "Level 2 - 🧰 Emergency Preparedness",
-    "emergency_kit_critical_documents": "🚨 Level 5 - Vital Records Kit",
-    "bonus_level": "✨ Bonus Level",
+    "mail_trash_handling": "Level 3 - 📬 Mail & Trash Setup",
     "home_security": "Level 4 - 🔐 Home Security and Services",
+    "emergency_kit_critical_documents": "Level 5 - 🚨 Vital Records Kit",
+    "bonus_level": "✨ Bonus Level",
 }
+LABEL_TO_KEY = {v: k for k, v in LEVEL_LABELS.items()}
+levels = tuple(LEVEL_LABELS.values())
 
 st.write("# Welcome to Home Hero Academy! 👋")
 
@@ -88,44 +90,52 @@ def main():
         🗂️ **Completed Levels:** {', '.join(friendly_labels) if friendly_labels else 'None'}
         """
     )
+    #percent_complete, completed = check_home_progress(st.session_state["level_progress"])
+   # st.write("✅ Completed:", completed)
+   # st.write("✅ Percent:", percent_complete)
     
     export_input_data_as_csv()
-    
-    levels = ("Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Bonus Level")
 
-    # Sidebar navigation
-    selected = st.sidebar.radio(
-        "Choose a Level:",
-        levels,
-        index=levels.index(st.session_state.section),
-        key="sidebar_level_radio"
-    )
+    #Get current progress
+    if "level_progress" not in st.session_state:
+        st.session_state["level_progress"] = {k: False for k in LEVEL_LABELS}
 
-    # Enforce Level 1 lock
-    if selected != "Level 1" and not st.session_state.progress.get("level_1_completed", False):
-        st.warning("🚧 Please complete Level 1 before accessing other levels.")
-        st.session_state.section = "Level 1"
+    # Set default section key
+    default_key = st.session_state.get("section", "home")
+    default_label = LEVEL_LABELS.get(default_key, levels[0])
+
+    # Ensure the default label is in levels
+    if default_label not in levels:
+        default_label = levels[0]  # fallback
+
+    # Limit access to Level 1 until completed
+    if not st.session_state["level_progress"]["home"]:
+        available_levels = [LEVEL_LABELS["home"]]
     else:
-        st.session_state.section = selected
+        available_levels = levels
 
-    section = st.session_state.section
+    selected = st.sidebar.radio("Choose a Level:", available_levels)
+
+    # Save current section key
+    st.session_state["section"] = LABEL_TO_KEY.get(selected, "home")
+    section = st.session_state["section"]
 
     # === your existing levels 1–4 ===
-    if section == "Level 1":
+    if section == "home":
         st.subheader("🏁 Welcome to Level 1 Home Basics")
         home()
-    elif section == "Level 2":
+    elif section == "emergency_kit":
         st.subheader("🚨 Level 2 Emergency Preparedness")
         emergency_kit_utilities()
-    elif section == "Level 3":
+    elif section == "mail_trash_handling":
         st.subheader("📬 Level 3 Mail & Trash Handling")
         mail_trash_handling()
-    elif section == "Level 4":
+    elif section == "home_security":
         st.subheader("🏡 Level 4 Home Services")
         security_convenience_ownership()
 
     # === Level 5: now with st.tabs ===
-    elif section == "Level 5":
+    elif section == "emergency_kit_critical_documents":
         st.subheader("💼 Level 5 Critical Documents")
         tabs = st.tabs([
             "📝 Select Documents",
@@ -150,15 +160,9 @@ def main():
             generate_kit_tab()
 
     # === Bonus Level ===
-    elif section == "Bonus Level":
+    elif section == "bonus_level":
         st.subheader("🎁 Bonus Level Content")
         bonus_level()
-
-    # Reset button
-    if st.sidebar.button("🔄 Reset Progress", key="btn_reset"):
-        st.session_state.progress = {}
-        save_progress({})
-        st.rerun()
 
 #### Reusable Functions to Generate and Format Runbooks #####
 def format_output_for_docx(output: str) -> str:
@@ -538,6 +542,12 @@ def emergency_kit_utilities_runbook_prompt():
     missing_md = "".join(f"- {item}\n" for item in not_selected_items)
     additional_list = [itm.strip() for itm in additional_items.split(",") if itm.strip()]
     additional_md = "".join(f"- {itm}\n" for itm in additional_list)
+    
+    kit_summary_line = (
+    f"Kit is available at {emergency_kit_location}"
+    if emergency_kit_status == "Yes"
+    else f"Kit is a work in progress and will be located at {emergency_kit_location}"
+    )
 
     def render_recommended(*items):
         return "".join(f"- {i}\n" for i in items if i and i.strip())
@@ -558,13 +568,12 @@ For each provider, retrieve:
 - Official Website
 - Emergency Contact Numbers (specific to outages, leaks, service disruptions)
 - Steps to report issues
-
-For Emergency Kit Summary:
-{"Kit is available at " + emergency_kit_location if emergency_kit_status == "Yes" else "Kit is a work in progress and will be located at " + emergency_kit_location}
-
 ---
 
 ### 🧰 Emergency Kit Summary
+
+**Emergency Location**:
+{kit_summary_line}
 
 **Kit Inventory:**  
 {selected_md or "_(none selected)_"}  
@@ -1096,6 +1105,9 @@ def home():
                 doc_heading="Home Utilities Emergency Runbook"
             )
 
+            # Level 1 Complete - for Progress
+            st.session_state["level_progress"]["home"] = True
+
             # Store results to persist across reruns
             st.session_state["runbook_buffer"] = buffer
             st.session_state["runbook_text"] = runbook_text
@@ -1182,7 +1194,8 @@ def emergency_kit():
         input_fn=st.radio,
         section_name="Emergency Kit",
         options=["Yes", "No"],
-        index=0
+        index=0,
+        key="radio_emergency_kit_status"
     )
 
     if emergency_kit_status == 'Yes':
@@ -1240,7 +1253,6 @@ def emergency_kit_utilities():
     # Move this outside the expander
     confirm_key_kit = "confirm_ai_prompt_emergency_kit"
     user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key_kit)
-    missing = emergency_kit()
     st.session_state["user_confirmation"] = user_confirmation # store confirmation in session
 
     if user_confirmation:
@@ -1259,9 +1271,7 @@ def emergency_kit_utilities():
 
     # Step 4: Preview + next steps
     with st.expander("🧠 AI Prompt Preview (Optional)", expanded=True):
-        if missing:
-            st.warning(f"⚠️ Cannot generate prompt. Missing: {', '.join(missing)}")
-        elif not user_confirmation:
+        if not user_confirmation:
             st.info("☝️ Please check the box to confirm AI prompt generation.")
         elif st.session_state.get("generated_prompt"):
             st.code(st.session_state["generated_prompt"], language="markdown")
