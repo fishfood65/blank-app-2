@@ -722,15 +722,29 @@ def mail_trash_handling(): ### need to be able to pull out a schedule out from t
 
     # DEBUG print to screen
 
-        # Step 4: Preview + next steps
+    # Step 4: Preview + next steps
     with st.expander("🧠 AI Prompt Preview (Optional)", expanded=True):
-        if not user_confirmation:
+
+    # ⛔ Missing care date range
+        if "start_date" not in st.session_state or "end_date" not in st.session_state:
+            st.warning("📅 Please select a care date range before generating the runbook.")
+
+        # ⛔ No valid dates returned
+        elif not st.session_state.get("valid_dates"):
+            st.warning("📅 No valid dates available from your date selection.")
+
+        # ⛔ User hasn't confirmed prompt generation
+        elif not user_confirmation:
             st.info("☝️ Please check the box to confirm AI prompt generation.")
+
+        # ✅ Show generated prompts
         elif st.session_state.get("generated_prompt"):
             for i, prompt in enumerate(st.session_state["generated_prompt"], start=1):
                 st.markdown(f"**Prompt {i}:**")
                 st.code(prompt, language="markdown")
             st.success("✅ Prompt ready! Now you can generate your runbook.")
+
+        # ⛔ No prompt generated yet
         else:
             st.warning("⚠️ Prompt not generated yet.")
 
