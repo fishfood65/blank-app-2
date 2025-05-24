@@ -78,9 +78,6 @@ def load_pet_for_edit(index, state_prefix, questions):
     st.session_state[f"editing_index_{state_prefix}"] = index
     st.rerun()
 
-import re
-import pandas as pd
-
 def extract_pet_scheduled_tasks_grouped(questions, saved_pets, valid_dates):
     """
     Extracts pet care tasks based on valid_dates, labels, and user answers.

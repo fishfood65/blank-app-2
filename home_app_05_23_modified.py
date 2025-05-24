@@ -1,5 +1,5 @@
 from utils.utils_home_helpers import check_home_progress
-from utils.input_tracker import capture_input, flatten_answers_to_dict, get_answer, extract_and_log_providers, log_provider_result, autolog_location_inputs, preview_input_data, check_missing_utility_inputs
+from utils.input_tracker import capture_input, flatten_answers_to_dict, get_answer, extract_and_log_providers, log_provider_result, autolog_location_inputs, preview_input_data, check_missing_utility_inputs, export_input_data_as_csv
 from utils.runbook_generator_helpers import generate_docx_from_split_prompts, preview_runbook_output
 import streamlit as st
 import re
@@ -94,17 +94,17 @@ def download_session_state_as_csv():
         mime="text/csv"
     )
 
-PROGRESS_FILE = "user_progress.json"
+#PROGRESS_FILE = "user_progress.json"
 
-def load_progress():
-    if os.path.exists(PROGRESS_FILE):
-        with open(PROGRESS_FILE, "r") as f:
-            return json.load(f)
-    return {}
+#def load_progress():
+#    if os.path.exists(PROGRESS_FILE):
+#        with open(PROGRESS_FILE, "r") as f:
+ #           return json.load(f)
+ #   return {}
 
-def save_progress(progress):
-    with open(PROGRESS_FILE, "w") as f:
-        json.dump(progress, f)
+#def save_progress(progress):
+ #   with open(PROGRESS_FILE, "w") as f:
+ #       json.dump(progress, f)
 
 def main():
 
@@ -133,15 +133,15 @@ def main():
         """
     )
     
-    download_session_state_as_csv()
+    export_input_data_as_csv()
     
     levels = ("Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Bonus Level")
 
     # Initialize session state
-    if "section" not in st.session_state:
-        st.session_state.section = levels[0]
-    if "progress" not in st.session_state:
-        st.session_state.progress = load_progress()
+    #if "section" not in st.session_state:
+    #    st.session_state.section = levels[0]
+    #if "progress" not in st.session_state:
+    #    st.session_state.progress = load_progress()
 
     # Sidebar navigation
     selected = st.sidebar.radio(

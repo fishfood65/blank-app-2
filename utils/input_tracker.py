@@ -42,11 +42,17 @@ def capture_input(label, input_fn, section_name, *args, **kwargs):
     """Displays input using input_fn and stores label, value, timestamp under a section."""
     init_section(section_name)
     value = input_fn(label, *args, **kwargs)
+
     entry = {
         "question": label,
         "answer": value,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "input_type": input_fn.__name__,  # Automatically record the widget type
+        "section": section_name,
+        "session_id": st.session_state.get("session_id"),
+        "required": kwargs.get("required", False)
     }
+
     st.session_state["input_data"][section_name].append(entry)
     log_interaction("input", label, value, section_name)
     autosave_input_data()
@@ -152,21 +158,32 @@ def export_input_data_as_json(file_name="input_data.json"):
             mime="application/json"
         )
 
+def convert_to_csv(data_list):
+    if not data_list:
+        return ""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=data_list[0].keys())
+    writer.writeheader()
+    writer.writerows(data_list)
+    return output.getvalue()
+
 def export_input_data_as_csv(file_name="input_data.csv"):
-    """Export the collected input data as CSV."""
-    if "input_data" in st.session_state:
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(["Section", "Question", "Answer", "Timestamp"])
-        for section, entries in st.session_state["input_data"].items():
-            for item in entries:
-                writer.writerow([section, item["question"], item["answer"], item["timestamp"]])
-        st.download_button(
-            label="📄 Download as CSV",
-            data=output.getvalue(),
-            file_name=file_name,
-            mime="text/csv"
-        )
+    """Wraps convert_to_csv() to export all input_data with section info."""
+    full_list = []
+    for section, entries in st.session_state.get("input_data", {}).items():
+        for item in entries:
+            item_copy = item.copy()
+            item_copy["section"] = section
+            full_list.append(item_copy)
+
+    csv_data = convert_to_csv(full_list)
+
+    st.download_button(
+        label="📄 Download Your Data",
+        data=csv_data,
+        file_name=file_name,
+        mime="text/csv"
+    )
 
 def export_input_data_as_docx(file_name="input_data.docx"):
     """Export the collected input data as DOCX."""
