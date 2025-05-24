@@ -54,18 +54,18 @@ def capture_input(label, input_fn, section_name, *args, **kwargs):
 
 def get_answer(question_label, section=None):
     """
-    Retrieve an answer by its question label.
-    If section is specified, searches only within that section.
+    Retrieves the most recent answer matching the question_label,
+    optionally scoped to a specific section.
     """
     data = st.session_state.get("input_data", {})
-    
     sections = [section] if section else data.keys()
 
+    latest = None
     for sec in sections:
         for item in data.get(sec, []):
             if item["question"] == question_label:
-                return item["answer"]
-    return None
+                latest = item["answer"]  # override to keep the most recent
+    return latest
 
 def flatten_answers_to_dict(questions, answers):
     """
@@ -77,6 +77,43 @@ def flatten_answers_to_dict(questions, answers):
         for question, answer in zip(questions, answers)
         if str(answer).strip()
     }
+
+def autolog_location_inputs(city, zip_code):
+    """
+    Optionally logs city and zip code inputs to 'Home Basics' section if not already logged.
+    """
+    now = datetime.now().isoformat()
+
+    # Ensure input_data exists
+    if "input_data" not in st.session_state:
+        st.session_state["input_data"] = {}
+
+    # Ensure the 'Home Basics' section exists
+    if "Home Basics" not in st.session_state["input_data"]:
+        st.session_state["input_data"]["Home Basics"] = []
+
+    def log_if_missing(label, value):
+        if value and not any(entry["question"] == label for entry in st.session_state["input_data"]["Home Basics"]):
+            # Add to input_data
+            st.session_state["input_data"]["Home Basics"].append({
+                "question": label,
+                "answer": value,
+                "timestamp": now
+            })
+
+            # Also add to interaction_log if enabled
+            st.session_state.setdefault("interaction_log", []).append({
+                "timestamp": now,
+                "user_id": st.session_state.get("user_id", "anonymous"),
+                "session_id": st.session_state.get("session_id", "anonymous"),
+                "action": "autolog",
+                "question": label,
+                "answer": value,
+                "section": "Home Basics"
+            })
+
+    log_if_missing("City", city)
+    log_if_missing("ZIP Code", zip_code)
 
 def preview_input_data():
     """Display a summary of all collected input data."""
@@ -173,8 +210,6 @@ def interaction_dashboard():
     timeline = px.scatter(df, x="timestamp", y="section", color="user_id", hover_data=["question", "answer"])
     st.plotly_chart(timeline, use_container_width=True)
 
-
-
 def log_provider_result(label, value, section="Utility Providers"):
     """
     Logs a single provider result into input_data, with basic validation.
@@ -213,7 +248,6 @@ def log_provider_result(label, value, section="Utility Providers"):
         "section": section
     })
 
-
 def extract_and_log_providers(content):
     """Extracts Electricity, Natural Gas, and Water providers from content and logs them."""
 
@@ -239,6 +273,32 @@ def extract_and_log_providers(content):
         "natural_gas": natural_gas,
         "water": water
     }
+
+def check_missing_utility_inputs():
+    """
+    Checks for missing required fields for utility runbook generation.
+    Returns a list of missing field labels.
+    """
+
+    missing = []
+
+    # User inputs (Home Basics)
+    if not get_answer("City", "Home Basics"):
+        missing.append("City")
+    if not get_answer("ZIP Code", "Home Basics"):
+        missing.append("ZIP Code")
+    if not get_answer("Internet Provider", "Home Basics"):
+        missing.append("Internet Provider")
+
+    # AI/Corrected utility providers (Utility Providers)
+    if not get_answer("Electricity Provider", "Utility Providers"):
+        missing.append("Electricity Provider")
+    if not get_answer("Natural Gas Provider", "Utility Providers"):
+        missing.append("Natural Gas Provider")
+    if not get_answer("Water Provider", "Utility Providers"):
+        missing.append("Water Provider")
+
+    return missing
 
 # Placeholder for future enhancement: Cloud saving logic
 # def save_to_cloud(json_data):

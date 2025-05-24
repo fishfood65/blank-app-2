@@ -1,5 +1,5 @@
 from utils.utils_home_helpers import check_home_progress
-from utils.input_tracker import capture_input, flatten_answers_to_dict, get_answer, extract_and_log_providers
+from utils.input_tracker import capture_input, flatten_answers_to_dict, get_answer, extract_and_log_providers, log_provider_result, autolog_location_inputs, preview_input_data, check_missing_utility_inputs
 import streamlit as st
 import re
 from mistralai import Mistral, UserMessage, SystemMessage
@@ -207,7 +207,7 @@ def main():
     if st.sidebar.button("🔄 Reset Progress", key="btn_reset"):
         st.session_state.progress = {}
         save_progress({})
-        st.experimental_rerun()
+        st.rerun()
 
 #### Reusable Functions to Generate and Format Runbooks #####
 def format_output_for_docx(output: str) -> str:
@@ -488,7 +488,7 @@ def query_utility_providers():
     zip_code = get_answer("ZIP Code", "Home Basics")
 
     if not city or not zip_code:
-        st.warning("City and ZIP code must be provided in session state.")
+        st.warning("City and ZIP code must be provided in Home Basics section.")
         return {
             "electricity": "Missing input",
             "natural_gas": "Missing input",
@@ -522,26 +522,41 @@ Water Provider: <company name>
         st.error(f"Error querying Mistral API: {str(e)}")
         content = ""
 
-    result = extract_and_log_providers(content)
-    return result
+    # Extract and log into input_data and interaction_log
+    results = extract_and_log_providers(content)
 
-def utilities_emergency_runbook_prompt(
-            city=st.session_state.get("city", ""),
-            zip_code=st.session_state.get("zip_code", ""),
-            internet_provider_name=st.session_state.get("internet_provider",""),
-            electricity_provider_name=st.session_state.get("electricity_provider",""),
-            natural_gas_provider_name=st.session_state.get("natural_gas_provider",""),
-            water_provider_name=st.session_state.get("water_provider","")
-        ):
+    # Also store in session_state for correction access
+    st.session_state["utility_providers"] = results
+    
+    return results
+
+def utilities_emergency_runbook_prompt():
+    """
+    Builds the prompt for utilities and emergency services.
+    Pulls user-input data from structured input_data and LLM results from session.
+    """
+
+    # From user-input section ("Home Basics")
+    city = get_answer("City", "Home Basics") or ""
+    zip_code = get_answer("ZIP Code", "Home Basics") or ""
+    internet_provider_name = get_answer("Internet Provider", "Home Basics") or ""
+
+    # From LLM or corrected values stored in session
+    results = st.session_state.get("utility_providers", {})
+    electricity_provider_name = results.get("electricity", "")
+    natural_gas_provider_name = results.get("natural_gas", "")
+    water_provider_name = results.get("water", "")
+
+    # Build your prompt using these values
 
     return f"""
-You are an expert assistant generating a city-specific Emergency Preparedness Run Book. First, search the internet for up-to-date local utility providers and their emergency contact information. Then, compose a comprehensive, easy-to-follow guide customized for residents of City: {city}, Zip Code: {zip_code}.
+You are an expert assistant generating a city-specific Emergency Utility Overview. First, search the internet for up-to-date local utility providers and their emergency contact information. Then, compose a comprehensive, easy-to-follow guide customized for residents of City: {city}, Zip Code: {zip_code}.
 
-Start by identifying the following utility/service providers for the specified location:
-- Internet Provider Name
-- Electricity Provider Name
-- Natural Gas Provider Name
-- Water Provider Name
+Using the following provider information:
+Internet Provider: {internet_provider_name}
+Electricity Provider: {electricity_provider_name}
+Natural Gas Provider: {natural_gas_provider_name}
+Water Provider: {water_provider_name}
 
 For each provider, retrieve:
 - Company Description
@@ -1075,19 +1090,53 @@ def home():
     if st.button("Find My Utility Providers"):
         with st.spinner("Fetching providers from Mistral..."):
             results = query_utility_providers()
+            st.session_state["utility_providers"] = results
             st.success("Providers stored in session state!")
+    
+    #preview_input_data()
 
     # Step 2: Allow corrections
-    st.write("Correct Utility Providers:")
+    st.markdown("### ✏️ Make Corrections")
 
+    results = st.session_state.get("utility_providers", {
+    "electricity": "",
+    "natural_gas": "",
+    "water": ""
+    })
+
+    # ELECTRICITY
     correct_electricity = st.checkbox("Correct Electricity Provider", value=False)
-    corrected_electricity = st.text_input("Electricity Provider", value=st.session_state.get("electricity_provider", ""), disabled=not correct_electricity)
+    corrected_electricity = st.text_input(
+        "Electricity Provider",
+        value=results["electricity"],
+        disabled=not correct_electricity
+    )
+    if correct_electricity and corrected_electricity != results["electricity"]:
+        log_provider_result("Electricity", corrected_electricity)
+        st.session_state["electricity_provider"] = corrected_electricity
 
+    # NATURAL GAS
     correct_natural_gas = st.checkbox("Correct Natural Gas Provider", value=False)
-    corrected_natural_gas = st.text_input("Natural Gas Provider", value=st.session_state.get("natural_gas_provider", ""), disabled=not correct_natural_gas)
+    corrected_natural_gas = st.text_input(
+        "Natural Gas Provider",
+        value=results["natural_gas"],
+        disabled=not correct_natural_gas
+    )
+    if correct_natural_gas and corrected_natural_gas != results["natural_gas"]:
+        log_provider_result("Natural Gas", corrected_natural_gas)
+        st.session_state["natural_gas_provider"] = corrected_natural_gas
 
+    # WATER
     correct_water = st.checkbox("Correct Water Provider", value=False)
-    corrected_water = st.text_input("Water Provider", value=st.session_state.get("water_provider", ""), disabled=not correct_water)
+    corrected_water = st.text_input(
+        "Water Provider",
+        value=results["water"],
+        disabled=not correct_water
+    )
+    if correct_water and corrected_water != results["water"]:
+        log_provider_result("Water", corrected_water)
+        st.session_state["water_provider"] = corrected_water
+
 
     if st.button("Save Utility Providers"):
         if correct_electricity:
@@ -1096,12 +1145,44 @@ def home():
             st.session_state["natural_gas_provider"] = corrected_natural_gas
         if correct_water:
             st.session_state["water_provider"] = corrected_water
+
+        # Optional: update session_state["utility_providers"] with new values
+        st.session_state["utility_providers"] = {
+            "electricity": st.session_state.get("electricity_provider", ""),
+            "natural_gas": st.session_state.get("natural_gas_provider", ""),
+            "water": st.session_state.get("water_provider", "")
+        }
         st.success("Utility providers updated!")
+        # 🔍 Debug check
+        #st.markdown("### 🔍 Debug: Current input_data['Utility Providers']")
+        #for entry in st.session_state["input_data"].get("Utility Providers", []):
+        #    st.markdown(f"- {entry['question']}: {entry['answer']} (at {entry['timestamp']})")
 
     # Step 3: Preview prompt
     # Move this outside the expander
-    user_confirmation = st.checkbox("✅ Confirm AI Prompt")
+    elec = get_answer("Electricity Provider", "Utility Providers")
+    gas = get_answer("Natural Gas Provider", "Utility Providers")
+    water = get_answer("Water Provider", "Utility Providers")
+
+    st.markdown("### ✅ Retrieved via get_answer():")
+    st.write(f"Electricity: {elec}")
+    st.write(f"Natural Gas: {gas}")
+    st.write(f"Water: {water}")
+
+    # Move this outside the expander
+    confirm_key_home = "confirm_ai_prompt_home"
+    user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key_home)
+    missing = check_missing_utility_inputs()
     st.session_state["user_confirmation"] = user_confirmation # store confirmation in session
+    prompt = utilities_emergency_runbook_prompt()
+
+    # DEBUG print to screen
+    #st.write("DEBUG → confirmed:", user_confirmation)
+    #st.write("DEBUG → missing:", missing)
+    #st.write("DEBUG → generated_prompt:", st.session_state.get("generated_prompt"))
+    #st.write("🧪 Prompt from function:", prompt)
+
+    st.write("🧪 Prompt from function:", prompt)
 
     if user_confirmation:
         prompt = utilities_emergency_runbook_prompt()
@@ -1109,24 +1190,24 @@ def home():
     else:
         st.session_state["generated_prompt"] = None
 
-  # Mark this level as completed in the shared progress tracker
-    st.session_state["level_progress"]["home"] = True
-
-
-
-# Show prompt in expander
-    with st.expander("AI Prompt Preview (Optional)"):
-        if st.session_state.get("generated_prompt"):
+    # Step 4: Preview + next steps
+    with st.expander("🧠 AI Prompt Preview (Optional)", expanded=True):
+        if missing:
+            st.warning(f"⚠️ Cannot generate prompt. Missing: {', '.join(missing)}")
+        elif not user_confirmation:
+            st.info("☝️ Please check the box to confirm AI prompt generation.")
+        elif st.session_state.get("generated_prompt"):
             st.code(st.session_state["generated_prompt"], language="markdown")
+            st.success("✅ Prompt ready! Now you can generate your runbook.")
+        else:
+            st.warning("⚠️ Prompt not generated yet.")
 
-    # Step 4: Generate runbook using reusable function
-    st.write("Next, click the button to generate your personalized utilities emergency runbook document:")
-    
-    if not st.session_state.get("generated_prompt"):
-        st.warning("⚠️ Prompt not ready. Please confirm the prompt first.")
-        return
-    
-    #st.write("Prompt preview (sanity check):", st.session_state.get("generated_prompt", "[Empty]"))
+    # Optional: Runbook button outside the expander
+    if st.session_state.get("generated_prompt"):
+        if st.button("📄 Generate Runbook Document"):
+            # Add runbook generation function here
+            st.success("Runbook generated!")
+            st.session_state["level_progress"]["home"] = True
 
     generate_runbook_from_prompt(
         prompt=st.session_state.get("generated_prompt", ""),
@@ -1140,6 +1221,11 @@ def home():
     #st.write("User confirmed:", st.session_state.get("user_confirmation"))
     #st.write("Prompt:", st.session_state.get("generated_prompt"))
     #st.write("API key loaded:", "Yes" if os.getenv("MISTRAL_TOKEN") else "No")
+
+    if st.button("🧹 Clear 'Home Basics' Only"):
+        if "input_data" in st.session_state:
+            st.session_state["input_data"].pop("Home Basics", None)
+            st.success("✅ 'Home Basics' inputs cleared.")
 
 
 ### Level 2 - Emergency Kit Details
@@ -2018,19 +2104,19 @@ def security_convenience_ownership():
             st.code(st.session_state["prompt_home_caretaker"], language="markdown")
 
     # Step 3: Generate runbook using reusable function
-   # st.write("Next, click the button to generate your personalized utilities emergency runbook document:")
+    st.write("Next, click the button to generate your personalized utilities emergency runbook document:")
 
-    # st.markdown("### 🧪 Debug Info")
+    st.markdown("### 🧪 Debug Info")
 
-    # st.write("🔑 **API Key Loaded:**", "✅ Yes" if os.getenv("MISTRAL_TOKEN") else "❌ No")
+    st.write("🔑 **API Key Loaded:**", "✅ Yes" if os.getenv("MISTRAL_TOKEN") else "❌ No")
 
-    # st.write("✅ **User Confirmed Prompt:**", st.session_state.get("user_confirmation", False))
+    st.write("✅ **User Confirmed Prompt:**", st.session_state.get("user_confirmation", False))
 
-    # st.write("📄 **Emergency Prompt Exists:**", "✅ Yes" if st.session_state.get("prompt_emergency") else "❌ No")
-    # st.code(st.session_state.get("prompt_emergency", "⚠️ Emergency prompt not generated."), language="markdown")
+    st.write("📄 **Emergency Prompt Exists:**", "✅ Yes" if st.session_state.get("prompt_emergency") else "❌ No")
+    st.code(st.session_state.get("prompt_emergency", "⚠️ Emergency prompt not generated."), language="markdown")
 
-    # st.write("📬 **Mail & Trash Prompt Exists:**", "✅ Yes" if st.session_state.get("prompt_mail_trash") else "❌ No")
-    # st.code(st.session_state.get("prompt_mail_trash", "⚠️ Mail/Trash prompt not generated."), language="markdown")
+    st.write("📬 **Mail & Trash Prompt Exists:**", "✅ Yes" if st.session_state.get("prompt_mail_trash") else "❌ No")
+    st.code(st.session_state.get("prompt_mail_trash", "⚠️ Mail/Trash prompt not generated."), language="markdown")
 
     generate_runbook_from_multiple_prompts(
         prompts=[
