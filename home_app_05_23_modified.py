@@ -1,5 +1,6 @@
 from utils.utils_home_helpers import check_home_progress
 from utils.input_tracker import capture_input, flatten_answers_to_dict, get_answer, extract_and_log_providers, log_provider_result, autolog_location_inputs, preview_input_data, check_missing_utility_inputs
+from utils.runbook_generator_helpers import generate_styled_docx_from_single_prompt
 import streamlit as st
 import re
 from mistralai import Mistral, UserMessage, SystemMessage
@@ -1164,10 +1165,10 @@ def home():
     gas = get_answer("Natural Gas Provider", "Utility Providers")
     water = get_answer("Water Provider", "Utility Providers")
 
-    st.markdown("### ✅ Retrieved via get_answer():")
-    st.write(f"Electricity: {elec}")
-    st.write(f"Natural Gas: {gas}")
-    st.write(f"Water: {water}")
+    #st.markdown("### ✅ Retrieved via get_answer():")
+    #st.write(f"Electricity: {elec}")
+    #st.write(f"Natural Gas: {gas}")
+    #st.write(f"Water: {water}")
 
     # Move this outside the expander
     confirm_key_home = "confirm_ai_prompt_home"
@@ -1182,7 +1183,7 @@ def home():
     #st.write("DEBUG → generated_prompt:", st.session_state.get("generated_prompt"))
     #st.write("🧪 Prompt from function:", prompt)
 
-    st.write("🧪 Prompt from function:", prompt)
+    #st.write("🧪 Prompt from function:", prompt)
 
     if user_confirmation:
         prompt = utilities_emergency_runbook_prompt()
@@ -1205,27 +1206,25 @@ def home():
     # Optional: Runbook button outside the expander
     if st.session_state.get("generated_prompt"):
         if st.button("📄 Generate Runbook Document"):
-            # Add runbook generation function here
-            st.success("Runbook generated!")
-            st.session_state["level_progress"]["home"] = True
+            buffer, runbook_text = generate_styled_docx_from_single_prompt(
+                prompt=st.session_state["generated_prompt"],
+                api_key=os.getenv("MISTRAL_TOKEN"),
+                doc_heading="Home Utilities Emergency Runbook"
+            )
 
-    generate_runbook_from_prompt(
-        prompt=st.session_state.get("generated_prompt", ""),
-        api_key=os.getenv("MISTRAL_TOKEN"),
-        button_text="Complete Level 1 Mission",
-        doc_heading="Home Utilities Emergency Runbook",
-        doc_filename="home_utilities_emergency.docx"
-    )
-    #st.write("🧪 Debug Info:")
-    #st.write("Prompt exists:", "Yes" if st.session_state.get("generated_prompt") else "No")
-    #st.write("User confirmed:", st.session_state.get("user_confirmation"))
-    #st.write("Prompt:", st.session_state.get("generated_prompt"))
-    #st.write("API key loaded:", "Yes" if os.getenv("MISTRAL_TOKEN") else "No")
+            if buffer:
+                st.download_button(
+                    label="📥 Download DOCX",
+                    data=buffer,
+                    file_name="home_utilities_emergency.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+                st.success("✅ Runbook ready for download!")
 
-    if st.button("🧹 Clear 'Home Basics' Only"):
-        if "input_data" in st.session_state:
-            st.session_state["input_data"].pop("Home Basics", None)
-            st.success("✅ 'Home Basics' inputs cleared.")
+  #  if st.button("🧹 Clear 'Home Basics' Only"):
+  #      if "input_data" in st.session_state:
+   #         st.session_state["input_data"].pop("Home Basics", None)
+   #         st.success("✅ 'Home Basics' inputs cleared.")
 
 
 ### Level 2 - Emergency Kit Details
