@@ -8,6 +8,7 @@ import pandas as pd
 import plotly.express as px
 from uuid import uuid4
 import re
+from collections import defaultdict
 
 def get_or_create_session_id():
     """Assigns a persistent unique ID per session"""
@@ -477,7 +478,22 @@ def check_missing_utility_inputs():
 
     return missing
 
+def generate_category_keywords_from_labels(input_data):
+    """Auto-generate category keywords based on recurring words in labels."""
+    keyword_freq = defaultdict(int)
 
+    for section, entries in input_data.items():
+        for entry in entries:
+            label = entry.get("question", "")
+            words = re.findall(r"\b\w{4,}\b", label.lower())  # Filter short/noisy words
+            for word in words:
+                keyword_freq[word] += 1
+
+    # Filter common task-related words only (tunable)
+    candidate_keywords = {k: v for k, v in keyword_freq.items() if v >= 2}  # show those used more than once
+    sorted_keywords = sorted(candidate_keywords.items(), key=lambda x: -x[1])
+
+    return sorted_keywords
 
 
 

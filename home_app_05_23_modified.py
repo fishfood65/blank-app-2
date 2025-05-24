@@ -603,6 +603,13 @@ def trash_handling():
             disabled=disabled
         )
         capture_input(
+            "Recycling Trash Bin Location and Emptying Schedule (if available) and Sorting Instructions",
+            st.text_area,
+            section,
+            placeholder="E.g. Bin is located under the kitchen sink...",
+            disabled=disabled
+        )
+        capture_input(
             "Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags",
             st.text_area,
             section,
@@ -1694,14 +1701,15 @@ def bonus_level():
     st.session_state.setdefault('bonus_generate_confirm', False)
 
     # Ensure progress flags exist
-    st.session_state.progress.setdefault("level_2_completed", False)
-    st.session_state.progress.setdefault("level_3_completed", False)
-    st.session_state.progress.setdefault("level_4_completed", False)
+    #st.session_state.progress.setdefault("level_2_completed", False)
+    #st.session_state.progress.setdefault("level_3_completed", False)
+    #st.session_state.progress.setdefault("level_4_completed", False)
 
     # ─── Create two tabs ──────────────────────────────────────
-    tab1, tab2 = st.tabs([
+    tab1, tab2, tab3 = st.tabs([
         "1️⃣ Bonus Input",
-        "2️⃣ Generate Runbook"
+        "2️⃣ Generate Runbook",
+        "Debug"
     ])
 
     # ─── Tab 1: Collect Bonus Inputs ─────────────────────────
@@ -1832,13 +1840,28 @@ def bonus_level():
                 st.code(p, language="markdown")
 
             # 8) Generate runbook button
-            generate_runbook_from_multiple_prompts(
-                prompts=prompts,
-                api_key=os.getenv("MISTRAL_TOKEN"),
-                button_text=button_text,
-                doc_heading=doc_heading,
-                doc_filename=doc_file
-            )
+            #generate_runbook_from_multiple_prompts(
+            #    prompts=prompts,
+            #    api_key=os.getenv("MISTRAL_TOKEN"),
+            #    button_text=button_text,
+            #    doc_heading=doc_heading,
+            #    doc_filename=doc_file
+            #)
+    # ─── Tab 1: Collect Bonus Inputs ─────────────────────────
+        with tab3:
+            def show_all_section_names():
+                input_data = st.session_state.get("input_data", {})
+                section_names = list(input_data.keys())
+
+                if section_names:
+                    st.markdown("### 📂 Sections Used in App")
+                    for name in section_names:
+                        st.markdown(f"- **{name}**")
+                else:
+                    st.info("ℹ️ No sections recorded yet.")
+            
+            with st.write("🧭 Debug Info"):
+                show_all_section_names()
 
 ### Call App Functions
 if __name__ == "__main__":
