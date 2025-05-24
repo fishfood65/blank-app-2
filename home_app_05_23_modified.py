@@ -1293,7 +1293,7 @@ def trash_handling():
                 st.image(Image.open(io.BytesIO(img)), caption=label)
 
 
-def mail_trash_handling():
+def mail_trash_handling(): ### need to be able to pull out a schedule out from the output
 
     # Create three tabs
     tab1, tab2, tab3 = st.tabs([
