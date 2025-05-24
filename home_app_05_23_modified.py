@@ -62,54 +62,10 @@ else:
 
 # Main entry point of the app
 
-def download_session_state_as_csv():
-    """
-    Serializes all keys and values in st.session_state into a CSV
-    and provides a download button.
-    """
-    # 1) Build a list of records
-    records = []
-    for key, val in st.session_state.items():
-        # JSON-encode complex objects
-        try:
-            value_str = json.dumps(val, default=str)
-        except Exception:
-            value_str = str(val)
-        records.append({
-            "key": key,
-            "value": value_str
-        })
-
-    # 2) Create a DataFrame
-    df = pd.DataFrame(records)
-
-    # 3) Convert to CSV
-    csv = df.to_csv(index=False).encode("utf-8")
-
-    # 4) Offer download
-    st.download_button(
-        label="📥 Download data as CSV",
-        data=csv,
-        file_name="home_data.csv",
-        mime="text/csv"
-    )
-
-#PROGRESS_FILE = "user_progress.json"
-
-#def load_progress():
-#    if os.path.exists(PROGRESS_FILE):
-#        with open(PROGRESS_FILE, "r") as f:
- #           return json.load(f)
- #   return {}
-
-#def save_progress(progress):
- #   with open(PROGRESS_FILE, "w") as f:
- #       json.dump(progress, f)
-
 def main():
 
 # Initialize or retrieve level progress tracking
-# "level_progress" is set for Level 1 - 5
+# "level_progress" is set for Level 1 - 6
 # See LEVEL_LABELS, at the top, for definition of each Level
 # This tracks whether each key section of the app has been completed
 # Used by check_home_progress() to calculate total progress
@@ -136,12 +92,6 @@ def main():
     export_input_data_as_csv()
     
     levels = ("Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Bonus Level")
-
-    # Initialize session state
-    #if "section" not in st.session_state:
-    #    st.session_state.section = levels[0]
-    #if "progress" not in st.session_state:
-    #    st.session_state.progress = load_progress()
 
     # Sidebar navigation
     selected = st.sidebar.radio(
@@ -556,36 +506,39 @@ Ensure the run book is clearly formatted using Markdown, with bold headers and b
 
 #### Emergency Kit + Utilities Prompt ####
 
-def emergency_kit_utilities_runbook_prompt(
-    city=st.session_state.get("city", ""),
-    zip_code=st.session_state.get("zip_code", ""),
-    internet_provider_name=st.session_state.get("internet_provider",""),
-    electricity_provider_name=st.session_state.get("electricity_provider",""),
-    natural_gas_provider_name=st.session_state.get("natural_gas_provider",""),
-    water_provider_name=st.session_state.get("water_provider",""),
-    emergency_kit_status=st.session_state.get("emergency_kit_status", "No"),
-    emergency_kit_location=st.session_state.get("emergency_kit_location", ""),
-    selected_items=st.session_state.get("homeowner_kit_stock", []),
-    not_selected_items=st.session_state.get("not_selected_items", []),
-    additional_items=st.session_state.get("additional_kit_items", ""),
-    flashlights_info=st.session_state.get("flashlights_info", ""),
-    radio_info=st.session_state.get("radio_info", ""),
-    food_water_info=st.session_state.get("food_water_info", ""),
-    important_docs_info=st.session_state.get("important_docs_info", ""),
-    whistle_info=st.session_state.get("whistle_info", ""),
-    medications_info=st.session_state.get("medications_info", ""),
-    mask_info=st.session_state.get("mask_info", ""),
-    maps_contacts_info=st.session_state.get("maps_contacts_info", "")
-):
-    # Build Markdown lists for inventory & missing items
+def emergency_kit_utilities_runbook_prompt():
+    """
+    Generate a markdown-formatted emergency runbook prompt using user answers and utility data.
+    """
+    city = get_answer("City", "Home Basics") or ""
+    zip_code = get_answer("ZIP Code", "Home Basics") or ""
+    internet_provider_name = get_answer("Internet Provider", "Home Basics") or ""
+    emergency_kit_status = get_answer("Do you have an Emergency Kit?", "Emergency Kit") or "No"
+    emergency_kit_location = get_answer("Where is (or where will) the Emergency Kit be located?", "Emergency Kit") or ""
+    additional_items = get_answer("Add any additional emergency kit items not in the list above (comma-separated):", "Emergency Kit") or ""
+
+    selected_items = st.session_state.get("homeowner_kit_stock", [])
+    not_selected_items = st.session_state.get("not_selected_items", [])
+
+    results = st.session_state.get("utility_providers", {})
+    electricity_provider_name = results.get("electricity", "")
+    natural_gas_provider_name = results.get("natural_gas", "")
+    water_provider_name = results.get("water", "")
+
+    flashlights_info = st.session_state.get("flashlights_info", "")
+    radio_info = st.session_state.get("radio_info", "")
+    food_water_info = st.session_state.get("food_water_info", "")
+    important_docs_info = st.session_state.get("important_docs_info", "")
+    whistle_info = st.session_state.get("whistle_info", "")
+    medications_info = st.session_state.get("medications_info", "")
+    mask_info = st.session_state.get("mask_info", "")
+    maps_contacts_info = st.session_state.get("maps_contacts_info", "")
+
     selected_md = "".join(f"- {item}\n" for item in selected_items)
-    missing_md  = "".join(f"- {item}\n" for item in not_selected_items)
-
-    # Parse additional items (comma-separated) into bullets
+    missing_md = "".join(f"- {item}\n" for item in not_selected_items)
     additional_list = [itm.strip() for itm in additional_items.split(",") if itm.strip()]
-    additional_md   = "".join(f"- {itm}\n" for itm in additional_list)
+    additional_md = "".join(f"- {itm}\n" for itm in additional_list)
 
-    # Helper to render non-empty recommended items
     def render_recommended(*items):
         return "".join(f"- {i}\n" for i in items if i and i.strip())
 
@@ -684,7 +637,6 @@ For Emergency Kit Summary:
 
 Ensure the run book is clearly formatted using Markdown, with bold headers and bullet points. Use ⚠️ to highlight missing kit items.
 """.strip()
-
 
 #### Mail + Trash Prompt ####
 def mail_trash_runbook_prompt():
@@ -997,7 +949,7 @@ def home_debug():
 
     st.write("🟡 About to render runbook button")
 
-    generate_runbook_from_prompt(
+    utilities_emergency_runbook_prompt(
         prompt=st.session_state.get("generated_prompt", ""),
         api_key=os.getenv("MISTRAL_TOKEN"),
         button_text="Complete Level 1 Mission",
@@ -1107,7 +1059,7 @@ def home():
     user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key_home)
     missing = check_missing_utility_inputs()
     st.session_state["user_confirmation"] = user_confirmation # store confirmation in session
-    prompt = utilities_emergency_runbook_prompt()
+    #prompt = utilities_emergency_runbook_prompt()
 
     # DEBUG print to screen
     #st.write("DEBUG → confirmed:", user_confirmation)
@@ -1174,7 +1126,6 @@ def home():
 ### Level 2 - Emergency Kit Details
 
 # Define the homeowner_kit_stock function
-import streamlit as st
 
 def homeowner_kit_stock():
     kit_items = [
@@ -1189,76 +1140,80 @@ def homeowner_kit_stock():
         "Local maps and contact lists"
     ]
 
-    # Initialize storage keys in session_state
-    for item in kit_items:
-        storage_key = (
-            item.lower()
-                .replace(" ", "_")
-                .replace("(", "")
-                .replace(")", "")
-            + "_storage"
-        )
-        if storage_key not in st.session_state:
-            st.session_state[storage_key] = None
+    selected = []
 
     with st.form(key="emergency_kit_form"):
-        st.write("Select all you have:")
-        selected = []
+        st.write("Select all emergency supplies you currently have:")
 
-        # Display checkboxes in rows of 4
         for start in range(0, len(kit_items), 4):
             chunk = kit_items[start : start + 4]
             cols = st.columns(len(chunk))
+
             for idx, item in enumerate(chunk):
-                storage_key = (
-                    item.lower()
-                        .replace(" ", "_")
-                        .replace("(", "")
-                        .replace(")", "")
-                    + "_storage"
+                key = f"kit_{item.lower().replace(' ', '_').replace('(', '').replace(')', '')}"
+                # Use capture_input to register the checkbox
+                has_item = capture_input(
+                    label=item,
+                    input_fn=cols[idx].checkbox,
+                    section_name="Emergency Kit",
+                    key=key,
+                    value=st.session_state.get(key, False)
                 )
-                # default checked if previously stored
-                default_checked = st.session_state[storage_key] is not None
-                checked = cols[idx].checkbox(
-                    item,
-                    value=default_checked,
-                    key=f"chk_{storage_key}"
-                )
-                if checked:
+                if has_item:
                     selected.append(item)
 
-        submit = st.form_submit_button(label="Submit")
+        submitted = st.form_submit_button("Submit")
 
-    if submit:
-        not_selected = [item for item in kit_items if item not in selected]
-        if not_selected:
+    if submitted:
+        missing = [item for item in kit_items if item not in selected]
+        if missing:
             st.warning("⚠️ Consider adding the following items to your emergency kit:")
-            for item in not_selected:
+            for item in missing:
                 st.write(f"- {item}")
-
-        # Update session_state based on checkboxes
-        for item in kit_items:
-            storage_key = (
-                item.lower()
-                    .replace(" ", "_")
-                    .replace("(", "")
-                    .replace(")", "")
-                + "_storage"
-            )
-            if item in selected:
-                st.session_state[storage_key] = item
-            else:
-                st.session_state[storage_key] = None
 
     return selected
 
 def emergency_kit():
-    # Use st.radio to create a dropdown menu for selecting between renting or owning
-    emergency_kit_status = st.radio(
-        'Do you have an Emergency Kit?',
-        ('Yes', 'No')
+    st.header("🧰 Emergency Kit Setup")
+
+    # 1. Kit ownership status
+    emergency_kit_status = capture_input(
+        label="Do you have an Emergency Kit?",
+        input_fn=st.radio,
+        section_name="Emergency Kit",
+        options=["Yes", "No"],
+        index=0
     )
 
+    if emergency_kit_status == 'Yes':
+        st.success('Great—you already have a kit!', icon=":material/medical_services:")
+    else:
+        st.warning("⚠️ Let's build your emergency kit with what you have.")
+
+    # 2. Kit location
+    emergency_kit_location = capture_input(
+        label="Where is (or where will) the Emergency Kit be located?",
+        input_fn=st.text_area,
+        section_name="Emergency Kit",
+        placeholder="e.g., hall closet, garage bin"
+    )
+
+    # 3. Core stock selector (refactored homeowner_kit_stock already uses capture_input)
+    selected_items = homeowner_kit_stock()
+    if selected_items is not None:
+        st.session_state['homeowner_kit_stock'] = selected_items  # keep this for backwards compatibility
+
+    # 4. Custom additions
+    additional = capture_input(
+        label="Add any additional emergency kit items not in the list above (comma-separated):",
+        input_fn=st.text_input,
+        section_name="Emergency Kit",
+        value=st.session_state.get("additional_kit_items", "")
+    )
+    if additional:
+        st.session_state['additional_kit_items'] = additional
+
+    # 5. Track missing core items
     kit_items = [
         "Flashlights and extra batteries",
         "First aid kit",
@@ -1270,37 +1225,7 @@ def emergency_kit():
         "Dust masks (for air filtration)",
         "Local maps and contact lists"
     ]
-
-    st.write("🧰 Emergency Kit Info")
-    if emergency_kit_status == 'Yes':
-        st.success('Great—you already have a kit!', icon=":material/medical_services:")
-    else:
-        st.warning("⚠️ Let's build your emergency kit with what you have.")
-
-    st.session_state['emergency_kit_status'] = emergency_kit_status
-
-    # Kit location
-    emergency_kit_location = st.text_area("Where is (or where will) the Emergency Kit be located?")
-    if emergency_kit_location:
-        st.session_state['emergency_kit_location'] = emergency_kit_location
-
-    # Core kit items selector
-    selected_items = homeowner_kit_stock()
-    if selected_items is not None:
-        st.session_state['homeowner_kit_stock'] = selected_items
-
-    # Additional custom items
-    additional = st.text_input(
-        "Add any additional emergency kit items not in the list above (comma-separated):",
-        value=st.session_state.get('additional_kit_items', '')
-    )
-    if additional is not None:
-        # store raw string or split into list
-        st.session_state['additional_kit_items'] = additional
-
-    # Compute not selected
-    current_selection = st.session_state.get('homeowner_kit_stock', [])
-    not_selected_items = [item for item in kit_items if item not in current_selection]
+    not_selected_items = [item for item in kit_items if item not in selected_items]
     st.session_state['not_selected_items'] = not_selected_items
 
     return not_selected_items
@@ -1313,11 +1238,10 @@ def emergency_kit_utilities():
     # Step 2: Preview prompt
 
     # Move this outside the expander
-    user_confirmation = st.checkbox("✅ Confirm AI Prompt")
+    confirm_key_kit = "confirm_ai_prompt_emergency_kit"
+    user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key_kit)
+    missing = emergency_kit()
     st.session_state["user_confirmation"] = user_confirmation # store confirmation in session
-
-    st.session_state.progress["level_2_completed"] = True
-    save_progress(st.session_state.progress)
 
     if user_confirmation:
         prompt = emergency_kit_utilities_runbook_prompt()
@@ -1325,21 +1249,55 @@ def emergency_kit_utilities():
     else:
         st.session_state["generated_prompt"] = None
 
-# Show prompt in expander
-    with st.expander("AI Prompt Preview (Optional)"):
-        if st.session_state.get("generated_prompt"):
+    # DEBUG print to screen
+    #st.write("DEBUG → confirmed:", user_confirmation)
+    #st.write("DEBUG → missing:", missing)
+    #st.write("DEBUG → generated_prompt:", st.session_state.get("generated_prompt"))
+    #st.write("🧪 Prompt from function:", prompt)
+
+    #st.write("🧪 Prompt from function:", prompt)
+
+    # Step 4: Preview + next steps
+    with st.expander("🧠 AI Prompt Preview (Optional)", expanded=True):
+        if missing:
+            st.warning(f"⚠️ Cannot generate prompt. Missing: {', '.join(missing)}")
+        elif not user_confirmation:
+            st.info("☝️ Please check the box to confirm AI prompt generation.")
+        elif st.session_state.get("generated_prompt"):
             st.code(st.session_state["generated_prompt"], language="markdown")
+            st.success("✅ Prompt ready! Now you can generate your runbook.")
+        else:
+            st.warning("⚠️ Prompt not generated yet.")
 
-    # Step 3: Generate runbook using reusable function
-    st.write("Next, click the button to generate your personalized utilities emergency runbook document:")
+    # Optional: Runbook button outside the expander
+    if st.session_state.get("generated_prompt"):
+        if st.button("📄 Generate Runbook Document"):
+            buffer, runbook_text = generate_docx_from_split_prompts(
+                prompts=[st.session_state["generated_prompt"]], 
+                api_key=os.getenv("MISTRAL_TOKEN"),
+                doc_heading="Home Emergency Readiness: Utilities & Kit"
+            )
 
-    generate_runbook_from_prompt(
-        prompt=st.session_state.get("generated_prompt", ""),
-        api_key=os.getenv("MISTRAL_TOKEN"),
-        button_text="Complete Level 2 Mission",
-        doc_heading="Home Emergency Runbook With Emergency Kit Summary",
-        doc_filename="home_util_emergency_kit.docx"
-    )
+            # Store results to persist across reruns
+            st.session_state["runbook_buffer"] = buffer
+            st.session_state["runbook_text"] = runbook_text
+
+    # Access from session_state for consistent behavior
+    buffer = st.session_state.get("runbook_buffer")
+    runbook_text = st.session_state.get("runbook_text")
+
+    if buffer:
+        st.download_button(
+            label="📥 Download DOCX",
+            data=buffer,
+            file_name="home_utilities_emergency.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        st.success("✅ Runbook ready for download!")
+
+    if runbook_text:    
+        preview_runbook_output(runbook_text)        
+
 ##### Level 3 - Mail Handling and Trash
 
 def mail():
