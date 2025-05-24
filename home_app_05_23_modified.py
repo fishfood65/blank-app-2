@@ -1,6 +1,6 @@
 from utils.utils_home_helpers import check_home_progress
 from utils.input_tracker import capture_input, flatten_answers_to_dict, get_answer, extract_and_log_providers, log_provider_result, autolog_location_inputs, preview_input_data, check_missing_utility_inputs
-from utils.runbook_generator_helpers import generate_styled_docx_from_single_prompt
+from utils.runbook_generator_helpers import generate_docx_from_split_prompts, preview_runbook_output
 import streamlit as st
 import re
 from mistralai import Mistral, UserMessage, SystemMessage
@@ -248,74 +248,6 @@ def save_docx_from_formatted_text(formatted_text: str, doc_filename: str, doc_he
                 doc_paragraph.add_run(run)
 
     doc.save(doc_filename)
-
-
-def generate_runbook_from_prompt(
-    prompt: str,
-    api_key: str,
-    button_text: str,
-    doc_heading: str,
-    doc_filename: str
-):
-    """
-    Reusable Streamlit function to handle LLM completion and export a DOCX or HTML file.
-    """
-    unique_key = f"{button_text.lower().replace(' ', '_')}_button"
-    clicked = st.button(button_text, key=unique_key)
-
-    if clicked:
-        st.write("✅ Button was clicked")
-
-        if st.session_state.get("user_confirmation") and prompt:
-            try:
-                st.write("⏳ Sending to Mistral...")
-
-                client = Mistral(api_key=api_key)
-                completion = client.chat.complete(
-                    model="mistral-small-latest",
-                    messages=[SystemMessage(content=prompt)],
-                    max_tokens=2000,
-                    temperature=0.5,
-                )
-
-                output = completion.choices[0].message.content
-                st.success(f"{doc_heading} generated successfully!")
-                st.write(output)
-
-                # Format the output into HTML-like format
-                formatted_output = format_output_for_docx(output)
-
-                # Saving to DOCX
-                if doc_filename.endswith(".docx"):
-                    save_docx_from_formatted_text(formatted_output, doc_filename, doc_heading)
-
-                    with open(doc_filename, "rb") as f:
-                        st.download_button(
-                            label="📄 Download DOCX",
-                            data=f,
-                            file_name=doc_filename,
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        )
-                # Saving to HTML (Optional for HTML output)
-                elif doc_filename.endswith(".html"):
-                    html_content = f"<html><head><title>{doc_heading}</title></head><body>{formatted_output}</body></html>"
-
-                    with open(doc_filename, "w") as f:
-                        f.write(html_content)
-
-                    with open(doc_filename, "rb") as f:
-                        st.download_button(
-                            label="📄 Download HTML",
-                            data=f,
-                            file_name=doc_filename,
-                            mime="text/html"
-                        )
-
-            except Exception as e:
-                st.error(f"❌ Failed to generate runbook: {str(e)}")
-
-        else:
-            st.warning("⚠️ Prompt not confirmed or missing.")
 
 def generate_runbook_from_prompt_split(
     prompt_emergency: str,
@@ -1206,21 +1138,33 @@ def home():
     # Optional: Runbook button outside the expander
     if st.session_state.get("generated_prompt"):
         if st.button("📄 Generate Runbook Document"):
-            buffer, runbook_text = generate_styled_docx_from_single_prompt(
-                prompt=st.session_state["generated_prompt"],
+            buffer, runbook_text = generate_docx_from_split_prompts(
+                prompts=[st.session_state["generated_prompt"]], 
                 api_key=os.getenv("MISTRAL_TOKEN"),
                 doc_heading="Home Utilities Emergency Runbook"
             )
 
-            if buffer:
-                st.download_button(
-                    label="📥 Download DOCX",
-                    data=buffer,
-                    file_name="home_utilities_emergency.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-                st.success("✅ Runbook ready for download!")
+            # Store results to persist across reruns
+            st.session_state["runbook_buffer"] = buffer
+            st.session_state["runbook_text"] = runbook_text
 
+    # Access from session_state for consistent behavior
+    buffer = st.session_state.get("runbook_buffer")
+    runbook_text = st.session_state.get("runbook_text")
+
+    if buffer:
+        st.download_button(
+            label="📥 Download DOCX",
+            data=buffer,
+            file_name="home_utilities_emergency.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        st.success("✅ Runbook ready for download!")
+
+    if runbook_text:    
+        preview_runbook_output(runbook_text)        
+
+    
   #  if st.button("🧹 Clear 'Home Basics' Only"):
   #      if "input_data" in st.session_state:
    #         st.session_state["input_data"].pop("Home Basics", None)
