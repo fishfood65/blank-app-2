@@ -1,5 +1,5 @@
 from utils.utils_home_helpers import check_home_progress
-from utils.input_tracker import capture_input, flatten_answers_to_dict, get_answer, extract_and_log_providers, log_provider_result, autolog_location_inputs, preview_input_data, check_missing_utility_inputs, export_input_data_as_csv
+from utils.input_tracker import capture_input, flatten_answers_to_dict, get_answer, extract_and_log_providers, log_provider_result, autolog_location_inputs, preview_input_data, check_missing_utility_inputs, export_input_data_as_csv, render_lock_toggle
 from utils.runbook_generator_helpers import generate_docx_from_split_prompts, preview_runbook_output
 import streamlit as st
 import re
@@ -163,206 +163,6 @@ def main():
     elif section == "bonus_level":
         st.subheader("🎁 Bonus Level Content")
         bonus_level()
-
-#### Reusable Functions to Generate and Format Runbooks #####
-def format_output_for_docx(output: str) -> str:
-    """Formats markdown-like output to docx-friendly text with HTML-like formatting."""
-    if not output:
-        return ""
-    
-    # Convert markdown-like headings, bold, and italic
-    formatted_text = re.sub(r"^## (.*)", r"<h2>\1</h2>", output, flags=re.MULTILINE)  # Convert ## to <h2>
-    formatted_text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", formatted_text)  # Convert **bold** to <b>
-    formatted_text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", formatted_text)  # Convert *italic* to <i>
-    return formatted_text
-
-    return formatted_text
-
-def save_docx_from_formatted_text(formatted_text: str, doc_filename: str, doc_heading: str):
-    """Saves the formatted text into a DOCX file with proper formatting."""
-    doc = Document()
-    doc.add_heading(doc_heading, 0)
-
-    # Split the formatted text by paragraphs and process each paragraph
-    paragraphs = formatted_text.split('\n\n')
-    for para in paragraphs:
-        # Create a paragraph in the DOCX file
-        doc_paragraph = doc.add_paragraph()
-
-        # Handle bold and italic text
-        runs = re.split(r'(<b>.*?</b>|<i>.*?</i>)', para)  # Split by bold or italic tags
-        for run in runs:
-            if run.startswith('<b>'):
-                run_text = run[3:-4]  # Remove <b> and </b>
-                doc_paragraph.add_run(run_text).bold = True
-            elif run.startswith('<i>'):
-                run_text = run[3:-4]  # Remove <i> and </i>
-                doc_paragraph.add_run(run_text).italic = True
-            else:
-                doc_paragraph.add_run(run)
-
-    doc.save(doc_filename)
-
-def generate_runbook_from_prompt_split(
-    prompt_emergency: str,
-    prompt_mail_trash: str,
-    api_key: str,
-    button_text: str,
-    doc_heading: str,
-    doc_filename: str
-):
-    """
-    Calls Mistral API with two prompts: emergency/utilities and mail/trash.
-    Concatenates results and creates a formatted DOCX file.
-    """
-    unique_key = f"{button_text.lower().replace(' ', '_')}_button"
-    clicked = st.button(button_text, key=unique_key)
-
-    # 🔍 Debug Info
-    with st.expander("🧪 Debug Info (Prompt + State)"):
-        st.write("🔘 **Button Clicked:**", "✅ Yes" if clicked else "❌ No")
-        st.write("🙋 **User Confirmed Prompt:**", st.session_state.get("user_confirmation", False))
-        st.write("🔑 **API Key Loaded:**", "✅ Yes" if api_key else "❌ No")
-
-    # Check each prompt presence
-        st.write("📄 **Emergency Prompt Exists:**", "✅ Yes" if prompt_emergency else "❌ No")
-        if prompt_emergency:
-            st.code(prompt_emergency[:500] + "..." if len(prompt_emergency) > 500 else prompt_emergency, language="markdown")
-
-        st.write("📬 **Mail & Trash Prompt Exists:**", "✅ Yes" if prompt_mail_trash else "❌ No")
-        if prompt_mail_trash:
-            st.code(prompt_mail_trash[:500] + "..." if len(prompt_mail_trash) > 500 else prompt_mail_trash, language="markdown")
-
-    # Optionally display selected session state keys
-        st.write("📋 **Selected Session State Keys:**")
-        st.json({key: st.session_state.get(key) for key in [
-            "user_confirmation",
-            "electricity_provider",
-            "natural_gas_provider",
-            "water_provider",
-            "internet_provider",
-            "emergency_kit_status",
-            "emergency_kit_location"
-        ]})
-
-    if clicked:
-        st.write("✅ Button was clicked")
-
-        if not st.session_state.get("user_confirmation", False):
-            st.warning("⚠️ Please confirm the AI prompt before generating the runbook.")
-            return
-
-        try:
-            client = Mistral(api_key=api_key)
-
-            st.info("📡 Querying Mistral for Emergency & Utilities Section...")
-            emergency_response = client.chat.complete(
-                model="mistral-small-latest",
-                messages=[UserMessage(content=prompt_emergency)],
-                max_tokens=1500,
-                temperature=0.5,
-            ).choices[0].message.content
-
-            st.info("📬 Querying Mistral for Mail & Trash Section...")
-            mail_trash_response = client.chat.complete(
-                model="mistral-small-latest",
-                messages=[UserMessage(content=prompt_mail_trash)],
-                max_tokens=1000,
-                temperature=0.5,
-            ).choices[0].message.content
-
-            # Combine sections and format for DOCX
-            full_output = f"{emergency_response}\n\n{mail_trash_response}"
-            formatted_output = format_output_for_docx(full_output)
-
-            st.success(f"{doc_heading} generated successfully!")
-            st.write(full_output)
-
-            # Write to DOCX
-            doc = Document()
-            doc.add_heading(doc_heading, 0)
-            doc.add_paragraph(formatted_output)
-            doc.save(doc_filename)
-
-            # Download button
-            with open(doc_filename, "rb") as f:
-                st.download_button(
-                    label="📄 Download DOCX",
-                    data=f,
-                    file_name=doc_filename,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-
-        except Exception as e:
-            st.error(f"❌ Error generating runbook: {str(e)}")
-
-def generate_runbook_from_multiple_prompts(
-    prompts: list,
-    api_key: str,
-    button_text: str,
-    doc_heading: str,
-    doc_filename: str
-):
-    """
-    Calls Mistral API with a list of prompts, concatenates results,
-    formats the content, and generates a downloadable DOCX.
-    """
-    unique_key = f"{button_text.lower().replace(' ', '_')}_button"
-    clicked = st.button(button_text, key=unique_key)
-
-    # 🔍 Debug Info
-    with st.expander("🧪 Debug Info (Prompt + State)"):
-        st.write("🔘 **Button Clicked:**", "✅ Yes" if clicked else "❌ No")
-        st.write("🙋 **User Confirmed Prompt:**", st.session_state.get("user_confirmation", False))
-        st.write("🔑 **API Key Loaded:**", "✅ Yes" if api_key else "❌ No")
-
-        for idx, prompt in enumerate(prompts):
-            label = f"Prompt #{idx + 1}"
-            st.write(f"📄 **{label} Exists:**", "✅ Yes" if prompt else "❌ No")
-            if prompt:
-                st.code(prompt[:500] + "..." if len(prompt) > 500 else prompt, language="markdown")
-
-    if clicked:
-        if not st.session_state.get("user_confirmation", False):
-            st.warning("⚠️ Please confirm the AI prompt before generating the runbook.")
-            return
-
-        try:
-            client = Mistral(api_key=api_key)
-            combined_output = ""
-
-            for idx, prompt in enumerate(prompts):
-                st.info(f"📡 Querying Mistral for Section {idx + 1}...")
-                response = client.chat.complete(
-                    model="mistral-small-latest",
-                    messages=[UserMessage(content=prompt)],
-                    max_tokens=1500,
-                    temperature=0.5,
-                )
-                combined_output += response.choices[0].message.content + "\n\n"
-
-            formatted_output = format_output_for_docx(combined_output)
-
-            st.success(f"{doc_heading} generated successfully!")
-            st.write(combined_output)
-
-            # Write to DOCX
-            doc = Document()
-            doc.add_heading(doc_heading, 0)
-            doc.add_paragraph(formatted_output)
-            doc.save(doc_filename)
-
-            with open(doc_filename, "rb") as f:
-                st.download_button(
-                    label="📄 Download DOCX",
-                    data=f,
-                    file_name=doc_filename,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-
-        except Exception as e:
-            st.error(f"❌ Error generating runbook: {str(e)}")
-
 
 #### Prompts Here #####
 
@@ -650,67 +450,121 @@ Ensure the run book is clearly formatted using Markdown, with bold headers and b
 #### Mail + Trash Prompt ####
 def mail_trash_runbook_prompt():
     mail_info = st.session_state.get("mail_info", {})
-    mailbox_location = mail_info.get("Mailbox Location", "Not provided")
-    mailbox_key = mail_info.get("Mailbox Key", "Not provided")
-    pick_up_schedule = mail_info.get("Pick-Up Schedule", "Not provided")
-    what_to_do_with_mail = mail_info.get("What to Do with the Mail", "Not provided")
-    what_to_do_with_packages = mail_info.get("Packages", "Not provided")
     trash_info = st.session_state.get("trash_info", {})
+
+    def safe_line(label, value):
+        """Return a formatted line if value is not 'No' or empty."""
+        if value and str(value).strip().lower() != "no":
+            return f"- **{label}**: {value}"
+        return None
+
+    def safe_yes_no(label, flag, detail_label, detail_value):
+        """Return a formatted section for yes/no flags with detail."""
+        if flag:
+            return f"- **{label}**: Yes\n- **{detail_label}**: {detail_value or 'N/A'}"
+        return ""
+
+    # Mail section
+    mail_lines = [
+        safe_line("Mailbox Location", mail_info.get("Mailbox Location")),
+        safe_line("Mailbox Key Info", mail_info.get("Mailbox Key")),
+        safe_line("Pick-Up Schedule", mail_info.get("Pick-Up Schedule")),
+        safe_line("Mail Sorting Instructions", mail_info.get("What to Do with the Mail")),
+        safe_line("Delivery Packages", mail_info.get("Packages")),
+    ]
+    mail_section = "\n".join(filter(None, mail_lines))
+    mail_block = f"#### 📬 Mail Handling Instructions\n{mail_section}" if mail_section else ""
+
+    # Indoor trash
     indoor = trash_info.get("indoor", {})
+    indoor_lines = [
+        safe_line("Kitchen Trash", indoor.get("kitchen_bin")),
+        safe_line("Bathroom Trash", indoor.get("bathroom_bin")),
+        safe_line("Other Rooms Trash", indoor.get("other_room_bin")),
+    ]
+    indoor_section = "\n".join(filter(None, indoor_lines))
+    indoor_block = f"**Indoor Trash**\n{indoor_section}" if indoor_section else ""
+
+    # Outdoor bins
     outdoor = trash_info.get("outdoor", {})
+    outdoor_lines = [
+        safe_line("Please take the bins", outdoor.get("bin_destination")),
+        safe_line("Bins Description", outdoor.get("bin_description")),
+        safe_line("Location", outdoor.get("bin_location_specifics")),
+        safe_line("Instructions", outdoor.get("bin_handling_instructions")),
+    ]
+    outdoor_section = "\n".join(filter(None, outdoor_lines))
+    outdoor_image_placeholders = []
+
+    if "trash_images" in st.session_state:
+        for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
+            if st.session_state.trash_images.get(label):
+                outdoor_image_placeholders.append(f"<<INSERT_IMAGE:{label}>>")
+
+    outdoor_image_text = "\n".join(outdoor_image_placeholders)
+    outdoor_block = f"**Outdoor Bins**\n{outdoor_section}\n\n{outdoor_image_text}" if outdoor_section or outdoor_image_text else ""
+
+
+    # Collection schedule
     schedule = trash_info.get("schedule", {})
+    collection_lines = [
+        safe_line("Garbage Pickup", f"{schedule.get('trash_day', '')}, {schedule.get('trash_time', '')}".strip(", ")),
+        safe_line("Recycling Pickup", f"{schedule.get('recycling_day', '')}, {schedule.get('recycling_time', '')}".strip(", ")),
+    ]
+    collection_section = "\n".join(filter(None, collection_lines))
+    collection_block = f"**Collection Schedule**\n{collection_section}" if collection_section else ""
+
+    # Composting
     composting = trash_info.get("composting", {})
+    composting_section = safe_yes_no(
+        "Composting Used",
+        composting.get("compost_used", False),
+        "Compost Instructions",
+        composting.get("compost_instructions")
+    )
+    composting_block = f"**Composting**\n{composting_section}" if composting_section else ""
+
+    # Common Disposal
     common_disposal = trash_info.get("common_disposal", {})
+    common_disposal_section = safe_yes_no(
+        "Common Disposal Area Used",
+        common_disposal.get("uses_common_disposal", False),
+        "Instructions",
+        common_disposal.get("common_area_instructions")
+    )
+    common_disposal_block = f"**Common Disposal Area**\n{common_disposal_section}" if common_disposal_section else ""
+
+    # Waste Management
     wm = trash_info.get("waste_management", {})
+    wm_lines = [
+        safe_line("Company Name", wm.get("company_name")),
+        safe_line("Phone", wm.get("phone")),
+        safe_line("Contact", wm.get("description")),
+    ]
+    wm_section = "\n".join(filter(None, wm_lines))
+    wm_block = f"**Waste Management Contact**\n{wm_section}" if wm_section else ""
+
+    # Combine all trash subsections
+    trash_blocks = "\n\n".join(filter(None, [
+        indoor_block,
+        outdoor_block,
+        collection_block,
+        composting_block,
+        common_disposal_block,
+        wm_block
+    ]))
+    trash_main = f"#### 🗑️ Trash & Recycling Instructions\n{trash_blocks}" if trash_blocks else ""
 
     return f"""
-You are an expert assistant generating Mail and Waste Management Run Book. Compose a comprehensive, easy-to-follow guide for house stitters and people watching the house when occupants are out of town. For any values set to No please omit thoses lines.
+You are an expert assistant generating Mail and Waste Management Run Book. Compose a comprehensive, easy-to-follow guide for house sitters and people watching the house when occupants are out of town. For any values set to No please omit those lines.
 
 ### 📕 Mail Handling and Waste Management Instructions 
 
-#### 📬 Mail Handling Instructions
-
-- **Mailbox Location**: {mailbox_location}
-- **Mailbox Key Info**: {mailbox_key}
-- **Pick-Up Schedule**: {pick_up_schedule}
-- **Mail Sorting Instructions**: {what_to_do_with_mail}
-- **Delivery Packages**: {what_to_do_with_packages}
+{mail_block}
 
 ---
 
-#### 🗑️ Trash & Recycling Instructions
-
-**Indoor Trash**
-- Kitchen Trash: {indoor.get("kitchen_bin", "Not provided")}
-- Bathroom Trash: {indoor.get("bathroom_bin", "Not provided")}
-- Other Rooms Trash: {indoor.get("other_room_bin", "Not provided")}
-
-**Outdoor Bins**
-- Please take the bins: {outdoor.get("bin_destination", "Not provided")}
-- Bins Description: {outdoor.get("bin_description", "Not provided")}
-- Location: {outdoor.get("bin_location_specifics", "Not provided")}
-- Instructions: {outdoor.get("bin_handling_instructions", "Not provided")}
-
-**Collection Schedule**
-- Garbage Pickup: {schedule.get("trash_day", "Not provided")}, {schedule.get("trash_time", "Not provided")}
-- Recycling Pickup: {schedule.get("recycling_day", "Not provided")}, {schedule.get("recycling_time", "Not provided")}
-
-**Composting**
-- Composting Used: {"Yes" if composting.get("compost_used", False) else "No"}
-- Compost Instructions: {composting.get("compost_instructions", "N/A")}
-
-**Common Disposal Area**
-- Used: {"Yes" if common_disposal.get("uses_common_disposal", False) else "No"}
-- Instructions: {common_disposal.get("common_area_instructions", "N/A")}
-
-**Waste Management Contact**
-- Company Name: {wm.get("company_name", "Not provided")}
-- Phone: {wm.get("phone", "Not provided")}
-- Contact: {wm.get("description", "Not provided")}
-
----
-
-Ensure the run book is clearly formatted using Markdown, with bold headers and bullet points. Use ⚠️ to highlight missing kit items.
+{trash_main}
 """.strip()
 
 #### Security and Services Prompt ####
@@ -1287,6 +1141,8 @@ def emergency_kit_utilities():
                 api_key=os.getenv("MISTRAL_TOKEN"),
                 doc_heading="Home Emergency Readiness: Utilities & Kit"
             )
+            # Level 1 Complete - for Progress
+            st.session_state["level_progress"]["emergency_kit"] = True
 
             # Store results to persist across reruns
             st.session_state["runbook_buffer"] = buffer
@@ -1311,264 +1167,133 @@ def emergency_kit_utilities():
 ##### Level 3 - Mail Handling and Trash
 
 def mail():
+    section = "Mail & Packages"
+    st.subheader("📬 Mail & Package Instructions")
 
-    if 'mail_info' not in st.session_state:
-        st.session_state.mail_info = {}
+    # 🔒 Lock/unlock toggle
+    render_lock_toggle(session_key="mail_locked", label="Mail Info")
 
-    with st.expander("Mail Handling", expanded=True):
-        # Input fields
-        mailbox_location = st.text_area(
-            "📍 Mailbox Location",
-            placeholder="E.g., 'At the end of the driveway on the left side.'"
+    # Determine whether inputs are editable
+    disabled = st.session_state.get("mail_locked", False)
+
+    with st.expander("📥 Instructions", expanded=True):
+        mailbox_location = capture_input(
+            "📍 Mailbox Location", st.text_area, section,
+            placeholder="E.g., 'At the end of the driveway...'", disabled=disabled
         )
-
-        mailbox_key = st.text_area(
-            "🔑 Mailbox Key (Optional)",
-            placeholder="E.g., 'Hanging on the key hook next to the fridge.'"
+        mailbox_key = capture_input(
+            "🔑 Mailbox Key (Optional)", st.text_area, section,
+            placeholder="E.g., 'On key hook...'", disabled=disabled
         )
-
-        pick_up_schedule = st.text_area(
-            "📆 Mail Pick-Up Schedule",
-            placeholder="E.g., 'Every other day' or 'Mondays and Thursdays'"
+        pick_up_schedule = capture_input(
+            "📆 Mail Pick-Up Schedule", st.text_area, section,
+            placeholder="E.g., 'Mondays and Thursdays'", disabled=disabled
         )
-
-        what_to_do_with_mail = st.text_area(
-            "📥 What to Do with the Mail",
-            placeholder="E.g., 'Place it in the tray on the kitchen counter.'"
+        what_to_do_with_mail = capture_input(
+            "📥 What to Do with the Mail", st.text_area, section,
+            placeholder="E.g., 'Place in kitchen tray'", disabled=disabled
         )
-
-        What_to_do_with_packages = st.text_area(
-            "📦 Packages",
-            placeholder="E.g., 'Place it inside the entryway closet.'"
+        what_to_do_with_packages = capture_input(
+            "📦 Packages", st.text_area, section,
+            placeholder="E.g., 'Inside entryway closet'", disabled=disabled
         )
-
-        # Dynamic progress bar based on completion
-        completed = sum([
-            bool(mailbox_location),
-            bool(mailbox_key),
-            bool(pick_up_schedule),
-            bool(what_to_do_with_mail),
-            bool(What_to_do_with_packages)
-        ])
-        progress = int((completed / 5) * 100)
-        st.progress(progress)
-
-        # Save button
-        if st.button("✅ Mail Handling 100% Complete. Click to Save"):
-            st.session_state.mail_info = {
-                "Mailbox Location": mailbox_location,
-                "Mailbox Key": mailbox_key,
-                "Pick-Up Schedule": pick_up_schedule,
-                "What to Do with the Mail": what_to_do_with_mail,
-                "Packages": What_to_do_with_packages
-            }
-            st.success("Mail handling instructions saved successfully!")
-
-    # Display saved info
-    st.subheader("📂 Saved Mail Handling Information")
-    if st.session_state.mail_info:
-        with st.expander("📋 Review Saved Info", expanded=True):
-            for key, value in st.session_state.mail_info.items():
-                st.markdown(f"**{key}:** {value}")
-    else:
-        st.info("No mail handling information saved yet.")
 
 def trash_handling():
+    section = "Trash Handling"
+    st.subheader("🗑️ Trash & Recycling")
 
-    if 'trash_info' not in st.session_state:
-        st.session_state.trash_info = {}
-    if 'trash_images' not in st.session_state:
-        st.session_state.trash_images = {}
+    # 🔒 Lock/unlock toggle
+    render_lock_toggle(session_key="trash_locked", label="Trash Info")
 
-    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    times = ["Morning", "Afternoon", "Evening"]
+    # Determine whether inputs are editable
+    disabled = st.session_state.get("trash_locked", False)
 
-    # --- Indoor Trash Info ---
     with st.expander("Kitchen and Bath Trash Details", expanded=True):
-        st.markdown("##### Fill in the kitchen and bathroom trash info")
-
-        kitchen_bin = st.text_area(
-            "Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags", 
-            placeholder="E.g. Bin is located under the kitchen sink. Empty when full.  Bags are next to the bin. They are labeled kitchen bags."
+        capture_input(
+            "Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags",
+            st.text_area,
+            section,
+            placeholder="E.g. Bin is located under the kitchen sink...",
+            disabled=disabled
+        )
+        capture_input(
+            "Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags",
+            st.text_area,
+            section,
+            placeholder="E.g. Empty before Trash day. Bags are under the sink.",
+            disabled=disabled
+        )
+        capture_input(
+            "Other Room Trash Bin Emptying Schedule and Replacement Trash Bags",
+            st.text_area,
+            section,
+            placeholder="E.g. Empty before Trash day...",
+            disabled=disabled
         )
 
-        bathroom_bin = st.text_area(
-            "Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags ", 
-            placeholder="E.g. Empty before Trash day.  Bags are under the sink."
-        )
-
-        other_room_bin = st.text_area(
-            "Other Room Trash Bin Emptying Schedule and Replacement Trash Bags ", 
-            placeholder="E.g. Empty before Trash day.  Bags are under the sinks of each bathroom."
-        )
-
-    # --- Outdoor Bin Info ---
     with st.expander("Outdoor Bin Details", expanded=True):
-        st.markdown("##### Outdoor Bin Handling Details")
+        capture_input("What the Outdoor Trash Bins Look Like", st.text_area, section, disabled=disabled)
+        capture_input("Specific Location or Instructions for Outdoor Bins", st.text_area, section, disabled=disabled)
 
-        bin_description = st.text_area(
-            "What the Outdoor Trash Bins Look Like", 
-            placeholder="E.g. Green with lid"
-        )
-
-        bin_location_specifics = st.text_area(
-            "Specific Location or Instructions for Outdoor Bins", 
-            placeholder="E.g. Next to side gate"
-        )
-
-        # Image upload helper
         def handle_image(label, display_name):
             image_key = f"{label} Image"
+            if "trash_images" not in st.session_state:
+                st.session_state.trash_images = {}
             if image_key not in st.session_state.trash_images:
                 st.session_state.trash_images[image_key] = None
 
             if st.session_state.trash_images[image_key]:
                 st.image(Image.open(io.BytesIO(st.session_state.trash_images[image_key])), caption=display_name)
-                if st.button(f"Delete {display_name}", key=f"delete_{label}"):
+                if not disabled and st.button(f"Delete {display_name}", key=f"delete_{label}"):
                     st.session_state.trash_images[image_key] = None
-                    st.experimental_rerun()
-            else:
+                    st.rerun()
+            elif not disabled:
                 uploaded = st.file_uploader(f"Upload a photo of the {display_name}", type=["jpg", "jpeg", "png"], key=f"{label}_upload")
                 if uploaded:
                     st.session_state.trash_images[image_key] = uploaded.read()
                     st.success(f"{display_name} image uploaded.")
-                    st.experimental_rerun()
+                    st.rerun()
+            else:
+                st.info(f"📷 Unlock Trash Info to upload or delete {display_name} image.")
 
         handle_image("Outdoor Bin", "Outdoor Trash Bin")
         handle_image("Recycling Bin", "Recycling Bin")
 
-    # --- Collection Schedule ---
     with st.expander("Collection Schedule", expanded=True):
-        st.markdown("##### Enter your trash and recycling schedule")
-       
-       #Collection Day + Time Pickers
-        trash_day = st.selectbox("Garbage Pickup Day", days)
-        trash_time = st.selectbox("Garbage Pickup Time", times)
-        recycling_day = st.selectbox("Recycling Pickup Day", days)
-        recycling_time = st.selectbox("Recycling Pickup Time", times)
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        times = ["Morning", "Afternoon", "Evening"]
 
-        bin_handling_instructions = st.text_area("Instructions for Placing and Returning Outdoor Bins")
+        capture_input("Garbage Pickup Day", st.selectbox, section, options=days, disabled=disabled)
+        capture_input("Garbage Pickup Time", st.selectbox, section, options=times, disabled=disabled)
+        capture_input("Recycling Pickup Day", st.selectbox, section, options=days, disabled=disabled)
+        capture_input("Recycling Pickup Time", st.selectbox, section, options=times, disabled=disabled)
+        capture_input("Instructions for Placing and Returning Outdoor Bins", st.text_area, section, disabled=disabled)
 
-    # --- Common Disposal Area ---
     with st.expander("Common Disposal Area (if applicable)", expanded=True):
-        st.markdown("##### Shared disposal area details")
-        uses_common_disposal = st.checkbox("Is there a common disposal area?")
+        uses_common_disposal = capture_input("Is there a common disposal area?", st.checkbox, section, disabled=disabled)
+        if uses_common_disposal and not disabled:
+            capture_input("Instructions for Common Disposal Area", st.text_area, section, disabled=disabled)
+            handle_image("Common Area", "Common Disposal Area")
 
-        if uses_common_disposal:
-            common_area_instructions = st.text_area(
-                "Instructions for Common Disposal Area", 
-                placeholder="E.g. Dumpster in alley"
-            )
-            if common_area_instructions:
-                handle_image("Common Area", "Common Disposal Area")
-
-    # --- Composting ---
     with st.expander("Composting Instructions (if applicable)", expanded=True):
-        st.markdown("##### Composting info")
-        compost_applicable = st.checkbox("Is composting used?")
+        compost_applicable = capture_input("Is composting used?", st.checkbox, section, disabled=disabled)
+        if compost_applicable and not disabled:
+            capture_input("Compost Instructions", st.text_area, section, disabled=disabled)
 
-        if compost_applicable:
-            compost_instructions = st.text_area(
-                "Compost Instructions", 
-                placeholder="E.g. Put organics in green bin"
-            )
-
-    # --- Waste Management Contact ---
     with st.expander("Waste Management Contact Info", expanded=True):
-        st.markdown("##### Company contact details")
+        capture_input("Waste Management Company Name", st.text_input, section, disabled=disabled)
+        capture_input("Contact Phone Number", st.text_input, section, disabled=disabled)
+        capture_input("When to Contact", st.text_area, section, disabled=disabled)
 
-        wm_name = st.text_input(
-            "Waste Management Company Name", 
-            placeholder="E.g. WastePro"
-        )
-        wm_phone = st.text_input(
-            "Contact Phone Number", 
-            placeholder="E.g. (123) 456-7890"
-            )
-        wm_description = st.text_area(
-            "When to Contact", 
-            placeholder="E.g. Missed pickup or billing issues"
-            )
+    # Show uploaded images
+    if "trash_images" in st.session_state:
+        st.markdown("### 🖼️ Uploaded Trash & Recycling Photos")
+        for label, img in st.session_state.trash_images.items():
+            if img:
+                st.image(Image.open(io.BytesIO(img)), caption=label)
 
-# Dynamic progress bar based on completion
-        total_sections = 6  # or 7 if compost is enabled
-        filled_sections = sum([
-            bool(kitchen_bin),
-            bool(bathroom_bin),
-            bool(other_room_bin),
-            bool(bin_description),
-            bool(bin_location_specifics),
-            bool(trash_day),
-            bool(trash_time),
-            bool(recycling_day),
-            bool(recycling_time),
-            bool(wm_name),
-            bool(wm_phone),
-            bool(wm_description),
-            compost_applicable and bool(compost_instructions),
-            uses_common_disposal and bool(common_area_instructions),
-        ])
-
-        total_progress = int((filled_sections / 16) * 100)
-        st.progress(total_progress)
-
-    # --- Save Button ---
-    if st.button("✅ Trash Handling 100% Complete. Click to Save"):
-        st.session_state.trash_info = {
-            "indoor": {
-                "kitchen_bin": kitchen_bin,
-                "bathroom_bin": bathroom_bin,
-                "other_room_bin": other_room_bin,
-            },
-            "outdoor": {
-                "bin_description": bin_description,
-                "bin_location_specifics": bin_location_specifics,
-                "bin_handling_instructions": bin_handling_instructions
-            },
-            "schedule": {
-                "trash_day": trash_day,
-                "trash_time": trash_time,
-                "recycling_day": recycling_day,
-                "recycling_time": recycling_time
-            },
-            "composting": {
-                "compost_used": compost_applicable,
-                "compost_instructions": compost_instructions if compost_applicable else "N/A"
-            },
-            "common_disposal": {
-                "uses_common_disposal": uses_common_disposal,
-                "common_area_instructions": common_area_instructions if uses_common_disposal else "N/A"
-            },
-            "waste_management": {
-                "company_name": wm_name,
-                "phone": wm_phone,
-                "description": wm_description
-            }
-    }
-
-    st.session_state.progress["trash_completed"] = True
-    save_progress(st.session_state.progress)
-
-    # --- Display saved info and uploaded images ---
-    if st.session_state.trash_info:
-        st.markdown("### ✅ Saved Trash Handling Information")
-        for key, value in st.session_state.trash_info.items():
-            st.write(f"**{key}**: {value}")
-
-    if st.session_state.trash_images:
-        st.write("🖼️ Uploaded Photos")
-        for label, image_bytes in st.session_state.trash_images.items():
-            if image_bytes:
-                st.image(Image.open(io.BytesIO(image_bytes)), caption=label)
 
 def mail_trash_handling():
-    st.write("📬 Level 3: Mail & Trash Handling")
-
-    # Ensure session_state keys exist
-    st.session_state.progress.setdefault("level_3_completed", False)
-    st.session_state.setdefault("user_confirmation", False)
-    st.session_state.setdefault("prompt_emergency", None)
-    st.session_state.setdefault("prompt_mail_trash", None)
 
     # Create three tabs
     tab1, tab2, tab3 = st.tabs([
@@ -1579,51 +1304,73 @@ def mail_trash_handling():
 
     # ─── Tab 1: Mail Input ─────────────────────────────────────
     with tab1:
-        st.subheader("Step 1: 📬 Mail Handling Instructions")
         mail()  # your existing mail() form
 
     # ─── Tab 2: Trash Input ────────────────────────────────────
     with tab2:
-        st.subheader("Step 2: 🗑️ Trash Disposal Instructions")
         trash_handling()  # your existing trash_handling() form
 
     # ─── Tab 3: Prompt Review & Generate ───────────────────────
     with tab3:
-        st.subheader("Step 3: Review & Generate Runbook")
 
-        # Confirm before generating prompts
-        confirmed = st.checkbox(
-            "✅ Confirm AI Prompt",
-            value=st.session_state.user_confirmation,
-            key="mail_trash_confirm"
-        )
-        st.session_state.user_confirmation = confirmed
+        # Move this outside the expander
+        confirm_key_mail_trash = "confirm_ai_prompt_mail_trash"
+        user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key_mail_trash)
+        st.session_state["user_confirmation"] = user_confirmation # store confirmation in session
 
-        if confirmed:
-            # mark level complete & build prompts
-            st.session_state.progress["level_3_completed"] = True
-            save_progress(st.session_state.progress)
-            st.session_state.prompt_emergency = emergency_kit_utilities_runbook_prompt()
-            st.session_state.prompt_mail_trash = mail_trash_runbook_prompt()
+    if user_confirmation:
+        prompts = [
+            emergency_kit_utilities_runbook_prompt(),
+            mail_trash_runbook_prompt()
+        ]
+        st.session_state["generated_prompt"] = prompts
+    else:
+        st.session_state["generated_prompt"] = None
 
-            # Show prompt preview
-            st.markdown("#### 🆘 Emergency + Utilities Prompt")
-            st.code(st.session_state.prompt_emergency, language="markdown")
+    # DEBUG print to screen
 
-            st.markdown("#### 📬 Mail + Trash Prompt")
-            st.code(st.session_state.prompt_mail_trash, language="markdown")
-
-            # Generate runbook button
-            generate_runbook_from_prompt_split(
-                prompt_emergency=st.session_state.prompt_emergency,
-                prompt_mail_trash=st.session_state.prompt_mail_trash,
-                api_key=os.getenv("MISTRAL_TOKEN"),
-                button_text="Complete Level 3 Mission",
-                doc_heading="Home Emergency Runbook for Caretakers and Guests",
-                doc_filename="home_runbook_caretakers.docx"
-            )
+        # Step 4: Preview + next steps
+    with st.expander("🧠 AI Prompt Preview (Optional)", expanded=True):
+        if not user_confirmation:
+            st.info("☝️ Please check the box to confirm AI prompt generation.")
+        elif st.session_state.get("generated_prompt"):
+            for i, prompt in enumerate(st.session_state["generated_prompt"], start=1):
+                st.markdown(f"**Prompt {i}:**")
+                st.code(prompt, language="markdown")
+            st.success("✅ Prompt ready! Now you can generate your runbook.")
         else:
-            st.info("Please confirm the AI prompt after entering your details in Tabs 1 and 2.")
+            st.warning("⚠️ Prompt not generated yet.")
+
+    # Optional: Runbook button outside the expander
+    if st.session_state.get("generated_prompt"):
+        if st.button("📄 Generate Runbook Document"):
+            buffer, runbook_text = generate_docx_from_split_prompts(
+                prompts=[st.session_state["generated_prompt"]], 
+                api_key=os.getenv("MISTRAL_TOKEN"),
+                doc_heading="Home Emergency Readiness: Utilities & Kit"
+            )
+            # Level 3 Complete - for Progress
+            st.session_state["level_progress"]["mail_trash_handling"] = True
+
+            # Store results to persist across reruns
+            st.session_state["runbook_buffer"] = buffer
+            st.session_state["runbook_text"] = runbook_text
+
+    # Access from session_state for consistent behavior
+    buffer = st.session_state.get("runbook_buffer")
+    runbook_text = st.session_state.get("runbook_text")
+
+    if buffer:
+        st.download_button(
+            label="📥 Download DOCX",
+            data=buffer,
+            file_name="home_utilities_emergency.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        st.success("✅ Runbook ready for download!")
+
+    if runbook_text:    
+        preview_runbook_output(runbook_text)        
 
 ##### Level 4 - Home Security and Services
 

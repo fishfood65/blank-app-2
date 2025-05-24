@@ -204,6 +204,28 @@ def export_input_data_as_docx(file_name="input_data.docx"):
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
 
+def render_lock_toggle(session_key: str, label: str = "Section"):
+    """
+    Renders a simple toggle switch to lock/unlock inputs and updates session state.
+
+    Args:
+        session_key (str): The key in st.session_state to track lock state.
+        label (str): The label to describe the section being controlled.
+    """
+    if session_key not in st.session_state:
+        st.session_state[session_key] = False  # default unlocked
+
+    # Display the toggle
+    is_locked = st.toggle(f"🔒 Lock {label}", value=st.session_state[session_key])
+    st.session_state[session_key] = is_locked
+
+    # Show contextual feedback
+    if is_locked:
+        st.success(f"✅ {label} is saved and locked. Unlock to edit.")
+    else:
+        st.info(f"📝 You can now edit your {label.lower()}. Lock to save when finished.")
+
+
 def interaction_dashboard():
     if "interaction_log" not in st.session_state or not st.session_state["interaction_log"]:
         st.info("No interaction data to visualize.")
