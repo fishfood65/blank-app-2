@@ -11,7 +11,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 import os
 import pandas as pd
 import re
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 def generate_docx_from_split_prompts(
     prompts: List[str],
@@ -54,7 +54,8 @@ def generate_docx_from_split_prompts(
                 response_text = completion.choices[0].message.content
 
                 # Determine title if provided
-                section_label = f"### {section_titles[i]}" if section_titles and i < len(section_titles) else ""
+                title = section_titles[i].strip() if section_titles and i < len(section_titles) else ""
+                section_label = f"### {title}" if title else ""
                 output = f"{section_label}\n\n{response_text.strip()}" if section_label else response_text.strip()
                 combined_output.append(output)
 
