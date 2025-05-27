@@ -81,49 +81,16 @@ def extract_grouped_mail_task(valid_dates):
     }
 
 def extract_all_trash_tasks_grouped(valid_dates):
-    """
-    One-stop function: extracts indoor + outdoor trash tasks,
-    parses schedule metadata, and returns a unified DataFrame.
-    """
-    emoji_tags = {
-        "[Daily]": "🔁 Daily",
-        "[Weekly]": "📅 Weekly",
-        "[One-Time]": "🗓️ One-Time",
-        "[X-Weeks]": "↔️ Every X Weeks",
-        "[Monthly]": "📆 Monthly"
-    }
+    from utils.runbook_generator_helpers import get_schedule_utils
 
-    weekday_to_int = {
-        "Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3,
-        "Friday": 4, "Saturday": 5, "Sunday": 6
-    }
-
-    def extract_week_interval(text):
-        match = re.search(r"every (\d+) week", text.lower())
-        if match:
-            return int(match.group(1))
-        if "biweekly" in text.lower():
-            return 2
-        return None
-
-    def extract_weekday_mentions(text):
-        return [day for day in weekday_to_int if day.lower() in text.lower()]
-
-    def extract_dates(text):
-        patterns = [
-            r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?",
-            r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?"
-        ]
-        matches = []
-        for pattern in patterns:
-            matches += re.findall(pattern, text, flags=re.IGNORECASE)
-        return matches
-
-    def normalize_date(date_str):
-        try:
-            return pd.to_datetime(date_str, errors="coerce").date()
-        except:
-            return None
+    utils = get_schedule_utils()
+    emoji_tags = utils["emoji_tags"]
+    weekday_to_int = utils["weekday_to_int"]
+    extract_week_interval = utils["extract_week_interval"]
+    extract_weekday_mentions = utils["extract_weekday_mentions"]
+    extract_dates = utils["extract_dates"]
+    normalize_date = utils["normalize_date"]
+    determine_frequency_tag = utils["determine_frequency_tag"]
 
     input_data = st.session_state.get("input_data", {})
     trash_entries = input_data.get("Trash Handling", [])
@@ -136,8 +103,6 @@ def extract_all_trash_tasks_grouped(valid_dates):
         "Recycling Trash Bin Location and Emptying Schedule (if available) and Sorting Instructions"
     ]
 
-    indoor_rows = []
-
     def add_task_row(date_obj, label, answer, tag):
         return {
             "Date": str(date_obj),
@@ -149,38 +114,40 @@ def extract_all_trash_tasks_grouped(valid_dates):
             "Source": "Trash Handling"
         }
 
-    # === Indoor Task Extraction ===
-    for label in indoor_task_labels:
-        answer = str(label_map.get(label, "")).strip()
-        if not answer:
-            continue
+    def schedule_task(label, answer):
+        print(f"🔍 Scheduling for: {label}")
+        print(f"📝 Answer: {answer}")
 
+        rows = []
         interval = extract_week_interval(answer)
         weekday_mentions = extract_weekday_mentions(answer)
+        print(f"📆 Week Interval: {interval}")
+        print(f"📅 Weekdays Mentioned: {weekday_mentions}")
+
         task_already_scheduled = False
 
         for ds in extract_dates(answer):
             parsed_date = normalize_date(ds)
+            print(f"📅 Parsed explicit date: {parsed_date}")
             if parsed_date and parsed_date in valid_dates:
-                indoor_rows.append(add_task_row(parsed_date, label, answer, emoji_tags["[One-Time]"]))
+                rows.append(add_task_row(parsed_date, label, answer, emoji_tags["[One-Time]"]))
                 task_already_scheduled = True
 
         if interval:
-            if weekday_mentions:
+            if weekday_mentions and not interval:
                 for wd in weekday_mentions:
-                    weekday_int = weekday_to_int[wd]
-                    matching_dates = [d for d in valid_dates if d.weekday() == weekday_int]
-                    if matching_dates:
-                        base_date = matching_dates[0]
-                        for d in matching_dates:
-                            if (d - base_date).days % (interval * 7) == 0:
-                                indoor_rows.append(add_task_row(d, label, answer, f"↔️ Every {interval} Weeks"))
-                                task_already_scheduled = True
+                    weekday_idx = weekday_to_int[wd]
+                    print(f"✅ Triggering weekly schedule for: {weekday_mentions}")
+                    for d in valid_dates:
+                        if d.weekday() == weekday_idx:
+                            rows.append(add_task_row(d, label, answer, emoji_tags["[Weekly]"]))
+                            task_already_scheduled = True
+
             else:
                 base_date = valid_dates[0]
                 for d in valid_dates:
                     if (d - base_date).days % (interval * 7) == 0:
-                        indoor_rows.append(add_task_row(d, label, answer, f"↔️ Every {interval} Weeks"))
+                        rows.append(add_task_row(d, label, answer, f"↔️ Every {interval} Weeks"))
                         task_already_scheduled = True
 
         if weekday_mentions and not interval:
@@ -188,92 +155,47 @@ def extract_all_trash_tasks_grouped(valid_dates):
                 weekday_idx = weekday_to_int[wd]
                 for d in valid_dates:
                     if d.weekday() == weekday_idx:
-                        indoor_rows.append(add_task_row(d, label, answer, emoji_tags["[Weekly]"]))
+                        rows.append(add_task_row(d, label, answer, emoji_tags["[Weekly]"]))
                         task_already_scheduled = True
 
         if "monthly" in answer.lower():
-            base_date = pd.to_datetime(valid_dates[0])
-            current_date = base_date
+            current_date = pd.to_datetime(valid_dates[0])
             while current_date.date() <= valid_dates[-1]:
                 if current_date.date() in valid_dates:
-                    indoor_rows.append(add_task_row(current_date.date(), label, answer, emoji_tags["[Monthly]"]))
+                    rows.append(add_task_row(current_date.date(), label, answer, emoji_tags["[Monthly]"]))
                     task_already_scheduled = True
                 current_date += pd.DateOffset(months=1)
 
         if not task_already_scheduled:
             for d in valid_dates:
-                indoor_rows.append(add_task_row(d, label, answer, emoji_tags["[Daily]"]))
+                rows.append(add_task_row(d, label, answer, emoji_tags["[Daily]"]))
+        return rows
 
-    # === Outdoor Task Extraction ===
-    def extract_outdoor_trash_tasks_with_schedule():
-        outdoor_rows = []
-        for label in [
-            "Instructions for Placing and Returning Outdoor Bins",
-            "What the Outdoor Trash Bins Look Like",
-            "Specific Location or Instructions for Outdoor Bins",
-            "Garbage Pickup Day",
-            "Recycling Pickup Day"
-        ]:
-            answer = str(label_map.get(label, "")).strip()
-            if not answer:
-                continue
+    indoor_rows = []
+    for label in indoor_task_labels:
+        answer = str(label_map.get(label, "")).strip()
+        if answer:
+            indoor_rows.extend(schedule_task(label, answer))
 
-            interval = extract_week_interval(answer)
-            weekday_mentions = extract_weekday_mentions(answer)
-            task_already_scheduled = False
-            task_text = f"{label} – {answer}"
+    outdoor_task_labels = [
+        "Instructions for Placing and Returning Outdoor Bins",
+        "What the Outdoor Trash Bins Look Like",
+        "Specific Location or Instructions for Outdoor Bins",
+        "Garbage Pickup Day",
+        "Recycling Pickup Day"
+    ]
 
-            for ds in extract_dates(answer):
-                parsed_date = normalize_date(ds)
-                if parsed_date and parsed_date in valid_dates:
-                    outdoor_rows.append(add_task_row(parsed_date, label, answer, emoji_tags["[One-Time]"]))
-                    task_already_scheduled = True
-
-            if interval:
-                if weekday_mentions:
-                    for wd in weekday_mentions:
-                        weekday_int = weekday_to_int[wd]
-                        matching_dates = [d for d in valid_dates if d.weekday() == weekday_int]
-                        if matching_dates:
-                            base_date = matching_dates[0]
-                            for d in matching_dates:
-                                if (d - base_date).days % (interval * 7) == 0:
-                                    outdoor_rows.append(add_task_row(d, label, answer, f"↔️ Every {interval} Weeks"))
-                                    task_already_scheduled = True
-                else:
-                    base_date = valid_dates[0]
-                    for d in valid_dates:
-                        if (d - base_date).days % (interval * 7) == 0:
-                            outdoor_rows.append(add_task_row(d, label, answer, f"↔️ Every {interval} Weeks"))
-                            task_already_scheduled = True
-
-            if weekday_mentions and not interval:
-                for wd in weekday_mentions:
-                    weekday_idx = weekday_to_int[wd]
-                    for d in valid_dates:
-                        if d.weekday() == weekday_idx:
-                            outdoor_rows.append(add_task_row(d, label, answer, emoji_tags["[Weekly]"]))
-                            task_already_scheduled = True
-
-            if "monthly" in answer.lower():
-                base_date = pd.to_datetime(valid_dates[0])
-                current_date = base_date
-                while current_date.date() <= valid_dates[-1]:
-                    if current_date.date() in valid_dates:
-                        outdoor_rows.append(add_task_row(current_date.date(), label, answer, emoji_tags["[Monthly]"]))
-                        task_already_scheduled = True
-                    current_date += pd.DateOffset(months=1)
-
-            if not task_already_scheduled:
-                for d in valid_dates:
-                    outdoor_rows.append(add_task_row(d, label, answer, emoji_tags["[Daily]"]))
-
-        return outdoor_rows
-
-    outdoor_rows = extract_outdoor_trash_tasks_with_schedule()
+    outdoor_rows = []
+    for label in outdoor_task_labels:
+        answer = str(label_map.get(label, "")).strip()
+        if answer:
+            outdoor_rows.extend(schedule_task(label, answer))
 
     combined_df = pd.DataFrame(indoor_rows + outdoor_rows)
-    return combined_df.sort_values(by=["Date", "Day", "Category", "Tag", "Task"]).reset_index(drop=True)
+    if not combined_df.empty:
+        return combined_df.sort_values(by=["Date", "Day", "Category", "Tag", "Task"]).reset_index(drop=True)
+    else:
+        return combined_df
 
 def generate_flat_home_schedule_markdown(schedule_df):
     """

@@ -1,5 +1,7 @@
 import pytest
 import streamlit as st
+import sys
+import types
 from datetime import date, datetime, timedelta
 from utils.utils_home_helpers import extract_grouped_mail_task, check_home_progress
 
@@ -36,7 +38,7 @@ def test_check_home_progress_returns_percentage_and_completed():
     percent, completed = check_home_progress(progress_dict)
     assert percent == 75
     assert completed == ["Level 1", "Level 3", "Level 4"]
-    
+
 def test_extract_grouped_mail_task_with_missing_fields(monkeypatch):
     monkeypatch.setattr(st, "session_state", {
         "input_data": {
@@ -50,6 +52,43 @@ def test_extract_grouped_mail_task_with_missing_fields(monkeypatch):
     valid_dates = [date(2024, 1, 1)]
     result = extract_grouped_mail_task(valid_dates)
     assert result is None
+
+def test_extract_all_trash_tasks_grouped_with_mocked_streamlit():
+    # Setup
+    today = datetime.today().date()
+    weekday_name = today.strftime("%A")
+
+    fake_st = types.SimpleNamespace()
+    fake_st.session_state = {
+        "input_data": {
+            "Trash Handling": [
+                {
+                    "question": "Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags",
+                    "answer": f"Empty every {weekday_name}. Bags under sink."
+                },
+                {
+                    "question": "Garbage Pickup Day",
+                    "answer": f"Put bins out every week on {weekday_name}."
+                },
+                {
+                    "question": "Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags",
+                    "answer": "Monthly pickup on the 1st."
+                }
+            ]
+        }
+    }
+
+    sys.modules["streamlit"] = fake_st
+
+    from utils.utils_home_helpers import extract_all_trash_tasks_grouped
+    valid_dates = [today + timedelta(days=i) for i in range(14)]
+
+    df = extract_all_trash_tasks_grouped(valid_dates)
+    print("Extracted rows:", df.to_dict(orient="records"))
+
+    assert not df.empty
+    assert any("Kitchen Trash Bin" in task for task in df["Task"])
+    assert any("Garbage Pickup Day" in task for task in df["Task"])
 
 def test_check_home_progress_empty_dict():
     percent, completed = check_home_progress({})

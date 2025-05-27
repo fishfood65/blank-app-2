@@ -30,11 +30,22 @@ def get_schedule_utils():
     }
 
     def extract_week_interval(text):
-        match = re.search(r"every (\d+) week", text.lower())
+        text = text.lower()
+        print("🧪 Checking interval in text:", text)
+
+        # ✅ Fix: use \d+ correctly, not \\d+
+        if "every week" in text and not re.search(r"every \d+ week", text):
+            print("✅ Detected 'every week' → returning 1")
+            return 1
+
+        match = re.search(r"every (\d+) week", text)
         if match:
+            print(f"✅ Detected 'every {match.group(1)} weeks'")
             return int(match.group(1))
-        if "biweekly" in text.lower():
+
+        if "biweekly" in text:
             return 2
+
         return None
 
     def extract_weekday_mentions(text):
