@@ -355,7 +355,12 @@ def mail_trash_runbook_prompt():
         safe_line("Delivery Packages", mail_info.get("Packages")),
     ]
     filtered_mail = list(filter(None, mail_lines))
-    mail_block = f"### 📬 Mail Handling Instructions\n{'\n'.join(filtered_mail)}" if filtered_mail else ""
+
+    mail_block = ""
+    if filtered_mail:
+        mail_content = "\n".join(filtered_mail)
+        mail_block = f"### 📬 Mail Handling Instructions\n{mail_content}"
+
 
     # --- INDOOR TRASH ---
     indoor = trash_info.get("indoor", {})
@@ -365,7 +370,12 @@ def mail_trash_runbook_prompt():
         safe_line("Other Rooms Trash", indoor.get("other_room_bin")),
     ]
     filtered_indoor = list(filter(None, indoor_lines))
-    indoor_block = f"#### Indoor Trash\n{'\n'.join(filtered_indoor)}" if filtered_indoor else ""
+
+    indoor_block = ""
+    if filtered_indoor:
+        indoor_content = "\n".join(filtered_indoor)
+        indoor_block = f"#### Indoor Trash\n{indoor_content}"
+
 
     # --- OUTDOOR BINS ---
     outdoor = trash_info.get("outdoor", {})
@@ -382,7 +392,11 @@ def mail_trash_runbook_prompt():
                 outdoor_image_placeholders.append(f"<<INSERT_IMAGE:{label}>>")
 
     outdoor_parts = list(filter(None, outdoor_lines)) + outdoor_image_placeholders
-    outdoor_block = f"#### Outdoor Bins\n{'\n'.join(outdoor_parts)}" if outdoor_parts else ""
+    if outdoor_parts:
+        outdoor_content = "\n".join(outdoor_parts)
+        outdoor_block = f"#### Outdoor Bins\n{outdoor_content}"
+    else:
+        outdoor_block = ""
 
     # --- COLLECTION SCHEDULE ---
     schedule = trash_info.get("schedule", {})
@@ -391,7 +405,11 @@ def mail_trash_runbook_prompt():
         safe_line("Recycling Pickup", f"{schedule.get('recycling_day', '')}, {schedule.get('recycling_time', '')}".strip(", ")),
     ]
     filtered_collection = list(filter(None, collection_lines))
-    collection_block = f"#### Collection Schedule\n{'\n'.join(filtered_collection)}" if filtered_collection else ""
+    if filtered_collection:
+        joined_collection = "\n".join(filtered_collection)
+        collection_block = f"#### Collection Schedule\n{joined_collection}"
+    else:
+        collection_block = ""
 
     # --- COMPOSTING ---
     composting = trash_info.get("composting", {})
@@ -421,7 +439,8 @@ def mail_trash_runbook_prompt():
         safe_line("Contact", wm.get("description")),
     ]
     filtered_wm = list(filter(None, wm_lines))
-    wm_block = f"#### Waste Management Contact\n{'\n'.join(filtered_wm)}" if filtered_wm else ""
+    wm_text = "\n".join(filtered_wm)
+    wm_block = f"#### Waste Management Contact\n{wm_text}" if wm_text else ""
 
     # --- TRASH SECTION COMBINED ---
     trash_blocks = "\n\n".join(filter(None, [
