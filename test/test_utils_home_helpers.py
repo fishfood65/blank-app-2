@@ -36,6 +36,7 @@ def test_check_home_progress_returns_percentage_and_completed():
     percent, completed = check_home_progress(progress_dict)
     assert percent == 75
     assert completed == ["Level 1", "Level 3", "Level 4"]
+    
 def test_extract_grouped_mail_task_with_missing_fields(monkeypatch):
     monkeypatch.setattr(st, "session_state", {
         "input_data": {

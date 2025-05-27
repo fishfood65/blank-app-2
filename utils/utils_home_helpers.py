@@ -12,7 +12,7 @@ from collections import defaultdict
 from docx.shared import Inches
 from PIL import Image
 import io
-from utils_home_helpers import get_schedule_utils
+from .runbook_generator_helpers import get_schedule_utils
 
 def check_home_progress(progress_dict):
     """
@@ -21,6 +21,8 @@ def check_home_progress(progress_dict):
     """
     total_levels = len(progress_dict)
     completed = [k for k, v in progress_dict.items() if v]
+    if total_levels == 0:
+        return 0, []
     percent_complete = int((len(completed) / total_levels) * 100)
     return percent_complete, completed
 

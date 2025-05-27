@@ -1,34 +1,69 @@
 import pytest
-from utils.runbook_generator_helpers import preview_run_book_output, generate_docx_from_split_prompts, get_schedule_utils
+from utils.runbook_generator_helpers import preview_runbook_output, generate_docx_from_split_prompts, get_schedule_utils
 from docx import Document
 import tempfile
 import os
+import io
+from contextlib import contextmanager
 
-def test_preview_run_book_output_returns_cleaned_string():
-    text = "### Heading\n\n- Item 1\n- Item 2"
-    result = preview_run_book_output(text)
-    assert isinstance(result, str)
-    assert "Heading" in result
-    assert "- Item 1" in result
+def test_preview_runbook_output_does_not_crash(monkeypatch):
+    import streamlit as st
+    monkeypatch.setattr(st, "button", lambda *args, **kwargs: False)
+    monkeypatch.setattr(st, "expander", lambda label, expanded=True: None)
+    monkeypatch.setattr(st, "markdown", lambda x: x)
+    monkeypatch.setattr(st, "warning", lambda x: x)
+    
+    # Just verify it doesn't raise
+    preview_runbook_output("### Heading\n- Item")
 
-def test_generate_docx_from_split_prompts_creates_file():
-    emergency = "### Emergency\n- Call 911"
-    mail_trash = "### Mail\n- Pick up mail"
-    runbook = "### House\n- Clean floors"
-    doc_heading = "Test Runbook"
+class FakeChat:
+    def complete(self, model, messages, max_tokens, temperature):
+        print("✅ FakeChat.complete called with message:", messages[0].content)  # Debug
+        class Message:
+            def __init__(self):
+                self.content = "Mocked response content"
+        class Choice:
+            def __init__(self):
+                self.message = Message()
+        class Response:
+            def __init__(self):
+                self.choices = [Choice()]
+        return Response()
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        doc_filename = os.path.join(tmpdirname, "test_output.docx")
-        generate_docx_from_split_prompts(
-            emergency,
-            mail_trash,
-            runbook,
-            doc_heading,
-            doc_filename
-        )
-        assert os.path.exists(doc_filename)
-        doc = Document(doc_filename)
-        assert any("Emergency" in p.text or "Mail" in p.text or "House" in p.text for p in doc.paragraphs)
+class FakeClient:
+    def __init__(self, api_key):
+        print("✅ FakeClient created with api_key:", api_key)  # Debug
+        self.api_key = api_key
+        self.chat = FakeChat()
+
+@contextmanager
+def fake_spinner(msg):
+    print("SPINNER:", msg)
+    yield
+
+def test_generate_docx_from_split_prompts(monkeypatch):
+    import streamlit as st
+    import utils.runbook_generator_helpers as rh
+
+    # Fix context manager error
+    monkeypatch.setattr(st, "spinner", fake_spinner)
+    monkeypatch.setattr(st, "error", lambda *args, **kwargs: print("STREAMLIT ERROR:", args[0]))
+    monkeypatch.setattr("utils.runbook_generator_helpers.Mistral", lambda api_key: FakeClient(api_key))
+
+    prompts = ["This is prompt 1.", "This is prompt 2."]
+    section_titles = ["Section 1", "Section 2"]
+    api_key = "fake-key"
+
+    buffer, full_text = rh.generate_docx_from_split_prompts(
+        prompts,
+        api_key,
+        section_titles=section_titles,
+        doc_heading="Test Runbook"
+    )
+
+    print("📄 FULL TEXT RETURNED:", full_text)
+    assert isinstance(buffer, io.BytesIO)
+    assert "Mocked response content" in full_text
 
 def test_get_schedule_utils_keys_and_types():
     utils = get_schedule_utils()
