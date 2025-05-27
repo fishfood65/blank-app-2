@@ -13,6 +13,77 @@ import pandas as pd
 import re
 from typing import List, Tuple, Optional
 
+
+def get_schedule_utils():
+    """Shared date parsing, tag generation, and frequency utilities."""
+    emoji_tags = {
+        "[Daily]": "🔁 Daily",
+        "[Weekly]": "📅 Weekly",
+        "[One-Time]": "🗓️ One-Time",
+        "[X-Weeks]": "↔️ Every X Weeks",
+        "[Monthly]": "📆 Monthly"
+    }
+
+    weekday_to_int = {
+        "Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3,
+        "Friday": 4, "Saturday": 5, "Sunday": 6
+    }
+
+    def extract_week_interval(text):
+        match = re.search(r"every (\d+) week", text.lower())
+        if match:
+            return int(match.group(1))
+        if "biweekly" in text.lower():
+            return 2
+        return None
+
+    def extract_weekday_mentions(text):
+        return [day for day in weekday_to_int if day.lower() in text.lower()]
+
+    def extract_dates(text):
+        patterns = [
+            r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?",
+            r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?"
+        ]
+        matches = []
+        for pattern in patterns:
+            matches += re.findall(pattern, text, flags=re.IGNORECASE)
+        return matches
+
+    def normalize_date(date_str):
+        try:
+            return pd.to_datetime(date_str, errors="coerce").date()
+        except:
+            return None
+
+    def determine_frequency_tag(text, valid_dates):
+        interval = extract_week_interval(text)
+        weekday_mentions = extract_weekday_mentions(text)
+
+        for ds in extract_dates(text):
+            parsed_date = normalize_date(ds)
+            if parsed_date and parsed_date in valid_dates:
+                return emoji_tags["[One-Time]"]
+
+        if interval:
+            return f"↔️ Every {interval} Weeks"
+        if weekday_mentions and not interval:
+            return emoji_tags["[Weekly]"]
+        if "monthly" in text.lower():
+            return emoji_tags["[Monthly]"]
+        return emoji_tags["[Daily]"]
+
+    return {
+        "emoji_tags": emoji_tags,
+        "weekday_to_int": weekday_to_int,
+        "extract_week_interval": extract_week_interval,
+        "extract_weekday_mentions": extract_weekday_mentions,
+        "extract_dates": extract_dates,
+        "normalize_date": normalize_date,
+        "determine_frequency_tag": determine_frequency_tag
+    }
+
+
 def generate_docx_from_split_prompts(
     prompts: List[str],
     api_key: str,

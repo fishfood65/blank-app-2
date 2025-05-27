@@ -256,9 +256,6 @@ def export_input_data_as_json(file_name="input_data.json"):
             mime="application/json"
         )
 
-import json
-from datetime import datetime, date
-
 def is_iso_date(string: str) -> bool:
     """Check if a string matches an ISO 8601 date format (YYYY-MM-DD)."""
     try:
@@ -363,7 +360,6 @@ def render_lock_toggle(session_key: str, label: str = "Section"):
         st.success(f"✅ {label} is saved and locked. Unlock to edit.")
     else:
         st.info(f"📝 You can now edit your {label.lower()}. Lock to save when finished.")
-
 
 def interaction_dashboard():
     if "interaction_log" not in st.session_state or not st.session_state["interaction_log"]:

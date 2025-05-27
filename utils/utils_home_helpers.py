@@ -12,7 +12,7 @@ from collections import defaultdict
 from docx.shared import Inches
 from PIL import Image
 import io
-
+from utils_home_helpers import get_schedule_utils
 
 def check_home_progress(progress_dict):
     """
@@ -25,48 +25,7 @@ def check_home_progress(progress_dict):
     return percent_complete, completed
 
 def extract_grouped_mail_task(valid_dates):
-    import re
-    import pandas as pd
-
-    emoji_tags = {
-        "[Daily]": "🔁 Daily",
-        "[Weekly]": "📅 Weekly",
-        "[One-Time]": "🗓️ One-Time",
-        "[X-Weeks]": "↔️ Every X Weeks",
-        "[Monthly]": "📆 Monthly"
-    }
-
-    weekday_to_int = {
-        "Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3,
-        "Friday": 4, "Saturday": 5, "Sunday": 6
-    }
-
-    def extract_week_interval(text):
-        match = re.search(r"every (\d+) week", text.lower())
-        if match:
-            return int(match.group(1))
-        if "biweekly" in text.lower():
-            return 2
-        return None
-
-    def extract_weekday_mentions(text):
-        return [day for day in weekday_to_int if day.lower() in text.lower()]
-
-    def extract_dates(text):
-        patterns = [
-            r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?",
-            r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?"
-        ]
-        matches = []
-        for pattern in patterns:
-            matches += re.findall(pattern, text, flags=re.IGNORECASE)
-        return matches
-
-    def normalize_date(date_str):
-        try:
-            return pd.to_datetime(date_str, errors="coerce").date()
-        except:
-            return None
+    utils = get_schedule_utils()
 
     input_data = st.session_state.get("input_data", {})
     mail_entries = input_data.get("Mail & Packages", [])
@@ -81,45 +40,33 @@ def extract_grouped_mail_task(valid_dates):
     if not (mailbox_location and pick_up_schedule and mail_handling):
         return None
 
-    # ⏳ Determine scheduling tag
-    interval = extract_week_interval(pick_up_schedule)
-    weekday_mentions = extract_weekday_mentions(pick_up_schedule)
+    # Use shared utils
+    interval = utils["extract_week_interval"](pick_up_schedule)
+    weekday_mentions = utils["extract_weekday_mentions"](pick_up_schedule)
     tag = ""
 
-    # 1. Specific dates
-    for ds in extract_dates(pick_up_schedule):
-        parsed_date = normalize_date(ds)
+    for ds in utils["extract_dates"](pick_up_schedule):
+        parsed_date = utils["normalize_date"](ds)
         if parsed_date and parsed_date in valid_dates:
-            tag = emoji_tags["[One-Time]"]
+            tag = utils["emoji_tags"]["[One-Time]"]
             break
 
-    # 2. Every X weeks
     if interval and not tag:
         tag = f"↔️ Every {interval} Weeks"
-
-    # 3. Weekly
     if weekday_mentions and not interval:
-        tag = emoji_tags["[Weekly]"]
-
-    # 4. Monthly
+        tag = utils["emoji_tags"]["[Weekly]"]
     if not tag and "monthly" in pick_up_schedule.lower():
-        tag = emoji_tags["[Monthly]"]
-
-    # 5. Fallback
+        tag = utils["emoji_tags"]["[Monthly]"]
     if not tag:
-        tag = emoji_tags["[Daily]"]
+        tag = utils["emoji_tags"]["[Daily]"]
 
-    # 📬 Compose task
     task_lines = [
         f"{tag} 📬 Mail should be picked up **{pick_up_schedule}**.",
         f"Mailbox is located at: {mailbox_location}."
     ]
-
     if mailbox_key:
         task_lines.append(f"Mailbox key info: {mailbox_key}.")
-
     task_lines.append(f"Instructions for mail: {mail_handling}")
-
     if package_handling:
         task_lines.append(f"📦 Package instructions: {package_handling}")
 

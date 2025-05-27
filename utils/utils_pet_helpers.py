@@ -14,6 +14,7 @@ import re
 from utils.data_access import (
     get_saved_pets_by_species,
 )
+from runbook_generator_helpers import get_schedule_utils
 
 def check_bingo(answers):
     for i in range(7):
@@ -77,6 +78,141 @@ def load_pet_for_edit(index, state_prefix, questions):
     st.session_state[f"answers_{state_prefix}"] = new_answers
     st.session_state[f"editing_index_{state_prefix}"] = index
     st.rerun()
+
+def extract_pet_scheduled_tasks_grouped_new(questions, saved_pets, valid_dates):
+    utils = get_schedule_utils()
+    emoji_tags = utils["emoji_tags"]
+    weekday_to_int = utils["weekday_to_int"]
+
+    schedule_rows = []
+    added_tasks = set()
+    warnings = []
+
+    recurring_keywords = {
+        "Feeding & Water": ["feed", "feeding schedule", "food", "treats", "water", "bowl"],
+        "Grooming": ["brush", "bathing", "grooming", "nail", "teeth", "ear cleaning"],
+        "Exercise / Walks": ["walk", "walking", "exercise"],
+        "Medication": ["medication", "pill", "dose", "schedule"],
+        "Behavior / Training": ["training", "commands", "behavior", "fear", "trigger"],
+        "Play / Enrichment": ["play", "toys", "activities", "enrichment"],
+        "Litter / Waste": ["litter", "waste", "box"],
+        "Vet / Appointments": ["vet", "appointment", "check-up", "vaccination"],
+        "Emergency / Contact": ["emergency", "contact", "phone", "email", "sitter", "walker"]
+    }
+
+    def get_category(label):
+        label_lower = label.lower()
+        for category, keywords in recurring_keywords.items():
+            if any(kw in label_lower for kw in keywords):
+                return category
+        return "Other"
+
+    def get_pet_display_name(pet_dict):
+        for k, v in pet_dict.items():
+            if "name" in k.lower() and isinstance(v, str) and v.strip():
+                return v.strip()
+        return "Unnamed Pet"
+
+    def should_exclude_label(label):
+        exclusions = [
+            "contact", "phone", "email", "sitter", "walker",
+            "favorite", "toys", "play styles", "fear", "behavioral",
+            "socialization", "appearance", "trainer", "photo", "description", "training goals",
+            "training methods", "training challenges", "walking equipment", "walk behavior",
+            "food brand/type your dog eats", "commands known", "history", "vaccination", "car"
+        ]
+        label_lower = label.lower()
+        return any(kw in label_lower for kw in exclusions)
+
+    def add_task(date_obj, pet, task, tag, category):
+        day_name = date_obj.strftime('%A')
+        key = (str(date_obj), pet, task)
+        if key not in added_tasks:
+            schedule_rows.append({
+                "Date": str(date_obj),
+                "Day": day_name,
+                "Pet": pet,
+                "Task": task,
+                "Tag": tag,
+                "Category": category
+            })
+            added_tasks.add(key)
+
+    for pet in saved_pets:
+        pet_name = get_pet_display_name(pet)
+        for q in questions:
+            label = q["label"]
+            answer = pet.get(label, "").strip()
+            if not answer or should_exclude_label(label):
+                continue
+
+            task_text = f"{label} – {answer}"
+            category = get_category(label)
+            interval = utils["extract_week_interval"](answer)
+            weekday_mentions = utils["extract_weekday_mentions"](answer)
+
+            task_already_scheduled = False
+
+            for ds in utils["extract_dates"](answer):
+                parsed_date = utils["normalize_date"](ds)
+                if parsed_date and parsed_date in valid_dates:
+                    add_task(parsed_date, pet_name, task_text, emoji_tags["[One-Time]"], category)
+                    task_already_scheduled = True
+
+            if interval:
+                if weekday_mentions:
+                    for wd in weekday_mentions:
+                        weekday_int = weekday_to_int[wd]
+                        matching_dates = [d for d in valid_dates if d.weekday() == weekday_int]
+                        if matching_dates:
+                            base_date = matching_dates[0]
+                            for d in matching_dates:
+                                if (d - base_date).days % (interval * 7) == 0:
+                                    add_task(d, pet_name, task_text, f"↔️ Every {interval} Weeks", category)
+                                    task_already_scheduled = True
+                else:
+                    base_date = valid_dates[0]
+                    for d in valid_dates:
+                        if (d - base_date).days % (interval * 7) == 0:
+                            add_task(d, pet_name, task_text, f"↔️ Every {interval} Weeks", category)
+                            task_already_scheduled = True
+                    warnings.append(
+                        f"⚠️ '{label}' mentions every {interval} weeks but no weekday. Defaulted to {base_date.strftime('%A')}."
+                    )
+
+            if weekday_mentions and not interval:
+                for wd in weekday_mentions:
+                    weekday_idx = weekday_to_int[wd]
+                    for d in valid_dates:
+                        if d.weekday() == weekday_idx:
+                            add_task(d, pet_name, task_text, emoji_tags["[Weekly]"], category)
+                            task_already_scheduled = True
+
+            if "monthly" in answer.lower():
+                base_date = pd.to_datetime(valid_dates[0])
+                current_date = base_date
+                while current_date.date() <= valid_dates[-1]:
+                    if current_date.date() in valid_dates:
+                        add_task(current_date.date(), pet_name, task_text, emoji_tags["[Monthly]"], category)
+                        task_already_scheduled = True
+                    current_date += pd.DateOffset(months=1)
+                warnings.append(
+                    f"⚠️ '{label}' mentions monthly frequency with no specific weekday. Scheduled from {base_date.strftime('%Y-%m-%d')}."
+                )
+
+            if (
+                not task_already_scheduled and
+                category != "Other" and
+                not interval and
+                not weekday_mentions and
+                "monthly" not in answer.lower()
+            ):
+                for d in valid_dates:
+                    add_task(d, pet_name, task_text, emoji_tags["[Daily]"], category)
+
+    df = pd.DataFrame(schedule_rows)
+    df = df.sort_values(by=["Pet", "Date", "Day", "Category", "Tag", "Task"]).reset_index(drop=True)
+    return df, warnings
 
 def extract_pet_scheduled_tasks_grouped(questions, saved_pets, valid_dates):
     """
