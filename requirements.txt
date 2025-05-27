@@ -56,3 +56,4 @@ FPDF
 tabulate
 plotly.express
 pytest
+pytest-cov
