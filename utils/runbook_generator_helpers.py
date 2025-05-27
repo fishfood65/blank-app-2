@@ -16,6 +16,7 @@ from typing import List, Tuple, Optional
 
 def get_schedule_utils():
     """Shared date parsing, tag generation, and frequency utilities."""
+    print("💡 get_schedule_utils() CALLED")
     emoji_tags = {
         "[Daily]": "🔁 Daily",
         "[Weekly]": "📅 Weekly",

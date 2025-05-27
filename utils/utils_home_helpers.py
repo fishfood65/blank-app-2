@@ -95,6 +95,7 @@ def extract_all_trash_tasks_grouped(valid_dates):
     input_data = st.session_state.get("input_data", {})
     trash_entries = input_data.get("Trash Handling", [])
     label_map = {entry["question"]: entry["answer"] for entry in trash_entries}
+    print("🔍 Label Map:", label_map)
 
     indoor_task_labels = [
         "Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags",
@@ -102,6 +103,9 @@ def extract_all_trash_tasks_grouped(valid_dates):
         "Other Room Trash Bin Emptying Schedule and Replacement Trash Bags",
         "Recycling Trash Bin Location and Emptying Schedule (if available) and Sorting Instructions"
     ]
+    print("🔍 Indoor Labels Checked:", indoor_task_labels)
+    print("🔍 Indoor Labels Expected:", indoor_task_labels)
+    print("🔍 label_map Keys:", list(label_map.keys()))
 
     def add_task_row(date_obj, label, answer, tag):
         return {
