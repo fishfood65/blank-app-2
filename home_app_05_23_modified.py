@@ -16,7 +16,8 @@ from utils.input_tracker import (
 )
 from utils.runbook_generator_helpers import (
     generate_docx_from_split_prompts, 
-    preview_runbook_output
+    preview_runbook_output,
+    get_schedule_utils
 )
 from prompts.prompts_home import (
     query_utility_providers,
@@ -486,6 +487,13 @@ def emergency_kit():
     return not_selected_items
 
 def emergency_kit_utilities():
+
+    # 🧪 Optional: Reset controls for testing
+    if st.checkbox("🧪 Reset Emergency Kit Session State"):
+        for key in ["generated_prompt", "runbook_buffer", "runbook_text", "user_confirmation"]:
+            st.session_state.pop(key, None)
+        st.success("🔄 Level 2 session state reset.")
+        st.stop()  # 🔁 prevent rest of UI from running this frame
 
     # Step 1: Input fields
     emergency_kit()
