@@ -161,6 +161,10 @@ def generate_docx_from_split_prompts(
             doc.add_heading(line[3:].strip(), level=2)
         elif line.startswith("### "):
             doc.add_heading(line[4:].strip(), level=3)
+        elif line.startswith("#### "):
+            doc.add_heading(line[5:].strip(), level=4)
+        elif line.startswith("##### "):
+            doc.add_heading(line[6:].strip(), level=4)
         elif line.startswith("- ") or line.startswith("* "):
             doc.add_paragraph(line[2:].strip(), style="List Bullet")
         elif line[:2].isdigit() and line[2:4] == ". ":
