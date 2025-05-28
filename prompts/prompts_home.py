@@ -140,50 +140,50 @@ For each provider, retrieve:
 ---
 
 
-## 📕 Emergency Run Book
+# 📕 Emergency Run Book
 
-### ⚡ 1. Electricity – {electricity_provider_name}
+## ⚡ 1. Electricity – {electricity_provider_name}
 - Provider Description
 - Customer Service
 - Website
 - Emergency Contact
 
-#### Power Outage Response Guide:
+### Power Outage Response Guide:
 - Steps to follow
 - How to report
 - Safety precautions
 
 ---
-### 🔥 2. Natural Gas – {natural_gas_provider_name}
+## 🔥 2. Natural Gas – {natural_gas_provider_name}
 - Provider Description
 - Customer Service
 - Website
 - Emergency Contact
 
-#### Gas Leak Response Guide:**
+### Gas Leak Response Guide:**
 - Signs and precautions
 - How to evacuate
 - How to report
 
 ---
-### 💧 3. Water – {water_provider_name}
+## 💧 3. Water – {water_provider_name}
 - Provider Description
 - Customer Service
 - Website
 - Emergency Contact
 
-#### Water Outage or Leak Guide:**
+### Water Outage or Leak Guide:**
 - Detection steps
 - Shutoff procedure
 
 ---
-### 🌐 4. Internet – {internet_provider_name}
+## 🌐 4. Internet – {internet_provider_name}
 - Provider Description
 - Customer Service
 - Website
 - Emergency Contact
 
-#### Internet Outage Response Guide:
+### Internet Outage Response Guide:
 - Troubleshooting
 - Reporting
 - Staying informed
@@ -254,78 +254,78 @@ For each provider, retrieve:
 - Steps to report issues
 ---
 
-## 🧰 Emergency Kit Summary
+# 🧰 Emergency Kit Summary
 
-#### Emergency Location:
+## Emergency Location:
 {kit_summary_line}
 
-#### Kit Inventory:  
+## Kit Inventory:  
 {selected_md or "_(none selected)_"}  
-⚠️ #### Missing Kit Items (consider adding): 
+## ⚠️ Missing Kit Items (consider adding): 
 {missing_md or "_(none missing)_"}  
 
-#### Additional User-Added Items: 
+## Additional User-Added Items: 
 {additional_md or "_(none added)_"}  
 
 ---
 
-## 📕 Emergency Run Book
+# 📕 Emergency Run Book
 
-### ⚡ 1. Electricity – {electricity_provider_name}
+## ⚡ 1. Electricity – {electricity_provider_name}
 - Provider Description
 - Customer Service
 - Website
 - Emergency Contact
 
-#### Power Outage Response Guide:
+### Power Outage Response Guide:
 - Steps to follow
 - How to report
 - Safety precautions
-- **Recommended Kit Items**:
+##### Recommended Kit Items:
 {render_recommended(flashlights_info, radio_info, food_water_info, important_docs_info)}
 
 ---
 
-### 🔥 2. Natural Gas – {natural_gas_provider_name}
+## 🔥 2. Natural Gas – {natural_gas_provider_name}
 - Provider Description
 - Customer Service
 - Website
 - Emergency Contact
 
-#### Gas Leak Response Guide:
+### Gas Leak Response Guide:
 - Signs and precautions
 - How to evacuate
 - How to report
-##### Recommended Kit Items**:
+##### Recommended Kit Items:
 {render_recommended(whistle_info, important_docs_info, flashlights_info)}
 
 ---
 
-### 💧 3. Water – {water_provider_name}
+## 💧 3. Water – {water_provider_name}
 - Provider Description
 - Customer Service
 - Website
 - Emergency Contact
 
-#### Water Outage or Leak Guide:
+### Water Outage or Leak Guide:
 - Detection steps
 - Shutoff procedure
-- #### Recommended Kit Items:
+#### Recommended Kit Items:
 {render_recommended(food_water_info, medications_info, mask_info, important_docs_info)}
 
 ---
 
-### 🌐 4. Internet – {internet_provider_name}
+## 🌐 4. Internet – {internet_provider_name}
 - Provider Description
 - Customer Service
 - Website
 - Emergency Contact
 
-#### Internet Outage Response Guide:
+### Internet Outage Response Guide:
 - Troubleshooting
 - Reporting
 - Staying informed
-- **Recommended Kit Items**:
+#### Recommended Kit Items:
 {render_recommended(radio_info, maps_contacts_info, important_docs_info)}
 
 Ensure the run book is clearly formatted using Markdown, with bold headers and bullet points. Use ⚠️ to highlight missing kit items.
@@ -343,7 +343,7 @@ def mail_trash_runbook_prompt():
 
     def safe_yes_no(label, flag, detail_label, detail_value):
         if flag:
-            return f"- **{label}**: Yes\n- **{detail_label}**: {detail_value or 'N/A'}"
+            return f"- **{label}**: Yes\n  - **{detail_label}**: {detail_value or 'N/A'}"
         return ""
 
     # --- MAIL SECTION ---
@@ -355,12 +355,7 @@ def mail_trash_runbook_prompt():
         safe_line("Delivery Packages", mail_info.get("Packages")),
     ]
     filtered_mail = list(filter(None, mail_lines))
-
-    mail_block = ""
-    if filtered_mail:
-        mail_content = "\n".join(filtered_mail)
-        mail_block = f"### 📬 Mail Handling Instructions\n{mail_content}"
-
+    mail_block = f"## 📬 Mail Handling Instructions\n\n" + "\n".join(filtered_mail) if filtered_mail else ""
 
     # --- INDOOR TRASH ---
     indoor = trash_info.get("indoor", {})
@@ -370,12 +365,7 @@ def mail_trash_runbook_prompt():
         safe_line("Other Rooms Trash", indoor.get("other_room_bin")),
     ]
     filtered_indoor = list(filter(None, indoor_lines))
-
-    indoor_block = ""
-    if filtered_indoor:
-        indoor_content = "\n".join(filtered_indoor)
-        indoor_block = f"#### Indoor Trash\n{indoor_content}"
-
+    indoor_block = f"### Indoor Trash\n" + "\n".join(filtered_indoor) if filtered_indoor else ""
 
     # --- OUTDOOR BINS ---
     outdoor = trash_info.get("outdoor", {})
@@ -385,18 +375,16 @@ def mail_trash_runbook_prompt():
         safe_line("Location", outdoor.get("bin_location_specifics")),
         safe_line("Instructions", outdoor.get("bin_handling_instructions")),
     ]
-    outdoor_image_placeholders = []
+
+    outdoor_image_tags = []
     if "trash_images" in st.session_state:
         for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
             if st.session_state.trash_images.get(label):
-                outdoor_image_placeholders.append(f"<<INSERT_IMAGE:{label}>>")
+                filename = st.session_state.trash_images[label]
+                outdoor_image_tags.append(f'<img src="{filename}" alt="{label}" width="300"/>')
 
-    outdoor_parts = list(filter(None, outdoor_lines)) + outdoor_image_placeholders
-    if outdoor_parts:
-        outdoor_content = "\n".join(outdoor_parts)
-        outdoor_block = f"#### Outdoor Bins\n{outdoor_content}"
-    else:
-        outdoor_block = ""
+    outdoor_parts = list(filter(None, outdoor_lines)) + outdoor_image_tags
+    outdoor_block = f"### Outdoor Bins\n" + "\n".join(outdoor_parts) if outdoor_parts else ""
 
     # --- COLLECTION SCHEDULE ---
     schedule = trash_info.get("schedule", {})
@@ -405,11 +393,7 @@ def mail_trash_runbook_prompt():
         safe_line("Recycling Pickup", f"{schedule.get('recycling_day', '')}, {schedule.get('recycling_time', '')}".strip(", ")),
     ]
     filtered_collection = list(filter(None, collection_lines))
-    if filtered_collection:
-        joined_collection = "\n".join(filtered_collection)
-        collection_block = f"#### Collection Schedule\n{joined_collection}"
-    else:
-        collection_block = ""
+    collection_block = f"### Collection Schedule\n" + "\n".join(filtered_collection) if filtered_collection else ""
 
     # --- COMPOSTING ---
     composting = trash_info.get("composting", {})
@@ -419,7 +403,7 @@ def mail_trash_runbook_prompt():
         "Compost Instructions",
         composting.get("compost_instructions")
     )
-    composting_block = f"#### Composting\n{composting_text}" if composting_text else ""
+    composting_block = f"### Composting\n{composting_text}" if composting_text else ""
 
     # --- COMMON DISPOSAL ---
     common_disposal = trash_info.get("common_disposal", {})
@@ -429,7 +413,7 @@ def mail_trash_runbook_prompt():
         "Instructions",
         common_disposal.get("common_area_instructions")
     )
-    common_disposal_block = f"#### Common Disposal Area\n{disposal_text}" if disposal_text else ""
+    common_disposal_block = f"### Common Disposal Area\n{disposal_text}" if disposal_text else ""
 
     # --- WASTE MANAGEMENT ---
     wm = trash_info.get("waste_management", {})
@@ -439,8 +423,7 @@ def mail_trash_runbook_prompt():
         safe_line("Contact", wm.get("description")),
     ]
     filtered_wm = list(filter(None, wm_lines))
-    wm_text = "\n".join(filtered_wm)
-    wm_block = f"#### Waste Management Contact\n{wm_text}" if wm_text else ""
+    wm_block = f"### Waste Management Contact\n" + "\n".join(filtered_wm) if filtered_wm else ""
 
     # --- TRASH SECTION COMBINED ---
     trash_blocks = "\n\n".join(filter(None, [
@@ -451,23 +434,24 @@ def mail_trash_runbook_prompt():
         common_disposal_block,
         wm_block
     ]))
-    trash_main = f"### 🗑️ Trash & Recycling Instructions\n{trash_blocks}" if trash_blocks else ""
+    trash_main = f"## 🗑️ Trash & Recycling Instructions\n\n{trash_blocks}" if trash_blocks else ""
 
-    # --- OPTIONAL: FLAT SCHEDULE (Markdown format) ---
-    flat_schedule_md = st.session_state.get("home_schedule_markdown", "")
-    schedule_block = f"---\n### 📆 Mail & Trash Pickup Schedule\n{flat_schedule_md}" if flat_schedule_md else ""
+    # --- FINAL SCHEDULE PLACEHOLDER ---
+    schedule_block = "\n\n## 📆 Mail & Trash Pickup Schedule\n\n<<INSERT_SCHEDULE_TABLE>>"
 
     # --- FINAL PROMPT OUTPUT ---
     return f"""
 You are an expert assistant generating a Mail and Waste Management Run Book. Compose a comprehensive, easy-to-follow guide for house sitters and people watching the house when occupants are out of town. For any values set to No please omit those lines.
 
-## 📕 Mail Handling and Waste Management Instructions
+# 📕 Mail Handling and Waste Management Instructions
 
 {mail_block}
 
 ---
 
 {trash_main}
+
+---
 
 {schedule_block}
 """.strip()

@@ -96,6 +96,47 @@ def get_schedule_utils():
     }
 
 
+def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
+    if schedule_df.empty:
+        doc.add_paragraph("_No schedule data available._")
+        return
+
+    schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
+    schedule_df = schedule_df.sort_values(by=["Date", "Source", "Tag", "Task"])
+    schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
+    schedule_df["DateStr"] = schedule_df["Date"].dt.strftime("%Y-%m-%d")
+
+    grouped = schedule_df.groupby("Date")
+
+    for date, group in grouped:
+        day_str = date.strftime("%A, %Y-%m-%d")
+        doc.add_heading(f"📅 {day_str}", level=2)
+        table = doc.add_table(rows=1, cols=2)
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = 'Task'
+        hdr_cells[1].text = 'Image'
+
+        for _, row in group.iterrows():
+            task = row["Task"]
+            image_path = ""
+            for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
+                if label.lower().replace(" image", "") in task.lower():
+                    uploaded = st.session_state.trash_images.get(label)
+                    if uploaded:
+                        image_path = uploaded
+                        break
+
+            row_cells = table.add_row().cells
+            row_cells[0].text = task
+            if image_path:
+                paragraph = row_cells[1].paragraphs[0]
+                run = paragraph.add_run()
+                run.add_picture(image_path, width=Inches(1.5))
+            else:
+                row_cells[1].text = ""
+
+        doc.add_paragraph("")
+
 def generate_docx_from_split_prompts(
     prompts: List[str],
     api_key: str,
@@ -106,22 +147,8 @@ def generate_docx_from_split_prompts(
     temperature: float = 0.5,
     max_tokens: int = 2048,
 ) -> Tuple[io.BytesIO, str]:
-    """
-    Splits prompts into individual LLM calls to manage token limits,
-    stitches together the results, and returns a formatted DOCX and combined response.
-
-    Args:
-        prompts: A list of prompt strings to process.
-        api_key: Your Mistral API key.
-        section_titles: Optional titles for each prompt section (must match prompt count if provided).
-        model, doc_heading, temperature, max_tokens: LLM configuration and output formatting.
-
-    Returns:
-        Tuple of (DOCX file as BytesIO, concatenated LLM response text).
-    """
 
     combined_output = []
-
     for i, prompt in enumerate(prompts):
         if not prompt.strip():
             continue
@@ -135,42 +162,65 @@ def generate_docx_from_split_prompts(
                     temperature=temperature,
                 )
                 response_text = completion.choices[0].message.content
-
-                # Determine title if provided
                 title = section_titles[i].strip() if section_titles and i < len(section_titles) else ""
                 section_label = f"### {title}" if title else ""
                 output = f"{section_label}\n\n{response_text.strip()}" if section_label else response_text.strip()
                 combined_output.append(output)
-
         except Exception as e:
             st.error(f"❌ Error processing prompt {i+1}: {e}")
             continue
 
     full_text = "\n\n".join(combined_output)
-
     doc = Document()
     doc.add_heading(doc_heading, 0)
 
-    for line in full_text.splitlines():
+    lines = full_text.splitlines()
+    schedule_inserted = False
+    for line in lines:
         line = line.strip()
         if not line:
             continue
-        if line.startswith("# "):
-            doc.add_heading(line[2:].strip(), level=1)
-        elif line.startswith("## "):
-            doc.add_heading(line[3:].strip(), level=2)
-        elif line.startswith("### "):
-            doc.add_heading(line[4:].strip(), level=3)
-        elif line.startswith("#### "):
-            doc.add_heading(line[5:].strip(), level=4)
-        elif line.startswith("##### "):
+
+        if line == "<<INSERT_SCHEDULE_TABLE>>":
+            if not schedule_inserted:
+                schedule_df = st.session_state.get("home_schedule_df", pd.DataFrame())
+                add_table_from_schedule(doc, schedule_df)
+                schedule_inserted = True
+            continue
+
+        # Headings
+        if line.startswith("##### "):
             doc.add_heading(line[6:].strip(), level=4)
+        elif line.startswith("#### "):
+            doc.add_heading(line[5:].strip(), level=3)
+        elif line.startswith("### "):
+            doc.add_heading(line[4:].strip(), level=2)
+        elif line.startswith("## "):
+            doc.add_heading(line[3:].strip(), level=1)
+        elif line.startswith("# "):
+            doc.add_heading(line[2:].strip(), level=0)
+
+        # Bullets
         elif line.startswith("- ") or line.startswith("* "):
             doc.add_paragraph(line[2:].strip(), style="List Bullet")
-        elif line[:2].isdigit() and line[2:4] == ". ":
-            doc.add_paragraph(line[4:].strip(), style="List Number")
+
+        # Numbered List
+        elif re.match(r"^\d+\. ", line):
+            doc.add_paragraph(re.sub(r"^\d+\. ", "", line), style="List Number")
+
+        # Paragraph with inline markdown
         else:
-            para = doc.add_paragraph(line)
+            para = doc.add_paragraph()
+            cursor = 0
+            for match in re.finditer(r"(\*\*.*?\*\*)", line):
+                start, end = match.span()
+                if start > cursor:
+                    para.add_run(line[cursor:start])
+                bold_text = match.group(1)[2:-2]
+                para.add_run(bold_text).bold = True
+                cursor = end
+            if cursor < len(line):
+                para.add_run(line[cursor:])
             para.style.font.size = Pt(11)
 
     buffer = io.BytesIO()

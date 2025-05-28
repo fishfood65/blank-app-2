@@ -736,9 +736,12 @@ def mail_trash_handling():
             st.session_state["end_date"] = end_date
             st.session_state["valid_dates"] = valid_dates
 
+            # Build once and reuse
+            utils = get_schedule_utils()
+
             # Step 2: Extract grouped schedule summaries for mail and trash
             mail_task = extract_grouped_mail_task(valid_dates)
-            trash_df = extract_all_trash_tasks_grouped(valid_dates)
+            trash_df = extract_all_trash_tasks_grouped(valid_dates, utils)
 
             # Step 3: Convert mail task to DataFrame
             mail_df = pd.DataFrame([mail_task]) if mail_task else pd.DataFrame(
@@ -767,7 +770,7 @@ def mail_trash_handling():
         if user_confirmation:
             prompts = [
                 emergency_kit_utilities_runbook_prompt(),
-                mail_trash_runbook_prompt(),  # Uses flat_schedule_md internally
+                mail_trash_runbook_prompt(), 
             ]
             st.session_state["generated_prompt"] = prompts
         else:
