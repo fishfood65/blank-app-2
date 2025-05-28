@@ -160,5 +160,31 @@ class TestCommonHelpers(unittest.TestCase):
         self.assertIn("kitchen", tags)
         self.assertIn("Trash Handling", sources)
 
+def test_generate_flat_home_schedule_markdown():
+    schedule_df = pd.DataFrame([
+        {"Date": "2024-01-01", "Task": "Clean kitchen", "Source": "user"},
+        {"Date": "2024-01-02", "Task": "Check fire alarm", "Source": "auto"}
+    ])
+    result = generate_flat_home_schedule_markdown(schedule_df)
+    assert "Clean kitchen" in result
+    assert "Check fire alarm" in result
+    assert "2024-01-01" in result
+    assert "2024-01-02" in result
+
+def test_get_schedule_utils():
+    from datetime import datetime
+    st.session_state.clear()
+    st.session_state["input_data"] = {
+        "Home Basics": [
+            {"question": "Daily Tasks", "answer": "Check mail"},
+            {"question": "Weekly Tasks", "answer": "Take out trash"},
+        ]
+    }
+    df, notes = get_schedule_utils()
+    assert isinstance(df, pd.DataFrame)
+    assert not df.empty
+    assert any("Check mail" in task for task in df["Task"])
+    assert notes is None or isinstance(notes, str)
+    
 if __name__ == "__main__":
     unittest.main()
