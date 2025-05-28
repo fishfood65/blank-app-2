@@ -1,8 +1,8 @@
-from utils.utils_home_helpers import (
-    check_home_progress, 
+from utils.common_helpers import (
+    check_home_progress,
     extract_all_trash_tasks_grouped, 
     extract_grouped_mail_task, 
-    generate_flat_home_schedule_markdown
+    generate_flat_home_schedule_markdown,
 )
 from utils.input_tracker import (
     capture_input, 
@@ -15,10 +15,6 @@ from utils.input_tracker import (
     check_missing_utility_inputs, 
     export_input_data_as_csv, 
     render_lock_toggle
-)
-from utils.runbook_generator_helpers import (
-    generate_docx_from_split_prompts, 
-    preview_runbook_output
 )
 import streamlit as st
 import re
@@ -103,6 +99,11 @@ Water Provider: <company name>
     # Also store in session_state for correction access
     st.session_state["utility_providers"] = results
     
+    return results
+
+def fetch_utility_providers():
+    results = query_utility_providers()
+    st.session_state["utility_providers"] = results
     return results
 
 def utilities_emergency_runbook_prompt():

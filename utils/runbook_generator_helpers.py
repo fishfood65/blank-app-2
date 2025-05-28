@@ -13,89 +13,14 @@ import os
 import pandas as pd
 import re
 from typing import List, Tuple, Optional
-
-
-def get_schedule_utils():
-    """Shared date parsing, tag generation, and frequency utilities."""
-    print("💡 get_schedule_utils() CALLED")
-    emoji_tags = {
-        "[Daily]": "🔁 Daily",
-        "[Weekly]": "📅 Weekly",
-        "[One-Time]": "🗓️ One-Time",
-        "[X-Weeks]": "↔️ Every X Weeks",
-        "[Monthly]": "📆 Monthly"
-    }
-
-    weekday_to_int = {
-        "Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3,
-        "Friday": 4, "Saturday": 5, "Sunday": 6
-    }
-
-    def extract_week_interval(text):
-        text = text.lower()
-        print("🧪 Checking interval in text:", text)
-
-        # ✅ Fix: use \d+ correctly, not \\d+
-        if "every week" in text and not re.search(r"every \d+ week", text):
-            print("✅ Detected 'every week' → returning 1")
-            return 1
-
-        match = re.search(r"every (\d+) week", text)
-        if match:
-            print(f"✅ Detected 'every {match.group(1)} weeks'")
-            return int(match.group(1))
-
-        if "biweekly" in text:
-            return 2
-
-        return None
-
-    def extract_weekday_mentions(text):
-        return [day for day in weekday_to_int if day.lower() in text.lower()]
-
-    def extract_dates(text):
-        patterns = [
-            r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?",
-            r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?"
-        ]
-        matches = []
-        for pattern in patterns:
-            matches += re.findall(pattern, text, flags=re.IGNORECASE)
-        return matches
-
-    def normalize_date(date_str):
-        try:
-            return pd.to_datetime(date_str, errors="coerce").date()
-        except:
-            return None
-
-    def determine_frequency_tag(text, valid_dates):
-        interval = extract_week_interval(text)
-        weekday_mentions = extract_weekday_mentions(text)
-
-        for ds in extract_dates(text):
-            parsed_date = normalize_date(ds)
-            if parsed_date and parsed_date in valid_dates:
-                return emoji_tags["[One-Time]"]
-
-        if interval:
-            return f"↔️ Every {interval} Weeks"
-        if weekday_mentions and not interval:
-            return emoji_tags["[Weekly]"]
-        if "monthly" in text.lower():
-            return emoji_tags["[Monthly]"]
-        return emoji_tags["[Daily]"]
-
-    return {
-        "emoji_tags": emoji_tags,
-        "weekday_to_int": weekday_to_int,
-        "extract_week_interval": extract_week_interval,
-        "extract_weekday_mentions": extract_weekday_mentions,
-        "extract_dates": extract_dates,
-        "normalize_date": normalize_date,
-        "determine_frequency_tag": determine_frequency_tag
-    }
-
+from prompts.prompts_home import (
+    utilities_emergency_runbook_prompt,
+    emergency_kit_utilities_runbook_prompt,
+    mail_trash_runbook_prompt,
+    home_caretaker_runbook_prompt,
+    emergency_kit_document_prompt,
+    bonus_level_runbook_prompt
+)
 
 def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
     if schedule_df.empty:
@@ -280,3 +205,127 @@ def preview_runbook_output(runbook_text: str, label: str = "📖 Preview Runbook
     if st.button(label):
         with st.expander("🧠 AI-Generated Runbook Preview", expanded=True):
             st.markdown(runbook_text)
+
+def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = None) -> Tuple[Optional[str], List[str]]:
+    """
+    Generate a section-specific prompt and return both the final combined prompt string
+    and a list of individual prompt fragments (if any).
+    
+    Parameters:
+    - section: str — like "home", "pets", etc.
+    - prompts: Optional[List[str]] — used to collect individual prompts
+
+    Returns:
+    - Tuple of (combined_prompt_string or None, list_of_prompt_strings)
+    """
+    confirm_key = f"confirm_ai_prompt_{section}"
+    confirmed = st.session_state.get(confirm_key, False)
+
+    if not confirmed:
+        st.session_state["generated_prompt"] = None
+        return None, prompts or []
+
+    if prompts is None:
+        prompts = []
+
+    # Section-specific logic
+    if section == "home":
+        prompts.append(utilities_emergency_runbook_prompt())
+    elif section == "emergency_kit":
+        prompts.append(emergency_kit_utilities_runbook_prompt())
+    elif section == "mail_trash_handling":
+        prompts.extend([
+            emergency_kit_utilities_runbook_prompt(),
+            mail_trash_runbook_prompt(),
+        ])
+    elif section == "home_security":
+        prompts.extend([
+            emergency_kit_utilities_runbook_prompt(),
+            mail_trash_runbook_prompt(),
+            home_caretaker_runbook_prompt()
+        ])
+    elif section == "emergency_kit_critical_documents":
+        prompts.append(emergency_kit_document_prompt())
+    elif section == "bonus_level":
+        prompts.append(bonus_level_runbook_prompt())
+    else:
+        prompts.append = (f"# ⚠️ No prompt available for section: {section}")
+
+    # Combine into a single prompt string
+    combined_prompt = "\n\n".join(prompts)
+
+    # Save to session
+    st.session_state["generated_prompt"] = combined_prompt
+
+    return combined_prompt, prompts
+
+def render_prompt_preview(missing: list, section: str = "home"):
+    confirmed = st.session_state.get(f"{section}_user_confirmation", False)
+    
+    with st.expander("🧠 AI Prompt Preview (Optional)", expanded=True):
+        if missing:
+            st.warning(f"⚠️ Cannot generate prompt. Missing: {', '.join(missing)}")
+        elif not confirmed:
+            st.info("☕️ Please check the box to confirm AI prompt generation.")
+        elif st.session_state.get("generated_prompt"):
+            st.code(st.session_state["generated_prompt"], language="markdown")
+            st.success("✅ Prompt ready! Now you can generate your runbook.")
+        else:
+            st.warning("⚠️ Prompt not generated yet.")
+
+def maybe_render_download(section: str = "home", filename: Optional[str] = None):
+    """
+    Renders download button and preview for generated runbook.
+    
+    Parameters:
+    - section: str — used to generate default filename
+    - filename: Optional[str] — custom file name for the DOCX download
+    """
+    buffer = st.session_state.get("runbook_buffer")
+    runbook_text = st.session_state.get("runbook_text")
+
+    if not filename:
+        filename = f"{section}_emergency_runbook.docx"
+
+    if buffer:
+        st.download_button(
+            label="📥 Download DOCX",
+            data=buffer,
+            file_name=filename,
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        st.success("✅ Runbook ready for download!")
+
+    if runbook_text:
+        preview_runbook_output(runbook_text)
+
+def maybe_generate_runbook(section: str = "home", doc_heading: Optional[str] = None):
+    """
+    Generate a runbook DOCX from the prompt stored in session state and render download.
+    
+    Parameters:
+    - section: str — used to customize default document heading and filename
+    - doc_heading: Optional[str] — override the heading shown in the document
+    """
+    prompt = st.session_state.get("generated_prompt")
+    if not prompt:
+        return
+
+    if st.button("📄 Generate Runbook Document"):
+        if doc_heading is None:
+            doc_heading = f"{section.replace('_', ' ').title()} Emergency Runbook"
+
+        buffer, runbook_text = generate_docx_from_split_prompts(
+            prompts=[prompt],
+            api_key=os.getenv("MISTRAL_TOKEN"),
+            doc_heading=doc_heading
+        )
+
+        # Save to session state
+        st.session_state["runbook_buffer"] = buffer
+        st.session_state["runbook_text"] = runbook_text
+        st.session_state["runbook_ready"] = True  # ✅ Flag that buffer is ready
+
+        # Always show preview/download if runbook is ready
+    if st.session_state.get("runbook_ready"):
+        maybe_render_download(section=section)

@@ -39,30 +39,38 @@ def log_interaction(action_type, label, value, section_name):
         "section": section_name
     })
 
-def capture_input(label, input_fn, section_name, *args, **kwargs):
+def capture_input(label, input_fn, section=None, *args, **kwargs):
     """Displays input using input_fn and stores label, value, timestamp under a section."""
+    if section is None:
+        section = st.session_state.get("section", "default")
 
-    disabled = kwargs.get("disabled", False)
-    value = input_fn(label, *args, **kwargs)
-    if disabled:
-        return value  # don't record in session
-    
-    init_section(section_name)
-    value = input_fn(label, *args, **kwargs)
+    unique_key = f"{section}_{label.replace(' ', '_').lower()}"
+    value = input_fn(label, key=unique_key, *args, **kwargs)
+
+    # Ensure section is initialized
+    init_section(section)
+
+    #Build the input entry
 
     entry = {
         "question": label,
         "answer": value,
         "timestamp": datetime.now().isoformat(),
         "input_type": getattr(input_fn, "__name__", str(input_fn)),  # Safe fallback for mocked inputs and Automatically record the widget type
-        "section": section_name,
+        "section": section,
         "session_id": st.session_state.get("session_id"),
         "required": kwargs.get("required", False)
     }
 
-    st.session_state["input_data"][section_name].append(entry)
-    log_interaction("input", label, value, section_name)
+    # Store the entry in input_data
+    if "input_data" not in st.session_state:
+        st.session_state["input_data"] = {}
+    st.session_state["input_data"].setdefault(section, []).append(entry)
+
+    # Logging + Autosave
+    log_interaction("input", label, value, section)
     autosave_input_data()
+
     return value
 
 def get_answer(question_label, section=None):
