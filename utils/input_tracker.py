@@ -428,31 +428,38 @@ def log_provider_result(label, value, section="Utility Providers"):
         "section": section
     })
 
-def extract_and_log_providers(content):
-    """Extracts Electricity, Natural Gas, and Water providers from content and logs them."""
-
+def extract_providers_from_text(content: str) -> dict:
+    """
+    Pure function that extracts provider names from a text string.
+    Returns a dict with electricity, natural_gas, and water keys.
+    """
     def extract(label):
-        match = re.search(rf"{label} Provider:\s*(.+)", content)
+        match = re.search(rf"{label} Provider:\s*(.+)", content, re.IGNORECASE)
         return match.group(1).strip() if match else "Not found"
 
-    electricity = extract("Electricity")
-    natural_gas = extract("Natural Gas")
-    water = extract("Water")
-
-    log_provider_result("Electricity", electricity)
-    log_provider_result("Natural Gas", natural_gas)
-    log_provider_result("Water", water)
-
-    # Optionally store in session directly
-    st.session_state["electricity_provider"] = electricity
-    st.session_state["natural_gas_provider"] = natural_gas
-    st.session_state["water_provider"] = water
-
     return {
-        "electricity": electricity,
-        "natural_gas": natural_gas,
-        "water": water
+        "electricity": extract("Electricity"),
+        "natural_gas": extract("Natural Gas"),
+        "water": extract("Water")
     }
+
+def extract_and_log_providers(content: str) -> dict:
+    """
+    Wrapper that extracts provider names and logs them to session state.
+    """
+    providers = extract_providers_from_text(content)
+
+    # Log to Streamlit or any side-effect mechanism
+    log_provider_result("Electricity", providers["electricity"])
+    log_provider_result("Natural Gas", providers["natural_gas"])
+    log_provider_result("Water", providers["water"])
+
+    # Store in session state for reuse
+    st.session_state["electricity_provider"] = providers["electricity"]
+    st.session_state["natural_gas_provider"] = providers["natural_gas"]
+    st.session_state["water_provider"] = providers["water"]
+
+    return providers
 
 def check_missing_utility_inputs():
     """

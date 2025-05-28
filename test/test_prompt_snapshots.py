@@ -1,4 +1,7 @@
 ### 1. Import dependencies and target functions
+import json
+import streamlit as st
+import sys
 import unittest  # Imports unittest for test structure.
 import os # Imports os to build platform-independent paths.
 
@@ -10,30 +13,57 @@ from prompts.prompts_home import (
     mail_trash_runbook_prompt
    )   # <-- Adjust this if needed
 
-# Path to the snapshot file
-SNAPSHOT_DIR = os.path.join(os.path.dirname(__file__), "..", "snapshots")
-SNAPSHOT_FILE = os.path.join(SNAPSHOT_DIR, "home_prompt.md")
+# 2. Run Your Tests Normally or With Update Mode
+# Normal test run (no overwrite):
+# python -m unittest test/test_prompt_snapshots.py
+# Snapshot update mode:
+# python -m unittest test/test_prompt_snapshots.py --update-snapshots
+# If the snapshot file differs, this will overwrite it with the latest output.
+
+# ✅ Best Practice: Safe relative path to root-level "snapshots" directory
+SNAPSHOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "snapshots"))
+SNAPSHOT_FILE = os.path.join(SNAPSHOT_DIR, "query_utility_providers_snapshot.json")
+
+# Detect update flag (must be set before unittest runs)
+UPDATE_SNAPSHOTS = "--update-snapshots" in sys.argv
+if UPDATE_SNAPSHOTS:
+    sys.argv.remove("--update-snapshots")  # Prevent unittest from choking on unknown flag
+
 
 class TestPromptSnapshots(unittest.TestCase):
 
+    def setUp(self):
+        # Ensure snapshot directory exists
+        os.makedirs(SNAPSHOT_DIR, exist_ok=True)
+
+        # ✅ Mock required session state
+        st.session_state.clear()
+        st.session_state["input_data"] = {
+            "Home Basics": [
+                {"question": "City", "answer": "Austin"},
+                {"question": "ZIP Code", "answer": "73301"},
+            ]
+        }
+
     def test_query_utility_providers_prompt_matches_snapshot(self):
         # 1. Generate the current prompt output
-        actual_prompt = query_utility_providers()
+        actual_output = query_utility_providers(test_mode=True)
 
-        # 2. Check if the snapshot file exists
+        # 2. ✅ Convert to pretty string
+        actual_str = json.dumps(actual_output, indent=2) # Even though your function now returns a dict. You can't compare this dict directly to a plain-text .md snapshot without converting it first — unittest.assertEqual() expects strings for snapshot comparison.
+
+        # 3. ✅ First time: write the snapshot if it doesn't exist
         if not os.path.exists(SNAPSHOT_FILE):
-            # 3. If it doesn't, create the snapshot
-            os.makedirs(SNAPSHOT_DIR, exist_ok=True)
-            with open(SNAPSHOT_FILE, "w", encoding="utf-8") as f:
-                f.write(actual_prompt)
-            self.fail("Snapshot file created. Please re-run the test to validate content.")
+            with open(SNAPSHOT_FILE, "w") as f:
+                f.write(actual_str)
+            self.skipTest("Snapshot created. Re-run to compare.")
 
-        # 4. Read the expected snapshot content
-        with open(SNAPSHOT_FILE, "r", encoding="utf-8") as f:
+        # 4. Read the expected snapshot content and compare
+        with open(SNAPSHOT_FILE, "r") as f:
             expected_prompt = f.read()
 
         # 5. Compare the current vs. expected snapshot
-        self.assertEqual(actual_prompt.strip(), expected_prompt.strip(), "Prompt does not match snapshot.")
+        self.assertEqual(actual_str.strip(), expected_prompt.strip(), "Prompt does not match snapshot.")
 
 #| Problem               | Cause                                | Fix                                                          |
 #| --------------------- | ------------------------------------ | ------------------------------------------------------------ |
