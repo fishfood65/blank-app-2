@@ -17,7 +17,7 @@ SNAPSHOT_FUNCTIONS = {
 }
 
 # Create a versioned filename using current timestamp
-timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 SNAPSHOT_DIR = os.path.join(os.path.dirname(__file__), "snapshots")
 os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
