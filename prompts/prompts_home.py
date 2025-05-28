@@ -333,8 +333,14 @@ Ensure the run book is clearly formatted using Markdown, with bold headers and b
 
 #### Mail + Trash Prompt ####
 def mail_trash_runbook_prompt():
-    mail_info = st.session_state.get("mail_info", {})
-    trash_info = st.session_state.get("trash_info", {})
+    # Pull from centralized input_data
+    input_data = st.session_state.get("input_data", {})
+    mail_entries = input_data.get("Mail & Packages", [])
+    trash_entries = input_data.get("Trash Handling", [])
+
+    # Flatten into dicts for easy access
+    mail_info = {entry["question"]: entry["answer"] for entry in mail_entries}
+    trash_info = {entry["question"]: entry["answer"] for entry in trash_entries}
 
     def safe_line(label, value):
         if value and str(value).strip().lower() != "no":
@@ -345,35 +351,34 @@ def mail_trash_runbook_prompt():
         if flag:
             return f"- **{label}**: Yes\n  - **{detail_label}**: {detail_value or 'N/A'}"
         return ""
+    
+    if st.sidebar.checkbox("🔍 Show Trash Info Debug"):
+        st.sidebar.write("🧾 `trash_info` Keys:")
+        st.sidebar.code("\n".join(sorted(trash_info.keys())), language="text")
 
     # --- MAIL SECTION ---
     mail_lines = [
-        safe_line("Mailbox Location", mail_info.get("Mailbox Location")),
-        safe_line("Mailbox Key Info", mail_info.get("Mailbox Key")),
-        safe_line("Pick-Up Schedule", mail_info.get("Pick-Up Schedule")),
-        safe_line("Mail Sorting Instructions", mail_info.get("What to Do with the Mail")),
-        safe_line("Delivery Packages", mail_info.get("Packages")),
+        safe_line("Mailbox Location", mail_info.get("📍 Mailbox Location")),
+        safe_line("Mailbox Key Info", mail_info.get("🔑 Mailbox Key (Optional)")),
+        safe_line("Pick-Up Schedule", mail_info.get("📆 Mail Pick-Up Schedule")),
+        safe_line("Mail Sorting Instructions", mail_info.get("📥 What to Do with the Mail")),
+        safe_line("Delivery Packages", mail_info.get("📦 Packages")),
     ]
-    filtered_mail = list(filter(None, mail_lines))
-    mail_block = f"## 📬 Mail Handling Instructions\n\n" + "\n".join(filtered_mail) if filtered_mail else ""
+    mail_block = f"## 📬 Mail Handling Instructions\n\n" + "\n".join(filter(None, mail_lines)) if mail_lines else ""
 
     # --- INDOOR TRASH ---
-    indoor = trash_info.get("indoor", {})
     indoor_lines = [
-        safe_line("Kitchen Trash", indoor.get("kitchen_bin")),
-        safe_line("Bathroom Trash", indoor.get("bathroom_bin")),
-        safe_line("Other Rooms Trash", indoor.get("other_room_bin")),
+        safe_line("Kitchen Trash", trash_info.get("Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags")),
+        safe_line("Bathroom Trash", trash_info.get("Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags")),
+        safe_line("Other Rooms Trash", trash_info.get("Other Room Trash Bin Emptying Schedule and Replacement Trash Bags")),
     ]
-    filtered_indoor = list(filter(None, indoor_lines))
-    indoor_block = f"### Indoor Trash\n" + "\n".join(filtered_indoor) if filtered_indoor else ""
+    indoor_block = f"### Indoor Trash\n" + "\n".join(filter(None, indoor_lines)) if indoor_lines else ""
 
     # --- OUTDOOR BINS ---
-    outdoor = trash_info.get("outdoor", {})
     outdoor_lines = [
-        safe_line("Please take the bins", outdoor.get("bin_destination")),
-        safe_line("Bins Description", outdoor.get("bin_description")),
-        safe_line("Location", outdoor.get("bin_location_specifics")),
-        safe_line("Instructions", outdoor.get("bin_handling_instructions")),
+        safe_line("Please take the bins", trash_info.get("Instructions for Placing and Returning Outdoor Bins")),
+        safe_line("Bins Description", trash_info.get("What the Outdoor Trash Bins Look Like")),
+        safe_line("Location", trash_info.get("Specific Location or Instructions for Outdoor Bins")),
     ]
 
     outdoor_image_tags = []
@@ -383,47 +388,43 @@ def mail_trash_runbook_prompt():
                 filename = st.session_state.trash_images[label]
                 outdoor_image_tags.append(f'<img src="{filename}" alt="{label}" width="300"/>')
 
-    outdoor_parts = list(filter(None, outdoor_lines)) + outdoor_image_tags
-    outdoor_block = f"### Outdoor Bins\n" + "\n".join(outdoor_parts) if outdoor_parts else ""
+    outdoor_block = f"### Outdoor Bins\n" + "\n".join(filter(None, outdoor_lines + outdoor_image_tags)) if (outdoor_lines or outdoor_image_tags) else ""
 
     # --- COLLECTION SCHEDULE ---
-    schedule = trash_info.get("schedule", {})
     collection_lines = [
-        safe_line("Garbage Pickup", f"{schedule.get('trash_day', '')}, {schedule.get('trash_time', '')}".strip(", ")),
-        safe_line("Recycling Pickup", f"{schedule.get('recycling_day', '')}, {schedule.get('recycling_time', '')}".strip(", ")),
+        safe_line("Garbage Pickup", f"{trash_info.get('Garbage Pickup Day', '')}, {trash_info.get('Garbage Pickup Time', '')}".strip(", ")),
+        safe_line("Recycling Pickup", f"{trash_info.get('Recycling Pickup Day', '')}, {trash_info.get('Recycling Pickup Time', '')}".strip(", ")),
     ]
-    filtered_collection = list(filter(None, collection_lines))
-    collection_block = f"### Collection Schedule\n" + "\n".join(filtered_collection) if filtered_collection else ""
+    collection_block = f"### Collection Schedule\n" + "\n".join(filter(None, collection_lines)) if collection_lines else ""
 
     # --- COMPOSTING ---
-    composting = trash_info.get("composting", {})
+    composting_used = trash_info.get("Compost Used", "").strip().lower() == "yes"
     composting_text = safe_yes_no(
         "Composting Used",
-        composting.get("compost_used", False),
+        composting_used,
         "Compost Instructions",
-        composting.get("compost_instructions")
+        trash_info.get("Compost Instructions")
     )
     composting_block = f"### Composting\n{composting_text}" if composting_text else ""
 
     # --- COMMON DISPOSAL ---
-    common_disposal = trash_info.get("common_disposal", {})
-    disposal_text = safe_yes_no(
+    common_disposal_used = trash_info.get("Common Disposal Used", "").strip().lower() == "yes"
+    common_disposal_text = safe_yes_no(
         "Common Disposal Area Used",
-        common_disposal.get("uses_common_disposal", False),
+        common_disposal_used,
         "Instructions",
-        common_disposal.get("common_area_instructions")
+        trash_info.get("Common Disposal Area Instructions")
     )
-    common_disposal_block = f"### Common Disposal Area\n{disposal_text}" if disposal_text else ""
+    common_disposal_block = f"### Common Disposal Area\n{common_disposal_text}" if common_disposal_text else ""
 
     # --- WASTE MANAGEMENT ---
-    wm = trash_info.get("waste_management", {})
-    wm_lines = [
-        safe_line("Company Name", wm.get("company_name")),
-        safe_line("Phone", wm.get("phone")),
-        safe_line("Contact", wm.get("description")),
-    ]
-    filtered_wm = list(filter(None, wm_lines))
-    wm_block = f"### Waste Management Contact\n" + "\n".join(filtered_wm) if filtered_wm else ""
+    wm_lines = list(filter(None, [
+    safe_line("Company Name", trash_info.get("Waste Management Company Name")),
+    safe_line("Phone", trash_info.get("Contact Phone Number")),
+    safe_line("When to Contact", trash_info.get("When to Contact")),
+    ]))
+    wm_block = f"### Waste Management Contact\n" + "\n".join(wm_lines) if wm_lines else ""
+
 
     # --- TRASH SECTION COMBINED ---
     trash_blocks = "\n\n".join(filter(None, [
@@ -455,6 +456,7 @@ You are an expert assistant generating a Mail and Waste Management Run Book. Com
 
 {schedule_block}
 """.strip()
+
 
 #### Security and Services Prompt ####
 
