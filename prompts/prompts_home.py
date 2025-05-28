@@ -351,10 +351,10 @@ def mail_trash_runbook_prompt():
         if flag:
             return f"- **{label}**: Yes\n  - **{detail_label}**: {detail_value or 'N/A'}"
         return ""
-    
-    if st.sidebar.checkbox("🔍 Show Trash Info Debug"):
-        st.sidebar.write("🧾 `trash_info` Keys:")
-        st.sidebar.code("\n".join(sorted(trash_info.keys())), language="text")
+    #### Debug check to see what is saved into session state
+   # if st.sidebar.checkbox("🔍 Show Trash Info Debug"):
+    #    st.sidebar.write("🧾 `trash_info` Keys:")
+     #   st.sidebar.code("\n".join(sorted(trash_info.keys())), language="text")
 
     # --- MAIL SECTION ---
     mail_lines = [
