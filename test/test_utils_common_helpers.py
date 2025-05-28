@@ -1,8 +1,10 @@
+import unittest
 import pytest
 import streamlit as st
 import sys
 import types
 from datetime import date, datetime, timedelta
+import pandas as pd
 from utils.common_helpers import (
     extract_grouped_mail_task, 
     check_home_progress, 
@@ -117,3 +119,46 @@ def test_check_home_progress_all_true():
     assert percent == 100
     assert completed == ["Level 1", "Level 2"]
 
+class TestCommonHelpers(unittest.TestCase):
+
+    def setUp(self):
+        self.schedule_df = pd.DataFrame([
+            {
+                "Date": "2025-05-01",
+                "Task": "Take out kitchen trash",
+                "Source": "Trash Handling",
+                "Tag": "kitchen",
+                "Category": "home"
+            },
+            {
+                "Date": "2025-05-02",
+                "Task": "Recycle paper",
+                "Source": "Trash Handling",
+                "Tag": "recycling",
+                "Category": "home"
+            }
+        ])
+        self.schedule_df["Date"] = pd.to_datetime(self.schedule_df["Date"])
+
+    def test_extract_all_trash_tasks_grouped(self):
+        grouped = extract_all_trash_tasks_grouped(self.schedule_df)
+        self.assertIsInstance(grouped, pd.DataFrame)
+        self.assertIn("Task", grouped.columns)
+        self.assertGreaterEqual(len(grouped), 1)
+
+    def test_generate_flat_home_schedule_markdown(self):
+        markdown = generate_flat_home_schedule_markdown(self.schedule_df)
+        self.assertIsInstance(markdown, str)
+        self.assertIn("📅 2025-05-01", markdown)
+        self.assertIn("Take out kitchen trash", markdown)
+
+    def test_get_schedule_utils(self):
+        df, tags, sources = get_schedule_utils(self.schedule_df)
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertIsInstance(tags, list)
+        self.assertIsInstance(sources, list)
+        self.assertIn("kitchen", tags)
+        self.assertIn("Trash Handling", sources)
+
+if __name__ == "__main__":
+    unittest.main()
