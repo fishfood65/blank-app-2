@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 # Import your prompt function from the prompts_home module
 from prompts.prompts_home import (
     query_utility_providers, 
@@ -15,15 +16,30 @@ SNAPSHOT_FUNCTIONS = {
     "mail_trash_prompt.md": mail_trash_runbook_prompt
 }
 
+# Create a versioned filename using current timestamp
+timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 SNAPSHOT_DIR = os.path.join(os.path.dirname(__file__), "snapshots")
 os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
-for filename, func in SNAPSHOT_FUNCTIONS.items():
+for name, func in SNAPSHOT_FUNCTIONS.items():
     try:
-        snapshot_path = os.path.join(SNAPSHOT_DIR, filename)
+        # Versioned file
+        versioned_filename = f"{name}_{timestamp}.md"
+        versioned_path = os.path.join(SNAPSHOT_DIR, versioned_filename)
+
+        # Optional: latest copy for comparison convenience
+        latest_path = os.path.join(SNAPSHOT_DIR, f"{name}_latest.md")
+
         result = func()
-        with open(snapshot_path, "w", encoding="utf-8") as f:
-            f.write(result)
-        print(f"✅ Snapshot written: {filename}")
+
+        # Write both files
+        with open(versioned_path, "w", encoding="utf-8") as vf:
+            vf.write(result)
+
+        with open(latest_path, "w", encoding="utf-8") as lf:
+            lf.write(result)
+
+        print(f"✅ Saved {versioned_filename} and {name}_latest.md")
+
     except Exception as e:
-        print(f"❌ Failed to generate snapshot for {filename}: {e}")
+        print(f"❌ Failed to write snapshot for {name}: {e}")
