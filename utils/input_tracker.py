@@ -41,6 +41,12 @@ def log_interaction(action_type, label, value, section_name):
 
 def capture_input(label, input_fn, section_name, *args, **kwargs):
     """Displays input using input_fn and stores label, value, timestamp under a section."""
+
+    disabled = kwargs.get("disabled", False)
+    value = input_fn(label, *args, **kwargs)
+    if disabled:
+        return value  # don't record in session
+    
     init_section(section_name)
     value = input_fn(label, *args, **kwargs)
 
@@ -48,7 +54,7 @@ def capture_input(label, input_fn, section_name, *args, **kwargs):
         "question": label,
         "answer": value,
         "timestamp": datetime.now().isoformat(),
-        "input_type": input_fn.__name__,  # Automatically record the widget type
+        "input_type": getattr(input_fn, "__name__", str(input_fn)),  # Safe fallback for mocked inputs and Automatically record the widget type
         "section": section_name,
         "session_id": st.session_state.get("session_id"),
         "required": kwargs.get("required", False)
