@@ -1,6 +1,7 @@
 import streamlit as st
 from mistralai import Mistral, UserMessage, SystemMessage
 import csv
+from io import BytesIO
 import io
 from datetime import datetime, timedelta
 from docx import Document
@@ -111,7 +112,9 @@ def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
     for date, group in grouped:
         day_str = date.strftime("%A, %Y-%m-%d")
         doc.add_heading(f"📅 {day_str}", level=2)
+
         table = doc.add_table(rows=1, cols=2)
+        table.autofit = True
         hdr_cells = table.rows[0].cells
         hdr_cells[0].text = 'Task'
         hdr_cells[1].text = 'Image'
@@ -135,7 +138,7 @@ def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
             else:
                 row_cells[1].text = ""
 
-        doc.add_paragraph("")
+        doc.add_paragraph("")  # spacing between tables
 
 def generate_docx_from_split_prompts(
     prompts: List[str],
@@ -146,6 +149,7 @@ def generate_docx_from_split_prompts(
     doc_heading: str = "Runbook",
     temperature: float = 0.5,
     max_tokens: int = 2048,
+    debug: bool = False  # Optional debug toggle
 ) -> Tuple[io.BytesIO, str]:
 
     combined_output = []
@@ -176,6 +180,7 @@ def generate_docx_from_split_prompts(
 
     lines = full_text.splitlines()
     schedule_inserted = False
+
     for line in lines:
         line = line.strip()
         if not line:
@@ -183,7 +188,12 @@ def generate_docx_from_split_prompts(
 
         if line == "<<INSERT_SCHEDULE_TABLE>>":
             if not schedule_inserted:
+                if debug:
+                    doc.add_paragraph("✅ This should appear before schedule table.")
+                    print("📋 Found INSERT_SCHEDULE_TABLE marker.")
                 schedule_df = st.session_state.get("home_schedule_df", pd.DataFrame())
+                if debug:
+                    print("📋 Schedule DataFrame passed to add_table_from_schedule:\n", schedule_df)
                 add_table_from_schedule(doc, schedule_df)
                 schedule_inserted = True
             continue
@@ -204,7 +214,7 @@ def generate_docx_from_split_prompts(
         elif line.startswith("- ") or line.startswith("* "):
             doc.add_paragraph(line[2:].strip(), style="List Bullet")
 
-        # Numbered List
+        # Numbered list
         elif re.match(r"^\d+\. ", line):
             doc.add_paragraph(re.sub(r"^\d+\. ", "", line), style="List Number")
 
@@ -216,8 +226,7 @@ def generate_docx_from_split_prompts(
                 start, end = match.span()
                 if start > cursor:
                     para.add_run(line[cursor:start])
-                bold_text = match.group(1)[2:-2]
-                para.add_run(bold_text).bold = True
+                para.add_run(match.group(1)[2:-2]).bold = True
                 cursor = end
             if cursor < len(line):
                 para.add_run(line[cursor:])
@@ -228,6 +237,33 @@ def generate_docx_from_split_prompts(
     buffer.seek(0)
 
     return buffer, full_text
+
+def generate_docx_from_text(text: str, doc_heading: str = "Runbook") -> BytesIO:
+    doc = Document()
+    doc.add_heading(doc_heading, 0)
+
+    lines = text.splitlines()
+    schedule_inserted = False
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        if line == "<<INSERT_SCHEDULE_TABLE>>":
+            if not schedule_inserted:
+                schedule_df = st.session_state.get("home_schedule_df", pd.DataFrame())
+                add_table_from_schedule(doc, schedule_df)
+                schedule_inserted = True
+            continue
+
+        # Same heading, bullet, and markdown logic...
+        # (copy from generate_docx_from_split_prompts)
+
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
 
 def preview_runbook_output(runbook_text: str, label: str = "📖 Preview Runbook"):
     """

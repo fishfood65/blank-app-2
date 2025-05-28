@@ -4,8 +4,10 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime
 import streamlit as st
 from home_app_05_23_modified import mail, trash_handling, mail_trash_handling
-import io
+from utils.runbook_generator_helpers import generate_docx_from_split_prompts, generate_docx_from_text
+from io import BytesIO
 import pandas as pd
+from docx import Document
 
 # Shared Setup: Setup for testing capture_input-dependent components
 def setUp_streamlit_session():
@@ -115,7 +117,7 @@ class TestMailAndTrashInput(unittest.TestCase):
     @patch("PIL.Image.open")
     def test_image_upload_valid_bytes(self, mock_image_open, mock_st_image, mock_file_uploader):
         setUp_streamlit_session()
-        fake_image_bytes = io.BytesIO(b"fake-image-data")
+        fake_image_bytes = BytesIO(b"fake-image-data")
         mock_file_uploader.return_value = fake_image_bytes
         mock_image_open.return_value = MagicMock()
 
@@ -184,10 +186,11 @@ class TestTrashImageHandling(unittest.TestCase):
     @patch("streamlit.file_uploader")
     @patch("streamlit.image")
     @patch("PIL.Image.open")
+
     def test_image_upload_sets_state(self, mock_image_open, mock_st_image, mock_file_uploader):
         setUp_streamlit_session()
 
-        fake_image_bytes = io.BytesIO(b"fake-image-data")
+        fake_image_bytes = BytesIO(b"fake-image-data")
         mock_file_uploader.return_value = fake_image_bytes
         mock_image_open.return_value = MagicMock()
 
@@ -203,6 +206,71 @@ class TestTrashImageHandling(unittest.TestCase):
 
         assert "Outdoor Bin Image" in st.session_state["trash_images"]
         assert st.session_state["trash_images"]["Outdoor Bin Image"] is not None
+
+class TestDocxTableAndImageRendering(unittest.TestCase):
+
+    def setUp(self):
+        st.session_state.clear()
+
+        # ✅ Set up home_schedule_df with valid data
+        df = pd.DataFrame({
+            "Task": ["Take out trash", "Pick up mail"],
+            "Category": ["Trash", "Mail"],
+            "Area": ["Outside", "Mailbox"],
+            "Source": ["System", "User"],
+            "Tag": ["Routine", "Important"],
+            "Date": ["2025-06-01", "2025-06-01"],
+        })
+
+        # ✅ Ensure Date is datetime, and Day is derived from Date
+        df["Date"] = pd.to_datetime(df["Date"])
+        df["Day"] = df["Date"].dt.strftime("%A")
+
+        # ✅ Inject into expected session key
+        st.session_state["home_schedule_df"] = df
+
+        # 🔍 Optional debug confirmation
+        print("✅ setUp loaded schedule_df:", df)
+
+
+    def test_table_rendered_correctly_in_docx(self):
+        prompt = (
+            "# 📕 Mail Handling and Waste Management Instructions\n\n"
+            "Regular instructions here...\n\n"
+            "## 📆 Mail & Trash Pickup Schedule\n\n"
+            "<<INSERT_SCHEDULE_TABLE>>"
+        )
+
+        # Act
+        buffer = generate_docx_from_text(
+            text=prompt,  # Contains <<INSERT_SCHEDULE_TABLE>>
+            doc_heading="House Runbook"
+        )
+
+        # Assert
+        self.assertIsInstance(buffer, BytesIO)
+
+        buffer.seek(0)
+        doc = Document(buffer)
+
+        print("📄 DOCX tables found:", len(doc.tables))
+        for i, t in enumerate(doc.tables):
+            print(f"  Table {i} → Rows: {len(t.rows)}")
+
+        table_found = any(len(t.rows) > 1 for t in doc.tables)
+        self.assertTrue(table_found, "Expected a table to be inserted into the document.")
+
+        buffer, _ = generate_docx_from_split_prompts(
+            prompts=[prompt],
+            api_key="fake-api-key",
+            doc_heading="Trash Runbook"
+        )
+
+        buffer.seek(0)
+        doc = Document(buffer)
+
+        doc_text = "\n".join(p.text for p in doc.paragraphs)
+        self.assertNotIn("<img", doc_text, "Raw <img> tags should not appear in final DOCX output.")
 
 if __name__ == "__main__":
     unittest.main()
