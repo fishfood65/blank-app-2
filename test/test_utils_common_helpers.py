@@ -3,7 +3,13 @@ import streamlit as st
 import sys
 import types
 from datetime import date, datetime, timedelta
-from utils.utils_home_helpers import extract_grouped_mail_task, check_home_progress
+from utils.common_helpers import (
+    extract_grouped_mail_task, 
+    check_home_progress, 
+    extract_all_trash_tasks_grouped, 
+    generate_flat_home_schedule_markdown,
+    get_schedule_utils
+    )
 
 @pytest.fixture(autouse=True)
 def setup_mail_input(monkeypatch):
