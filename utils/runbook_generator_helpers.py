@@ -13,6 +13,7 @@ import os
 import pandas as pd
 import re
 from typing import List, Tuple, Optional
+import tempfile
 from prompts.prompts_home import (
     utilities_emergency_runbook_prompt,
     emergency_kit_utilities_runbook_prompt,
@@ -39,7 +40,9 @@ def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
         doc.add_heading(f"📅 {day_str}", level=2)
 
         table = doc.add_table(rows=1, cols=2)
+        table.style = 'Light List' #Optional: imporve tabel appearance
         table.autofit = True
+
         hdr_cells = table.rows[0].cells
         hdr_cells[0].text = 'Task'
         hdr_cells[1].text = 'Image'
@@ -47,19 +50,31 @@ def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
         for _, row in group.iterrows():
             task = row["Task"]
             image_path = ""
+
+            # Look for matching uploaded images
             for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
                 if label.lower().replace(" image", "") in task.lower():
                     uploaded = st.session_state.trash_images.get(label)
                     if uploaded:
-                        image_path = uploaded
+                        # Save uploaded file to temp location
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                            tmp.write(uploaded.read())
+                            image_path = tmp.name
                         break
 
             row_cells = table.add_row().cells
             row_cells[0].text = task
+
             if image_path:
-                paragraph = row_cells[1].paragraphs[0]
-                run = paragraph.add_run()
-                run.add_picture(image_path, width=Inches(1.5))
+                try:
+                    run = row_cells[1].paragraphs[0].add_run()
+                    run.add_picture(image_path, width=Inches(1.5))
+                    if st.session_state.get("enable_debug_mode"):
+                        st.write(f"🖼️ Added image for task: {task}")
+                except Exception as e:
+                    row_cells[1].text = "⚠️ Image load failed"
+                    if st.session_state.get("enable_debug_mode"):
+                        st.write(f"❌ Error adding image for task '{task}': {e}")
             else:
                 row_cells[1].text = ""
 
@@ -111,16 +126,14 @@ def generate_docx_from_split_prompts(
         if not line:
             continue
 
-        if line == "<<INSERT_SCHEDULE_TABLE>>":
-            if not schedule_inserted:
-                if debug:
-                    doc.add_paragraph("✅ This should appear before schedule table.")
-                    print("📋 Found INSERT_SCHEDULE_TABLE marker.")
-                schedule_df = st.session_state.get("home_schedule_df", pd.DataFrame())
-                if debug:
-                    print("📋 Schedule DataFrame passed to add_table_from_schedule:\n", schedule_df)
-                add_table_from_schedule(doc, schedule_df)
-                schedule_inserted = True
+        if line == "<<INSERT_SCHEDULE_TABLE>>" and not schedule_inserted:
+            schedule_df = st.session_state.get("home_schedule_df", pd.DataFrame())
+            if debug:
+                doc.add_paragraph("✅ [DEBUG] Schedule table inserted below.")
+                print("📋 Found INSERT_SCHEDULE_TABLE marker.")
+                print("📋 Schedule DataFrame passed to add_table_from_schedule:\n", schedule_df)
+            add_table_from_schedule(doc, schedule_df)
+            schedule_inserted = True  # Skip adding this line as plain text
             continue
 
         # Headings
@@ -265,7 +278,7 @@ def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = 
             mail_trash_runbook_prompt(debug_key="trash_info_debug_preview"),
         ])
         prompt = mail_trash_runbook_prompt(debug_key="trash_info_debug_run")
-        st.write("📬 [DEBUG] mail_trash_runbook_prompt returned:", prompt)
+        #st.write("📬 [DEBUG] mail_trash_runbook_prompt returned:", prompt)
         prompts.append(prompt)
 
     elif section == "home_security":
@@ -299,8 +312,17 @@ def render_prompt_preview(missing: list, section: str = "home"):
         elif not confirmed:
             st.info("☕️ Please check the box to confirm AI prompt generation.")
         elif st.session_state.get("generated_prompt"):
-            st.code(st.session_state["generated_prompt"], language="markdown")
+            prompt = st.session_state["generated_prompt"] # added for debug
+            #st.code(st.session_state["generated_prompt"], language="markdown") #-- commented out for debugging
+
+            schedule_md = st.session_state.get("home_schedule_markdown", "_No schedule available._") # added for debug
+            prompt_with_schedule = prompt.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md) # added for debug
             st.success("✅ Prompt ready! Now you can generate your runbook.")
+
+            # Show in code block
+            st.code(prompt_with_schedule, language="markdown") # added for debuging
+            #st.success("✅ Prompt ready! Now you can generate your runbook.")
+
         else:
             st.warning("⚠️ Prompt not generated yet.")
 
@@ -326,6 +348,8 @@ def maybe_render_download(section: str = "home", filename: Optional[str] = None)
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
         st.success("✅ Runbook ready for download!")
+        st.write("📋 [DEBUG] runbook_text preview:") # for debug
+        st.code(runbook_text, language="markdown") # for debug
 
     if runbook_text:
         preview_runbook_output(runbook_text)
@@ -338,26 +362,38 @@ def maybe_generate_runbook(section: str = "home", doc_heading: Optional[str] = N
     - section: str — used to customize default document heading and filename
     - doc_heading: Optional[str] — override the heading shown in the document
     """
-    prompt = st.session_state.get("generated_prompt")
-    st.write("📄 [DEBUG] Prompt to generate:", st.session_state.get("generated_prompt"))
-
+    prompt = st.session_state.get("generated_prompt", "")
     if not prompt:
+        st.warning("⚠️ No prompt found in session. Cannot generate runbook.")
         return
+    #st.write("📄 [DEBUG] Prompt to generate:", st.session_state.get("generated_prompt"))
     # Fix: Set doc_heading before button block
     if doc_heading is None:
         doc_heading = f"{section.replace('_', ' ').title()} Emergency Runbook"
 
     if st.button("📄 Generate Runbook Document"):
+        schedule_md = st.session_state.get("home_schedule_markdown", "_No schedule available._")
+        prompt_with_schedule = prompt.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
+
+        # ✅ Debugging block: show prompt and schedule
+        if st.session_state.get("enable_debug_mode"):
+            st.write("📋 Raw Prompt with Schedule:", prompt_with_schedule)
+            st.write("📊 Schedule DataFrame:", st.session_state.get("home_schedule_df"))
+
         try:
-            buffer, runbook_text = generate_docx_from_split_prompts(
-                prompts=[prompt],
+            buffer, _ = generate_docx_from_split_prompts(
+                prompts=[prompt_with_schedule],
                 api_key=os.getenv("MISTRAL_TOKEN"),
-                doc_heading=doc_heading
+                doc_heading=doc_heading,
+                debug=st.session_state.get("enable_debug_mode", False)# <-- Controlled by checkbox
             )
+
+            # Replace in runbook_text too — since the markdown version is shown in preview
+            # runbook_text = prompt_with_schedule
 
             # Save to session state
             st.session_state["runbook_buffer"] = buffer
-            st.session_state["runbook_text"] = runbook_text
+            st.session_state["runbook_text"] = prompt_with_schedule
             st.session_state["runbook_ready"] = True  # ✅ Flag that buffer is ready
         except Exception as e:
             st.error(f"❌ Failed to generate runbook: {e}")

@@ -18,14 +18,14 @@ def check_home_progress(progress_dict):
 
 def extract_all_trash_tasks_grouped(valid_dates, utils):
     utils = utils or get_schedule_utils()
-    st.write("🗑️ [DEBUG] extract_all_trash_tasks_grouped received:", valid_dates)
+    #st.write("🗑️ [DEBUG] extract_all_trash_tasks_grouped received:", valid_dates)
     #st.write("🗑️ [DEBUG] input_data:", st.session_state.get("input_data", {}))
 
     input_data = st.session_state.get("input_data", {})
     trash_entries = input_data.get("Trash Handling", []) or input_data.get("trash_handling")
-    st.write("🧪 trash_entries:", trash_entries)
+    #st.write("🧪 trash_entries:", trash_entries) -- for Debug
     label_map = {entry["question"]: entry["answer"] for entry in trash_entries}
-    st.write("🧪 trash label_map keys:", list(label_map.keys()))
+    #st.write("🧪 trash label_map keys:", list(label_map.keys())) -- for Debug
 
     emoji_tags = utils["emoji_tags"]
     weekday_to_int = utils["weekday_to_int"]
@@ -233,7 +233,7 @@ def extract_grouped_mail_task(valid_dates):
     for date, lines in sorted(repeating_tasks.items()):
         structured_tasks.append(make_task(date, lines, tag or "🔁 Repeating"))
 
-    st.write("📬 [DEBUG] Structured Mail Tasks:", structured_tasks)
+    #st.write("📬 [DEBUG] Structured Mail Tasks:", structured_tasks)
     return structured_tasks
 
 def generate_flat_home_schedule_markdown(schedule_df):

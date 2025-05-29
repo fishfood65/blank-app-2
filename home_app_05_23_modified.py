@@ -169,6 +169,7 @@ def main():
         else:
             available_levels = levels
 
+    st.sidebar.checkbox("🐞 Enable Debug Mode", key="enable_debug_mode")
     selected = st.sidebar.radio("Choose a Level:", available_levels)
 
     # Save current section key
@@ -458,8 +459,8 @@ def mail(section="mail"):
             "📦 Packages", st.text_area, section,
             placeholder="E.g., 'Inside entryway closet'", disabled=disabled
         )
-    st.markdown("### Debug: Section Input State")
-    st.json(st.session_state.get("input_data", {}))
+    #st.markdown("### Debug: Section Input State")
+    #st.json(st.session_state.get("input_data", {}))
 
 def trash_handling(section="trash_handling"):
     st.subheader("🗑️ Trash & Recycling")
@@ -561,8 +562,8 @@ def trash_handling(section="trash_handling"):
             if img:
                 st.image(Image.open(io.BytesIO(img)), caption=label)
 
-    st.markdown("### Debug: Section Input State")
-    st.json(st.session_state.get("input_data", {}))
+    #st.markdown("### Debug: Section Input State")
+    #st.json(st.session_state.get("input_data", {}))
 
 def mail_trash_handling():
     ### need to be able to pull out a schedule out from the output
@@ -593,6 +594,7 @@ def mail_trash_handling():
 
     # ─── Tab 3: Prompt Review & Generate ──────────────────────────────
     with tab3:
+
         # Step 1: Let user select the date range
         choice, start_date, end_date, valid_dates = select_runbook_date_range()
 
@@ -635,6 +637,9 @@ def mail_trash_handling():
                 "combined_home_schedule_df": combined_schedule_df,
                 "home_schedule_markdown": flat_schedule_md,
             })
+            # 🧪 Preview what’s going into the prompt -- Debug
+            #st.markdown("### 🧪 Flat Schedule Markdown Preview")
+           # st.code(flat_schedule_md, language="markdown")
 
             #st.write(f"🧪 show what is saved in 'grouped_mail_task': {mail_task}")
             #st.write(f"🧪 show what is saved in 'grouped_trash_schedule': {trash_df}")
@@ -643,7 +648,7 @@ def mail_trash_handling():
 
             # Step 7: Confirm and maybe generate prompt
             confirm_key = f"confirm_ai_prompt_{section}"
-            user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
+            user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key) 
             st.session_state[f"{section}_user_confirmation"] = user_confirmation
 
             prompts = []
