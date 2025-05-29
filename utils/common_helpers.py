@@ -15,7 +15,7 @@ def check_home_progress(progress_dict):
     return percent_complete, completed
 
 def extract_all_trash_tasks_grouped(valid_dates, utils):
-    utils = get_schedule_utils()
+    utils = utils or get_schedule_utils()
 
     input_data = st.session_state.get("input_data", {})
     trash_entries = input_data.get("Trash Handling", [])

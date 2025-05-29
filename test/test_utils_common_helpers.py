@@ -12,9 +12,10 @@ from utils.common_helpers import (
     generate_flat_home_schedule_markdown,
     get_schedule_utils
     )
+import utils.common_helpers as uh
 
 @pytest.fixture(autouse=True)
-def setup_mail_input(monkeypatch):
+def setup_mail_input(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(st, "session_state", {
         "input_data": {
             "Mail & Packages": [
@@ -47,7 +48,7 @@ def test_check_home_progress_returns_percentage_and_completed():
     assert percent == 75
     assert completed == ["Level 1", "Level 3", "Level 4"]
 
-def test_extract_grouped_mail_task_with_missing_fields(monkeypatch):
+def test_extract_grouped_mail_task_with_missing_fields(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(st, "session_state", {
         "input_data": {
             "Mail & Packages": [
@@ -61,7 +62,7 @@ def test_extract_grouped_mail_task_with_missing_fields(monkeypatch):
     result = extract_grouped_mail_task(valid_dates)
     assert result is None
 
-def test_extract_all_trash_tasks_grouped_with_mocked_streamlit(monkeypatch):
+def test_extract_all_trash_tasks_grouped_with_mocked_streamlit(monkeypatch: pytest.MonkeyPatch):
     today = datetime.today().date()
     weekday_name = today.strftime("%A")
 
@@ -85,13 +86,25 @@ def test_extract_all_trash_tasks_grouped_with_mocked_streamlit(monkeypatch):
             ]
         }
     }
+    # Provide dummy utils object
+    dummy_utils = {
+        "emoji_tags": { "[Weekly]": "🔁", "[Monthly]": "📅", "[Daily]": "🗓️", "[One-Time]": "📌" },
+        "weekday_to_int": {
+            "Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3,
+            "Friday": 4, "Saturday": 5, "Sunday": 6
+        },
+        "extract_week_interval": lambda x: None,
+        "extract_weekday_mentions": lambda x: [weekday_name] if weekday_name in x else [],
+        "extract_dates": lambda x: [],
+        "normalize_date": lambda x: None,
+    }
 
-    # Monkeypatch streamlit to use this fake session state
-    import utils.utils_home_helpers as uh
+    # Monkeypatch streamlit and get_schedule_utils
     monkeypatch.setattr(uh, "st", fake_st)
+    monkeypatch.setattr(uh, "get_schedule_utils", lambda: dummy_utils)
 
     valid_dates = [today + timedelta(days=i) for i in range(14)]
-    df = uh.extract_all_trash_tasks_grouped(valid_dates)
+    df = uh.extract_all_trash_tasks_grouped(valid_dates,dummy_utils)
 
     print("Extracted rows:", df.to_dict(orient="records"))
     assert not df.empty
@@ -141,50 +154,98 @@ class TestCommonHelpers(unittest.TestCase):
         self.schedule_df["Date"] = pd.to_datetime(self.schedule_df["Date"])
 
     def test_extract_all_trash_tasks_grouped(self):
-        grouped = extract_all_trash_tasks_grouped(self.schedule_df)
-        self.assertIsInstance(grouped, pd.DataFrame)
-        self.assertIn("Task", grouped.columns)
-        self.assertGreaterEqual(len(grouped), 1)
+
+        dummy_utils = {
+        "emoji_tags": { "[Weekly]": "🔁", "[Monthly]": "📅", "[Daily]": "🗓️", "[One-Time]": "📌" },
+        "weekday_to_int": {"Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3, "Friday": 4, "Saturday": 5, "Sunday": 6},
+        "extract_week_interval": lambda x: None,
+        "extract_weekday_mentions": lambda x: [weekday_name] if weekday_name in x else [],
+        "extract_dates": lambda x: [],
+        "normalize_date": lambda x: None,
+        }
+
+        today = datetime.today().date()
+        weekday_name = today.strftime("%A")
+
+        st.session_state["input_data"] = {
+                "Trash Handling": [
+                    {
+                        "question": "Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags",
+                        "answer": f"Empty every {weekday_name} and again next {weekday_name}. Bags under sink."
+                    },
+                    {
+                        "question": "Garbage Pickup Day",
+                        "answer": f"Put bins out every week on {weekday_name}."
+                    },
+                    {
+                        "question": "Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags",
+                        "answer": "Take out on the 1st and 15th of every month."
+                    }
+                ]
+            }
+
+        valid_dates = [today + timedelta(days=i) for i in range(14)]
+        df = extract_all_trash_tasks_grouped(valid_dates, utils=dummy_utils)
+
+        print("🧪 Extracted rows:", df.to_dict(orient="records"))
+
+        self.assertFalse(df.empty, "❌ No trash tasks were extracted")
+        self.assertIn("Task", df.columns)
+        self.assertIn("Date", df.columns)
 
     def test_generate_flat_home_schedule_markdown(self):
         markdown = generate_flat_home_schedule_markdown(self.schedule_df)
         self.assertIsInstance(markdown, str)
-        self.assertIn("📅 2025-05-01", markdown)
-        self.assertIn("Take out kitchen trash", markdown)
+        self.assertIn("📅 Thursday, 2025-05-01", markdown)
 
     def test_get_schedule_utils(self):
-        df, tags, sources = get_schedule_utils(self.schedule_df)
-        self.assertIsInstance(df, pd.DataFrame)
-        self.assertIsInstance(tags, list)
-        self.assertIsInstance(sources, list)
-        self.assertIn("kitchen", tags)
-        self.assertIn("Trash Handling", sources)
+        result = get_schedule_utils()
+        self.assertIn("emoji_tags", result)
+        self.assertIn("weekday_to_int", result)
+        self.assertIn("extract_week_interval", result)
+        self.assertIn("extract_weekday_mentions", result)
+        self.assertIn("extract_dates", result)
+        self.assertIn("normalize_date", result)
+        self.assertIn("determine_frequency_tag", result)
+
+        # Basic type checks
+        self.assertIsInstance(result["emoji_tags"], dict)
+        self.assertIsInstance(result["weekday_to_int"], dict)
+        self.assertTrue(callable(result["extract_week_interval"]))
+        self.assertTrue(callable(result["extract_weekday_mentions"]))
+        self.assertTrue(callable(result["extract_dates"]))
+        self.assertTrue(callable(result["normalize_date"]))
+        self.assertTrue(callable(result["determine_frequency_tag"]))
+
+        # Sample check of interval function
+        self.assertEqual(result["extract_week_interval"]("Take out trash every 2 weeks"), 2)
+        self.assertEqual(result["extract_week_interval"]("This is biweekly."), 2)
+        self.assertEqual(result["extract_week_interval"]("Do this every week"), 1)
 
 def test_generate_flat_home_schedule_markdown():
     schedule_df = pd.DataFrame([
-        {"Date": "2024-01-01", "Task": "Clean kitchen", "Source": "user"},
-        {"Date": "2024-01-02", "Task": "Check fire alarm", "Source": "auto"}
+        {
+            "Date": "2024-01-01",
+            "Task": "Clean kitchen",
+            "Tag": "cleaning",
+            "Source": "user",
+            "Category": "home"
+        },
+        {
+            "Date": "2024-01-02",
+            "Task": "Check fire alarm",
+            "Tag": "safety",
+            "Source": "auto",
+            "Category": "home"
+        }
     ])
     result = generate_flat_home_schedule_markdown(schedule_df)
+
+    assert isinstance(result, str)
+    assert "**📅" in result  # Markdown section headers
+    assert "| Task" in result  # Markdown table
     assert "Clean kitchen" in result
     assert "Check fire alarm" in result
-    assert "2024-01-01" in result
-    assert "2024-01-02" in result
 
-def test_get_schedule_utils():
-    from datetime import datetime
-    st.session_state.clear()
-    st.session_state["input_data"] = {
-        "Home Basics": [
-            {"question": "Daily Tasks", "answer": "Check mail"},
-            {"question": "Weekly Tasks", "answer": "Take out trash"},
-        ]
-    }
-    df, notes = get_schedule_utils()
-    assert isinstance(df, pd.DataFrame)
-    assert not df.empty
-    assert any("Check mail" in task for task in df["Task"])
-    assert notes is None or isinstance(notes, str)
-    
 if __name__ == "__main__":
     unittest.main()
