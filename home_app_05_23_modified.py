@@ -303,13 +303,13 @@ def homeowner_kit_stock():
                 has_item = capture_input(
                     label=item,
                     input_fn=cols[idx].checkbox,
-                    section_name="Emergency Kit",
+                    section="Emergency Kit",
                     key=key,
                     value=st.session_state.get(key, False)
                 )
                 if has_item:
                     selected.append(item)
-
+                
         submitted = st.form_submit_button("Submit")
 
     if submitted:
@@ -328,7 +328,7 @@ def emergency_kit():
     emergency_kit_status = capture_input(
         label="Do you have an Emergency Kit?",
         input_fn=st.radio,
-        section_name="Emergency Kit",
+        section="Emergency Kit",
         options=["Yes", "No"],
         index=0,
         key="radio_emergency_kit_status"
@@ -343,7 +343,7 @@ def emergency_kit():
     emergency_kit_location = capture_input(
         label="Where is (or where will) the Emergency Kit be located?",
         input_fn=st.text_area,
-        section_name="Emergency Kit",
+        section="Emergency Kit",
         placeholder="e.g., hall closet, garage bin"
     )
 
@@ -356,7 +356,7 @@ def emergency_kit():
     additional = capture_input(
         label="Add any additional emergency kit items not in the list above (comma-separated):",
         input_fn=st.text_input,
-        section_name="Emergency Kit",
+        section="Emergency Kit",
         value=st.session_state.get("additional_kit_items", "")
     )
     if additional:
@@ -387,22 +387,46 @@ def emergency_kit_utilities():
             st.session_state.pop(key, None)
         st.success("🔄 Level 2 session state reset.")
         st.stop()  # 🔁 prevent rest of UI from running this frame
+    
+    section = st.session_state.get("section", "home")
 
-    # Step 1: Input fields
+    # Step 1: Input collection
     emergency_kit()
+    
+    # Step 2: Confirm and maybe generate prompt
+    confirm_key = f"confirm_ai_prompt_{section}"
+    user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
+    st.session_state[f"{section}_user_confirmation"] = user_confirmation
+
+    prompts = []
+    if st.session_state.get(f"{section}_user_confirmation"):
+        maybe_generate_prompt(section=section, prompts=prompts)
+        generated = st.session_state.get("generated_prompt")
+
+    # Step 3: Prompt preview + runbook
+    missing = check_missing_utility_inputs()
+    render_prompt_preview(missing, section=section)
+
+    # Step 4: Optionally generate runbook if inputs are valid and confirmed
+    if not missing and st.session_state.get("generated_prompt"):
+        st.markdown("---")
+        st.markdown("### 📄 Runbook Generator")
+        maybe_generate_runbook(section=section)
+        # Level 2 Complete - for Progress
+        st.session_state["level_progress"]["emergency_kit"] = True
     
     # Step 2: Preview prompt
 
     # Move this outside the expander
-    confirm_key_kit = "confirm_ai_prompt_emergency_kit"
-    user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key_kit)
-    st.session_state["user_confirmation"] = user_confirmation # store confirmation in session
+    #confirm_key_kit = "confirm_ai_prompt_emergency_kit"
+    #user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key_kit)
+    #st.session_state["user_confirmation"] = user_confirmation # store confirmation in session
 
-    if user_confirmation:
-        prompt = emergency_kit_utilities_runbook_prompt()
-        st.session_state["generated_prompt"] = prompt
-    else:
-        st.session_state["generated_prompt"] = None
+    #if user_confirmation:
+    #    prompt = emergency_kit_utilities_runbook_prompt()
+    #    st.session_state["generated_prompt"] = prompt
+    #else:
+    #    st.session_state["generated_prompt"] = None
 
     # DEBUG print to screen
     #st.write("DEBUG → confirmed:", user_confirmation)
@@ -413,45 +437,45 @@ def emergency_kit_utilities():
     #st.write("🧪 Prompt from function:", prompt)
 
     # Step 4: Preview + next steps
-    with st.expander("🧠 AI Prompt Preview (Optional)", expanded=True):
-        if not user_confirmation:
-            st.info("☝️ Please check the box to confirm AI prompt generation.")
-        elif st.session_state.get("generated_prompt"):
-            st.code(st.session_state["generated_prompt"], language="markdown")
-            st.success("✅ Prompt ready! Now you can generate your runbook.")
-        else:
-            st.warning("⚠️ Prompt not generated yet.")
+    #with st.expander("🧠 AI Prompt Preview (Optional)", expanded=True):
+    #    if not user_confirmation:
+    #        st.info("☝️ Please check the box to confirm AI prompt generation.")
+    #    elif st.session_state.get("generated_prompt"):
+    #        st.code(st.session_state["generated_prompt"], language="markdown")
+    #       st.success("✅ Prompt ready! Now you can generate your runbook.")
+    #    else:
+    #        st.warning("⚠️ Prompt not generated yet.")
 
     # Optional: Runbook button outside the expander
-    if st.session_state.get("generated_prompt"):
-        if st.button("📄 Generate Runbook Document"):
-            buffer, runbook_text = generate_docx_from_split_prompts(
-                prompts=[st.session_state["generated_prompt"]], 
-                api_key=os.getenv("MISTRAL_TOKEN"),
-                doc_heading="Home Emergency Readiness: Utilities & Kit"
-            )
+   # if st.session_state.get("generated_prompt"):
+    #    if st.button("📄 Generate Runbook Document"):
+    #        buffer, runbook_text = generate_docx_from_split_prompts(
+    #            prompts=[st.session_state["generated_prompt"]], 
+    #            api_key=os.getenv("MISTRAL_TOKEN"),
+    #            doc_heading="Home Emergency Readiness: Utilities & Kit"
+    #        )
             # Level 1 Complete - for Progress
-            st.session_state["level_progress"]["emergency_kit"] = True
+     #       st.session_state["level_progress"]["emergency_kit"] = True
 
             # Store results to persist across reruns
-            st.session_state["runbook_buffer"] = buffer
-            st.session_state["runbook_text"] = runbook_text
+     #       st.session_state["runbook_buffer"] = buffer
+     #       st.session_state["runbook_text"] = runbook_text
 
     # Access from session_state for consistent behavior
-    buffer = st.session_state.get("runbook_buffer")
-    runbook_text = st.session_state.get("runbook_text")
+    #buffer = st.session_state.get("runbook_buffer")
+   # runbook_text = st.session_state.get("runbook_text")
 
-    if buffer:
-        st.download_button(
-            label="📥 Download DOCX",
-            data=buffer,
-            file_name="home_utilities_emergency.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
-        st.success("✅ Runbook ready for download!")
+    #if buffer:
+    #    st.download_button(
+    #        label="📥 Download DOCX",
+    #        data=buffer,
+    #        file_name="home_utilities_emergency.docx",
+    #        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    #    )
+    #    st.success("✅ Runbook ready for download!")
 
-    if runbook_text:    
-        preview_runbook_output(runbook_text)        
+    #if runbook_text:    
+     #   preview_runbook_output(runbook_text)        
 
 ##### Level 3 - Mail Handling and Trash
 

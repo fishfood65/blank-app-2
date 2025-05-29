@@ -39,30 +39,71 @@ def log_interaction(action_type, label, value, section_name):
         "section": section_name
     })
 
-def capture_input(label, input_fn, section=None, *args, **kwargs):
-    """Displays input using input_fn and stores label, value, timestamp under a section."""
+def capture_input(
+    label,
+    input_fn,
+    section=None,
+    *args,
+    validate_fn=None,
+    preprocess_fn=None,
+    required=False,
+    **kwargs
+):
+    """
+    Displays input using input_fn, stores structured metadata, and supports validation.
+
+    Parameters:
+    - label (str): Label/question shown to user.
+    - input_fn (callable): Streamlit input widget (e.g., st.text_input, st.radio).
+    - section (str): Optional logical section (default = session_state["section"] or "default").
+    - validate_fn (callable): Optional validation function. Raises Exception or returns False on invalid input.
+    - preprocess_fn (callable): Optional transform function to preprocess value before storing.
+    - required (bool): Whether the field is required. Adds metadata, does not block submission.
+    - *args, **kwargs: Passed directly to the input_fn.
+    """
     if section is None:
         section = st.session_state.get("section", "default")
 
-    unique_key = f"{section}_{label.replace(' ', '_').lower()}"
-    value = input_fn(label, key=unique_key, *args, **kwargs)
+    # Use safe auto-generated key unless explicitly provided
+    unique_key = kwargs.get("key", f"{section}_{label.replace(' ', '_').lower()}")
+    kwargs["key"] = unique_key
+
+    # Show the input widget
+    value = input_fn(label, *args, **kwargs)
+
+    # Apply optional preprocessing
+    if preprocess_fn:
+        try:
+            value = preprocess_fn(value)
+        except Exception as e:
+            st.error(f"❌ Error processing input: {e}")
+            return None
+
+    # Apply optional validation
+    if validate_fn:
+        try:
+            is_valid = validate_fn(value)
+            if not is_valid:
+                st.warning(f"⚠️ Invalid value for '{label}'")
+                return None
+        except Exception as e:
+            st.error(f"❌ Validation failed: {e}")
+            return None
 
     # Ensure section is initialized
     init_section(section)
 
-    #Build the input entry
-
+    # Store the entry
     entry = {
         "question": label,
         "answer": value,
         "timestamp": datetime.now().isoformat(),
-        "input_type": getattr(input_fn, "__name__", str(input_fn)),  # Safe fallback for mocked inputs and Automatically record the widget type
+        "input_type": getattr(input_fn, "__name__", str(input_fn)),
         "section": section,
         "session_id": st.session_state.get("session_id"),
-        "required": kwargs.get("required", False)
+        "required": required,
     }
 
-    # Store the entry in input_data
     if "input_data" not in st.session_state:
         st.session_state["input_data"] = {}
     st.session_state["input_data"].setdefault(section, []).append(entry)
