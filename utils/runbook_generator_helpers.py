@@ -174,7 +174,7 @@ def generate_docx_from_split_prompts(
     doc.save(buffer)
     buffer.seek(0)
 
-    return buffer, full_text
+    return buffer, full_text # full_text is the final LLM response
 
 def generate_docx_from_text(text: str, doc_heading: str = "Runbook") -> BytesIO:
     doc = Document()
@@ -381,7 +381,7 @@ def maybe_generate_runbook(section: str = "home", doc_heading: Optional[str] = N
             st.write("📊 Schedule DataFrame:", st.session_state.get("home_schedule_df"))
 
         try:
-            buffer, _ = generate_docx_from_split_prompts(
+            buffer, llm_output = generate_docx_from_split_prompts(
                 prompts=[prompt_with_schedule],
                 api_key=os.getenv("MISTRAL_TOKEN"),
                 doc_heading=doc_heading,
@@ -393,7 +393,7 @@ def maybe_generate_runbook(section: str = "home", doc_heading: Optional[str] = N
 
             # Save to session state
             st.session_state["runbook_buffer"] = buffer
-            st.session_state["runbook_text"] = prompt_with_schedule
+            st.session_state["runbook_text"] = llm_output # taken from full_text generated from generate_docx_from_split_prompts()
             st.session_state["runbook_ready"] = True  # ✅ Flag that buffer is ready
         except Exception as e:
             st.error(f"❌ Failed to generate runbook: {e}")
