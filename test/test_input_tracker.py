@@ -11,13 +11,36 @@ def setup_session_state(monkeypatch):
     })
 
 def test_capture_input_adds_data(monkeypatch):
-    st.session_state["input_data"]["Test Section"] = []
+    # Setup fake Streamlit state
+    import types
+    import utils.input_tracker as it  # Adjust import path to match your project
+    fake_st = types.SimpleNamespace()
+    fake_st.session_state = {
+        "input_data": {},
+        "section": "Test Section",
+        "session_id": "abc123"
+    }
+
+    # Replace st with fake_st in the module under test
+    monkeypatch.setattr(it, "st", fake_st)
+    monkeypatch.setattr(it, "log_interaction", lambda *args, **kwargs: None)
+    monkeypatch.setattr(it, "autosave_input_data", lambda: None)
+    monkeypatch.setattr(it, "init_section", lambda section: None)
+
+    # Fake input function
     def fake_input(label, *args, **kwargs):
         return "test answer"
-    value = capture_input("Test Question", fake_input, "Test Section")
+
+    # Run capture_input
+    value = it.capture_input("Test Question", fake_input, section="Test Section")
+
+    # Assertions
     assert value == "test answer"
-    assert st.session_state["input_data"]["Test Section"][0]["question"] == "Test Question"
-    assert st.session_state["input_data"]["Test Section"][0]["answer"] == "test answer"
+    assert "Test Section" in fake_st.session_state["input_data"]
+    record = fake_st.session_state["input_data"]["Test Section"][0]
+    assert record["question"] == "Test Question"
+    assert record["answer"] == "test answer"
+    assert record["required"] is False
 
 def test_get_answer_finds_latest_answer():
     st.session_state["input_data"] = {
