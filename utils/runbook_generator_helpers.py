@@ -221,12 +221,38 @@ def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = 
     confirm_key = f"confirm_ai_prompt_{section}"
     confirmed = st.session_state.get(confirm_key, False)
 
+    st.write(f"🧪 maybe_generate_prompt() called for section: `{section}`")
+    st.write(f"🧪 Confirmation checkbox state: {confirmed}")
+    #st.write(f"🧪 Current input data for section:", st.session_state.get("input_data", {}).get(section, []))
+
     if not confirmed:
         st.session_state["generated_prompt"] = None
         return None, prompts or []
 
     if prompts is None:
         prompts = []
+
+        # Merge inputs from related subsections if needed
+    if section == "mail_trash_handling":
+        merged_inputs = (
+            st.session_state.get("input_data", {}).get("mail", []) +
+            st.session_state.get("input_data", {}).get("trash_handling", [])
+        )
+        st.session_state["input_data"]["mail_trash_handling"] = merged_inputs  # 🔁 Save merged view
+        st.write("📬 [DEBUG] Saved merged input_data['mail_trash_handling']:", merged_inputs)
+
+    #if "mail_trash_handling" in st.session_state.get("input_data", {}):
+    #    st.subheader("🧪 Debug: Merged Mail & Trash Inputs")
+    #    st.json(st.session_state["input_data"]["mail_trash_handling"])
+    #else:
+    #    st.info("ℹ️ No merged mail_trash_handling input found in session_state.")
+
+    #if st.sidebar.checkbox("🧪 Show `mail_trash_handling` Data"):
+    #    merged_inputs = st.session_state.get("input_data", {}).get("mail_trash_handling", [])
+    #    for i, entry in enumerate(merged_inputs):
+     #       st.sidebar.markdown(f"**Entry {i + 1}**")
+    #        for k, v in entry.items():
+    #            st.sidebar.write(f"- `{k}`: {v}")
 
     # Section-specific logic
     if section == "home":
@@ -236,8 +262,12 @@ def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = 
     elif section == "mail_trash_handling":
         prompts.extend([
             emergency_kit_utilities_runbook_prompt(),
-            mail_trash_runbook_prompt(),
+            mail_trash_runbook_prompt(debug_key="trash_info_debug_preview"),
         ])
+        prompt = mail_trash_runbook_prompt(debug_key="trash_info_debug_run")
+        st.write("📬 [DEBUG] mail_trash_runbook_prompt returned:", prompt)
+        prompts.append(prompt)
+
     elif section == "home_security":
         prompts.extend([
             emergency_kit_utilities_runbook_prompt(),
@@ -256,6 +286,7 @@ def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = 
 
     # Save to session
     st.session_state["generated_prompt"] = combined_prompt
+    st.write("🧪 [DEBUG] Combined Prompt:", st.session_state["generated_prompt"])
 
     return combined_prompt, prompts
 
@@ -308,24 +339,28 @@ def maybe_generate_runbook(section: str = "home", doc_heading: Optional[str] = N
     - doc_heading: Optional[str] — override the heading shown in the document
     """
     prompt = st.session_state.get("generated_prompt")
+    st.write("📄 [DEBUG] Prompt to generate:", st.session_state.get("generated_prompt"))
+
     if not prompt:
         return
+    # Fix: Set doc_heading before button block
+    if doc_heading is None:
+        doc_heading = f"{section.replace('_', ' ').title()} Emergency Runbook"
 
     if st.button("📄 Generate Runbook Document"):
-        if doc_heading is None:
-            doc_heading = f"{section.replace('_', ' ').title()} Emergency Runbook"
+        try:
+            buffer, runbook_text = generate_docx_from_split_prompts(
+                prompts=[prompt],
+                api_key=os.getenv("MISTRAL_TOKEN"),
+                doc_heading=doc_heading
+            )
 
-        buffer, runbook_text = generate_docx_from_split_prompts(
-            prompts=[prompt],
-            api_key=os.getenv("MISTRAL_TOKEN"),
-            doc_heading=doc_heading
-        )
-
-        # Save to session state
-        st.session_state["runbook_buffer"] = buffer
-        st.session_state["runbook_text"] = runbook_text
-        st.session_state["runbook_ready"] = True  # ✅ Flag that buffer is ready
-
+            # Save to session state
+            st.session_state["runbook_buffer"] = buffer
+            st.session_state["runbook_text"] = runbook_text
+            st.session_state["runbook_ready"] = True  # ✅ Flag that buffer is ready
+        except Exception as e:
+            st.error(f"❌ Failed to generate runbook: {e}")
         # Always show preview/download if runbook is ready
     if st.session_state.get("runbook_ready"):
         maybe_render_download(section=section)

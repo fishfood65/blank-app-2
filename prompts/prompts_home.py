@@ -337,11 +337,43 @@ Ensure the run book is clearly formatted using Markdown, with bold headers and b
 """.strip()
 
 #### Mail + Trash Prompt ####
-def mail_trash_runbook_prompt():
-    # Pull from centralized input_data
+def mail_trash_runbook_prompt(debug_key="trash_info_debug"):
     input_data = st.session_state.get("input_data", {})
-    mail_entries = input_data.get("Mail & Packages", [])
-    trash_entries = input_data.get("Trash Handling", [])
+    st.write("🧪 [DEBUG] input_data keys:", list(input_data.keys()))
+
+    # Check for merged view first (if maybe_generate_prompt merged subsections)
+    merged_entries = st.session_state.get("input_data", {}).get("mail_trash_handling", [])
+    st.write("📬 [DEBUG] mail_trash_handling entries seen by prompt:", merged_entries)
+
+    if merged_entries:
+        st.write("🧩 [DEBUG] Merged Entries:", merged_entries)
+        mail_entries = [
+            e for e in merged_entries
+            if "mail" in str(e.get("section", "")).lower()
+        ]
+        trash_entries = [
+            e for e in merged_entries
+            if "trash" in str(e.get("section", "")).lower()
+        ]
+
+        st.write("📬 [DEBUG] Filtered Mail Entries:", mail_entries)
+        st.write("🗑️ [DEBUG] Filtered Trash Entries:", trash_entries)
+
+    else:
+        st.warning("⚠️ No merged entries found; falling back to section-based retrieval.")
+        input_data = st.session_state.get("input_data", {})
+        mail_entries = input_data.get("mail") or input_data.get("Mail & Packages", [])
+        trash_entries = input_data.get("Trash Handling", []) or input_data.get("trash_handling", [])
+        st.write("📦 [DEBUG] Fallback Mail Entries:", mail_entries)
+        st.write("🗑️ [DEBUG] Fallback Trash Entries:", trash_entries)
+
+
+    # Debugging view
+    #if st.sidebar.checkbox("🔍 Show Mail/Trash Debug"):
+        #st.sidebar.markdown("**Mail Entries Found:**")
+       # st.sidebar.code("\n".join(e["question"] for e in mail_entries), language="text")
+       # st.sidebar.markdown("**Trash Entries Found:**")
+       # st.sidebar.code("\n".join(e["question"] for e in trash_entries), language="text")
 
     # Flatten into dicts for easy access
     mail_info = {entry["question"]: entry["answer"] for entry in mail_entries}
@@ -357,9 +389,9 @@ def mail_trash_runbook_prompt():
             return f"- **{label}**: Yes\n  - **{detail_label}**: {detail_value or 'N/A'}"
         return ""
     #### Debug check to see what is saved into session state
-   # if st.sidebar.checkbox("🔍 Show Trash Info Debug"):
-    #    st.sidebar.write("🧾 `trash_info` Keys:")
-     #   st.sidebar.code("\n".join(sorted(trash_info.keys())), language="text")
+    if st.sidebar.checkbox("🔍 Show Trash Info Debug", key=debug_key):
+        st.sidebar.write("🧾 `trash_info` Keys:")
+        st.sidebar.code("\n".join(sorted(trash_info.keys())), language="text")
 
     # --- MAIL SECTION ---
     mail_lines = [

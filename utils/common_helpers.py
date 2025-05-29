@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 import re
+from collections import defaultdict
 
 def check_home_progress(progress_dict):
     """
@@ -14,12 +15,17 @@ def check_home_progress(progress_dict):
     percent_complete = int((len(completed) / total_levels) * 100)
     return percent_complete, completed
 
+
 def extract_all_trash_tasks_grouped(valid_dates, utils):
     utils = utils or get_schedule_utils()
+    st.write("🗑️ [DEBUG] extract_all_trash_tasks_grouped received:", valid_dates)
+    #st.write("🗑️ [DEBUG] input_data:", st.session_state.get("input_data", {}))
 
     input_data = st.session_state.get("input_data", {})
-    trash_entries = input_data.get("Trash Handling", [])
+    trash_entries = input_data.get("Trash Handling", []) or input_data.get("trash_handling")
+    st.write("🧪 trash_entries:", trash_entries)
     label_map = {entry["question"]: entry["answer"] for entry in trash_entries}
+    st.write("🧪 trash label_map keys:", list(label_map.keys()))
 
     emoji_tags = utils["emoji_tags"]
     weekday_to_int = utils["weekday_to_int"]
@@ -115,9 +121,7 @@ def extract_all_trash_tasks_grouped(valid_dates, utils):
     weekday_mentions_garbage = extract_weekday_mentions(garbage_day)
     weekday_mentions_recycling = extract_weekday_mentions(recycling_day)
 
-    # Find shared days
     shared_days = set(weekday_mentions_garbage).intersection(weekday_mentions_recycling)
-
     scheduled_days = set()
 
     for pickup_type, anchor_labels in pickup_related_labels.items():
@@ -137,7 +141,6 @@ def extract_all_trash_tasks_grouped(valid_dates, utils):
                             ))
                     scheduled_days.add(wd)
 
-    # Include rows for Garbage and Recycling Day labels themselves
     for pickup_label in ["Garbage Pickup Day", "Recycling Pickup Day"]:
         answer = str(label_map.get(pickup_label, "")).strip()
         if answer:
@@ -148,12 +151,17 @@ def extract_all_trash_tasks_grouped(valid_dates, utils):
         return combined_df.sort_values(by=["Date", "Day", "Category", "Tag", "Task"]).reset_index(drop=True)
     else:
         return combined_df
-    
+
 def extract_grouped_mail_task(valid_dates):
     utils = get_schedule_utils()
 
     input_data = st.session_state.get("input_data", {})
-    mail_entries = input_data.get("Mail & Packages", [])
+    mail_entries = input_data.get("mail") or input_data.get("Mail & Packages", [])
+
+    if not mail_entries:
+        st.warning("📬 No mail entries found in session_state.")
+        return []
+
     label_map = {entry["question"]: entry["answer"] for entry in mail_entries}
 
     mailbox_location = label_map.get("📍 Mailbox Location", "").strip()
@@ -163,45 +171,70 @@ def extract_grouped_mail_task(valid_dates):
     package_handling = label_map.get("📦 Packages", "").strip()
 
     if not (mailbox_location and pick_up_schedule and mail_handling):
-        return None
+        st.warning("📬 Missing required mail fields.")
+        return []
 
-    # Use shared utils
-    interval = utils["extract_week_interval"](pick_up_schedule)
+    tag = utils["determine_frequency_tag"](pick_up_schedule, valid_dates)
     weekday_mentions = utils["extract_weekday_mentions"](pick_up_schedule)
-    tag = ""
+    raw_dates = utils["extract_dates"](pick_up_schedule)
 
-    for ds in utils["extract_dates"](pick_up_schedule):
-        parsed_date = utils["normalize_date"](ds)
-        if parsed_date and parsed_date in valid_dates:
-            tag = utils["emoji_tags"]["[One-Time]"]
-            break
+    one_time_tasks = defaultdict(list)
+    repeating_tasks = defaultdict(list)
 
-    if interval and not tag:
-        tag = f"↔️ Every {interval} Weeks"
-    if weekday_mentions and not interval:
-        tag = utils["emoji_tags"]["[Weekly]"]
-    if not tag and "monthly" in pick_up_schedule.lower():
-        tag = utils["emoji_tags"]["[Monthly]"]
-    if not tag:
-        tag = utils["emoji_tags"]["[Daily]"]
-
-    task_lines = [
-        f"{tag} 📬 Mail should be picked up **{pick_up_schedule}**.",
-        f"Mailbox is located at: {mailbox_location}."
+    # Core task lines (shared by all entries)
+    base_lines = [
+        f"📬 Mail should be picked up **{pick_up_schedule}**.",
+        f"📍 Location: {mailbox_location}",
     ]
     if mailbox_key:
-        task_lines.append(f"Mailbox key info: {mailbox_key}.")
-    task_lines.append(f"Instructions for mail: {mail_handling}")
+        base_lines.append(f"🔑 Key info: {mailbox_key}")
+    base_lines.append(f"📥 Mail handling: {mail_handling}")
     if package_handling:
-        task_lines.append(f"📦 Package instructions: {package_handling}")
+        base_lines.append(f"📦 Package instructions: {package_handling}")
 
-    return {
-        "Task": "\n".join(task_lines).strip(),
-        "Category": "Mail",
-        "Area": "home",
-        "Source": "Mail & Packages",
-        "Tag": tag
-    }
+    # One-time tasks
+    for ds in raw_dates:
+        parsed = utils["normalize_date"](ds)
+        if parsed and parsed in valid_dates:
+            one_time_tasks[parsed].extend(base_lines + ["📌 One-Time scheduled pickup."])
+
+    for weekday in weekday_mentions:
+            for d in valid_dates:
+                if d.strftime("%A") == weekday:
+                    repeating_tasks[d].append({
+                        "Task": "Check mailbox",
+                        "Category": "home",
+                        "Area": "mail",
+                        "Source": "user",
+                        "Tag": tag,
+                        "Date": d,
+                        "Day": d.strftime("%A")
+                    })
+
+    # Merge into structured tasks
+    structured_tasks = []
+
+    def make_task(date, task_dicts, kind_tag):
+    # Join the 'Task' strings from each dict
+        task_lines = [d["Task"] for d in task_dicts if "Task" in d]
+        return {
+            "Task": "\n".join(task_lines).strip(),
+            "Category": "home",
+            "Area": "mail",
+            "Source": "user",
+            "Tag": kind_tag,
+            "Date": date,
+            "Day": date.strftime("%A")
+        }
+
+    for date, lines in sorted(one_time_tasks.items()):
+        structured_tasks.append(make_task(date, lines, "📌 One-Time"))
+
+    for date, lines in sorted(repeating_tasks.items()):
+        structured_tasks.append(make_task(date, lines, tag or "🔁 Repeating"))
+
+    st.write("📬 [DEBUG] Structured Mail Tasks:", structured_tasks)
+    return structured_tasks
 
 def generate_flat_home_schedule_markdown(schedule_df):
     """
