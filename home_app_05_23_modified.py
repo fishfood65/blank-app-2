@@ -35,7 +35,7 @@ from utils.runbook_generator_helpers import (
     maybe_generate_runbook,
     render_prompt_preview
 )
-from prompts.prompts_home import (
+from prompts.llm_queries import (
     query_utility_providers,
     fetch_utility_providers,
     utilities_emergency_runbook_prompt,

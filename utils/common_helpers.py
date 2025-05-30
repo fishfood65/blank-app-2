@@ -1,3 +1,4 @@
+from typing import Optional
 import pandas as pd
 import streamlit as st
 import re
@@ -400,3 +401,4 @@ def get_schedule_placeholder_mapping() -> dict:
             placeholder = f"<<INSERT_{placeholder_name}_SCHEDULE_TABLE>>"
             mapping[placeholder] = key
     return mapping
+

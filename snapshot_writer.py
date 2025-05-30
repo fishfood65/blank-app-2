@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 # Import your prompt function from the prompts_home module
-from prompts.prompts_home import (
+from prompts.llm_queries import (
     query_utility_providers, 
     utilities_emergency_runbook_prompt, 
     emergency_kit_utilities_runbook_prompt,

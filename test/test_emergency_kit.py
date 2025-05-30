@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import builtins
 import contextlib
 from home_app_05_23_modified import emergency_kit_utilities
-from prompts.prompts_home import emergency_kit_utilities_runbook_prompt
+from prompts.llm_queries import emergency_kit_utilities_runbook_prompt
 
 @pytest.fixture(autouse=True)
 def patch_streamlit_functions(monkeypatch):

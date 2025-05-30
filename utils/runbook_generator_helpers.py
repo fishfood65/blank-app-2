@@ -14,7 +14,7 @@ import pandas as pd
 import re
 from typing import List, Tuple, Optional
 import tempfile
-from prompts.prompts_home import (
+from prompts.llm_queries import (
     utilities_emergency_runbook_prompt,
     emergency_kit_utilities_runbook_prompt,
     mail_trash_runbook_prompt,

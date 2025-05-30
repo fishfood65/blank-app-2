@@ -16,6 +16,7 @@ from utils.input_tracker import (
     export_input_data_as_csv, 
     render_lock_toggle
 )
+from prompts.templates import utility_provider_lookup_prompt
 import streamlit as st
 import re
 from mistralai import Mistral, UserMessage, SystemMessage
@@ -46,40 +47,22 @@ else:
    
 #### Prompts Here #####
 
-def query_utility_providers(test_mode=False):
+def query_utility_providers(test_mode=False): #### Refactored
     """
-    Queries Mistral AI for public utility providers based on city and ZIP code 
-    stored in st.session_state. Stores and returns results in session state.
-
-    Returns a dict of utility providers based on city and ZIP.
-    In normal mode, reads from session_state; in test mode, accepts inputs directly.
+    Queries Mistral AI for utility providers based on city and ZIP.
+    Returns and stores provider names in st.session_state.
     """
-    # ✅ Retrieve inputs safely first
     city = get_answer("City", "Home Basics")
     zip_code = get_answer("ZIP Code", "Home Basics")
 
-    # ✅ Test-mode shortcut (for snapshot testing or dev)
     if test_mode:
         return {
             "electricity": "Austin Energy",
             "natural_gas": "Atmos Energy",
             "water": "Austin Water"
         }
-    
-    prompt = f"""
-You are a reliable assistant helping users prepare emergency documentation. 
-Given the city: {city} and ZIP code: {zip_code}, list the **primary public utility provider companies** for the following:
 
-1. Electricity
-2. Natural Gas
-3. Water
-
-For each, provide only the company name. Format your response like this:
-
-Electricity Provider: <company name>
-Natural Gas Provider: <company name>
-Water Provider: <company name>
-""".strip()
+    prompt = utility_provider_lookup_prompt(city, zip_code)
 
     try:
         response = client.chat.complete(
@@ -93,13 +76,10 @@ Water Provider: <company name>
         st.error(f"Error querying Mistral API: {str(e)}")
         content = ""
 
-    # Extract and log into input_data and interaction_log
     results = extract_and_log_providers(content)
-
-    # Also store in session_state for correction access
     st.session_state["utility_providers"] = results
-    
     return results
+
 
 def fetch_utility_providers():
     results = query_utility_providers()
