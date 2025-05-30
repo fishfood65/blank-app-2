@@ -35,16 +35,6 @@ from utils.runbook_generator_helpers import (
     maybe_generate_runbook,
     render_prompt_preview
 )
-from prompts.llm_queries import (
-    query_utility_providers,
-    fetch_utility_providers,
-    utilities_emergency_runbook_prompt,
-    emergency_kit_utilities_runbook_prompt,
-    mail_trash_runbook_prompt,
-    home_caretaker_runbook_prompt,
-    emergency_kit_document_prompt,
-    bonus_level_runbook_prompt
-)
 import streamlit as st
 import re
 from mistralai import Mistral, UserMessage, SystemMessage
@@ -226,19 +216,6 @@ def main():
 
 ### Leve 1 - Home
 
-def home_debug():
-
-    st.write("🟡 About to render runbook button")
-
-    utilities_emergency_runbook_prompt(
-        prompt=st.session_state.get("generated_prompt", ""),
-        api_key=os.getenv("MISTRAL_TOKEN"),
-        button_text="Complete Level 1 Mission",
-        doc_heading="Home Utilities Emergency Runbook",
-        doc_filename="home_utilities_emergency.html"
-    )
-    st.write("🟢 After button render")
-
 def home():
     section = st.session_state.get("section", "home")
     switch_section("home")
@@ -267,14 +244,19 @@ def home():
 
     # Step 4: Confirm and maybe generate prompt
     st.subheader("👍 Review and Approve")
+
+    # Set and track confirmation state
     confirm_key = f"confirm_ai_prompt_{section}"
     user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
     st.session_state[f"{section}_user_confirmation"] = user_confirmation
 
-    prompts = []
-    if st.session_state.get(f"{section}_user_confirmation"):
-        maybe_generate_prompt(section=section, prompts=prompts)
-        generated = st.session_state.get("generated_prompt")
+    # Generate prompts if confirmed
+    if user_confirmation:
+        combined_prompt, prompt_blocks = maybe_generate_prompt(section=section)
+
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown("### 🧾 Prompt Preview")
+            st.code(combined_prompt or "", language="markdown")
 
     # Step 5: Prompt preview + runbook
     missing = check_missing_utility_inputs()
@@ -413,14 +395,19 @@ def emergency_kit_utilities():
     
     # Step 2: Confirm and maybe generate prompt
     st.subheader("👍 Review and Approve")
+
+    # Set and track confirmation state
     confirm_key = f"confirm_ai_prompt_{section}"
     user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
     st.session_state[f"{section}_user_confirmation"] = user_confirmation
 
-    prompts = []
-    if st.session_state.get(f"{section}_user_confirmation"):
-        maybe_generate_prompt(section=section, prompts=prompts)
-        generated = st.session_state.get("generated_prompt")
+    # Generate prompts if confirmed
+    if user_confirmation:
+        combined_prompt, prompt_blocks = maybe_generate_prompt(section=section)
+
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown("### 🧾 Prompt Preview")
+            st.code(combined_prompt or "", language="markdown")
 
     # Step 3: Prompt preview + runbook
     missing = check_missing_utility_inputs()

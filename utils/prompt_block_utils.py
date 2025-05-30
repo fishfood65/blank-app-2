@@ -1,18 +1,14 @@
 # utils/prompt_block_utils.py
 
-from prompts.templates import wrap_prompt_block, utility_prompt
+from prompts.templates import (
+    wrap_prompt_block, 
+    utility_prompt, 
+    utilities_emergency_prompt_template, 
+    emergency_kit_utilities_prompt_template
+)    
 from .input_tracker import get_answer  
 import streamlit as st 
-from typing import List
-from prompts.llm_queries import (
-    utilities_emergency_runbook_prompt,
-    mail_trash_runbook_prompt,
-    home_caretaker_runbook_prompt,
-    emergency_kit_utilities_runbook_prompt,
-    emergency_kit_document_prompt,
-    bonus_level_runbook_prompt,
-)
-
+from typing import List, Optional
 def build_prompt_block(
     title: str,
     content: str,
@@ -68,16 +64,16 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
         blocks.append(build_prompt_block("Utilities and Emergency Services", utilities_emergency_runbook_prompt()))
     
     elif section == "mail_trash_handling":
-        blocks.append(build_prompt_block("Emergency Utilities (Prep)", emergency_kit_utilities_runbook_prompt()))
+        blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
         blocks.append(build_prompt_block("Mail and Trash Instructions", mail_trash_runbook_prompt()))
     
     elif section == "home_security":
-        blocks.append(build_prompt_block("Emergency Utilities (Prep)", emergency_kit_utilities_runbook_prompt()))
+        blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
         blocks.append(build_prompt_block("Mail and Trash Instructions", mail_trash_runbook_prompt()))
         blocks.append(build_prompt_block("Caretaker Instructions", home_caretaker_runbook_prompt()))
     
     elif section == "emergency_kit":
-        blocks.append(build_prompt_block("Emergency Kit Overview", emergency_kit_utilities_runbook_prompt()))
+        blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
     
     elif section == "emergency_kit_critical_documents":
         blocks.append(build_prompt_block("Important Documents Checklist", emergency_kit_document_prompt()))
@@ -119,12 +115,60 @@ def utilities_emergency_runbook_prompt(debug: bool = False) -> str:
     gas = providers.get("natural_gas", "")
     water = providers.get("water", "")
 
-    raw = utility_prompt(city, zip_code, internet, electricity, gas, water)
+    raw = utilities_emergency_prompt_template(city, zip_code, internet, electricity, gas, water)
 
     return wrap_prompt_block(
         raw,
         title="🏡 Emergency Utilities Overview",
-        instructions="Return structured emergency info for each utility. Format clearly.",
+        instructions="Include the heading above in your output. Format using markdown. Return structured emergency info for each utility. Format clearly.",
         debug=debug
     )
 
+### test writing code
+def emergency_kit_utilities_runbook_prompt(debug: bool = False) -> str:
+    city = get_answer("City", "Home Basics") or ""
+    zip_code = get_answer("ZIP Code", "Home Basics") or ""
+    internet = get_answer("Internet Provider", "Home Basics") or ""
+    emergency_kit_status = get_answer("Do you have an Emergency Kit?", "Emergency Kit") or "No"
+    emergency_kit_location = get_answer("Where is (or where will) the Emergency Kit be located?", "Emergency Kit") or ""
+    additional_items = get_answer("Add any additional emergency kit items not in the list above (comma-separated):", "Emergency Kit") or ""
+    
+    selected_items = st.session_state.get("homeowner_kit_stock", [])
+    not_selected_items = st.session_state.get("not_selected_items", [])
+    providers = st.session_state.get("utility_providers", {})
+    
+    electricity = providers.get("electricity", "")
+    gas = providers.get("natural_gas", "")
+    water = providers.get("water", "")
+    
+    flashlights_info = st.session_state.get("flashlights_info", "")
+    radio_info = st.session_state.get("radio_info", "")
+    food_water_info = st.session_state.get("food_water_info", "")
+    important_docs_info = st.session_state.get("important_docs_info", "")
+    whistle_info = st.session_state.get("whistle_info", "")
+    medications_info = st.session_state.get("medications_info", "")
+    mask_info = st.session_state.get("mask_info", "")
+    maps_contacts_info = st.session_state.get("maps_contacts_info", "")
+    
+    selected_md = "".join(f"- {item}\n" for item in selected_items)
+    missing_md = "".join(f"- {item}\n" for item in not_selected_items)
+    additional_list = [itm.strip() for itm in additional_items.split(",") if itm.strip()]
+    additional_md = "".join(f"- {itm}\n" for itm in additional_list)
+    kit_summary_line = (
+        f"Kit is available at {emergency_kit_location}"
+        if emergency_kit_status == "Yes"
+        else f"Kit is a work in progress and will be located at {emergency_kit_location}"
+    )
+
+    raw = emergency_kit_utilities_prompt_template(
+        city, zip_code, internet, electricity, gas, water,
+        kit_summary_line, selected_md, missing_md, additional_md,
+        flashlights_info, radio_info, food_water_info, important_docs_info,
+        whistle_info, medications_info, mask_info, maps_contacts_info
+    ) 
+    return wrap_prompt_block(
+        raw,
+        title="🧰 Emergency Utilities and Preparedness",
+        instructions="List out the Emergency Kit Summary details before summarize utility and emergency kit setup using bullet points.",
+        debug=debug
+    )

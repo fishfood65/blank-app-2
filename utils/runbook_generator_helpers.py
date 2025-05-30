@@ -14,15 +14,8 @@ import pandas as pd
 import re
 from typing import List, Tuple, Optional
 import tempfile
-from prompts.llm_queries import (
-    utilities_emergency_runbook_prompt,
-    emergency_kit_utilities_runbook_prompt,
-    mail_trash_runbook_prompt,
-    home_caretaker_runbook_prompt,
-    emergency_kit_document_prompt,
-    bonus_level_runbook_prompt
-)
 from .common_helpers import get_schedule_placeholder_mapping
+from .prompt_block_utils import generate_all_prompt_blocks
 
 def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
     if schedule_df.empty:
@@ -226,24 +219,33 @@ def generate_docx_from_text(text: str, doc_heading: str = "Runbook") -> BytesIO:
     buffer.seek(0)
     return buffer
 
-
-def preview_runbook_output(runbook_text: str, label: str = "📖 Preview Runbook"):
+def maybe_render_download(section: str = "home", filename: Optional[str] = None):
     """
-    Shows an expandable markdown preview of the runbook text when a button is clicked.
-
-    Args:
-        runbook_text (str): The raw LLM-generated markdown-style text.
-        label (str): Button label to trigger the preview.
+    Renders download button and preview for generated runbook.
+    
+    Parameters:
+    - section: str — used to generate default filename
+    - filename: Optional[str] — custom file name for the DOCX download
     """
-    if not runbook_text:
-        st.warning("⚠️ No runbook content available to preview.")
-        return
+    buffer = st.session_state.get(f"{section}_runbook_buffer")
+    runbook_text = st.session_state.get(f"{section}_runbook_text")
 
-    if st.button(label):
-        with st.expander("🧠 AI-Generated Runbook Preview", expanded=True):
-            st.markdown(runbook_text)
+    if not filename:
+        filename = f"{section}_emergency_runbook.docx"
 
-def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = None) -> Tuple[Optional[str], List[str]]:
+    if runbook_text:
+        preview_runbook_output(runbook_text)
+
+    if buffer:
+        st.download_button(
+            label="📥 Download DOCX",
+            data=buffer,
+            file_name=filename,
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        st.success("✅ Runbook ready for download!")
+
+def maybe_generate_prompt(section: str = "home") -> Tuple[Optional[str], List[str]]:
     """
     Generate a section-specific prompt and return both the final combined prompt string
     and a list of individual prompt fragments (if any).
@@ -261,12 +263,9 @@ def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = 
     if not confirmed:
         st.session_state["generated_prompt"] = None
         st.session_state["prompt_blocks"] = []
-        return None, prompts or []
+        return None, []
 
-    if prompts is None:
-        prompts = []
-
-    # Merge related data if needed
+    # Handle merging of multi-input fields
     if section == "mail_trash_handling":
         merged_inputs = (
             st.session_state.get("input_data", {}).get("mail", []) +
@@ -275,44 +274,114 @@ def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = 
         st.session_state["input_data"]["mail_trash_handling"] = merged_inputs
         st.write("📬 [DEBUG] Saved merged input_data['mail_trash_handling']:", merged_inputs)
 
-    # Section-specific prompt collection
-    if section == "home":
-        prompts.append(utilities_emergency_runbook_prompt())
-    elif section == "emergency_kit":
-        prompts.append(emergency_kit_utilities_runbook_prompt())
-    elif section == "mail_trash_handling":
-        prompts.extend([
-            emergency_kit_utilities_runbook_prompt(),
-            mail_trash_runbook_prompt(debug_key="trash_info_debug_preview"),
-        ])
-    elif section == "home_security":
-        prompts.extend([
-            emergency_kit_utilities_runbook_prompt(),
-            mail_trash_runbook_prompt(),
-            home_caretaker_runbook_prompt()
-        ])
-    elif section == "emergency_kit_critical_documents":
-        prompts.append(emergency_kit_document_prompt())
-    elif section == "bonus_level":
-        prompts.append(bonus_level_runbook_prompt())
-    else:
-        prompts.append(f"# ⚠️ No prompt available for section: {section}")
+    # ✅ Use centralized prompt block builder
+    prompt_blocks = generate_all_prompt_blocks(section)
 
-    # ✅ Flatten all sub-lists into a single prompt block list
+    # Flatten and combine for LLM preview and fallback
     flat_prompts = []
-    for p in prompts:
-        if isinstance(p, list):
-            flat_prompts.extend(p)
+    for block in prompt_blocks:
+        if isinstance(block, list):
+            flat_prompts.extend(block)
         else:
-            flat_prompts.append(p)
+            flat_prompts.append(block)
 
     combined_prompt = "\n\n".join(flat_prompts)
 
-    # ✅ Store both combined and fragment forms
+    # ✅ Store for downstream use
     st.session_state["generated_prompt"] = combined_prompt
     st.session_state["prompt_blocks"] = flat_prompts
 
     return combined_prompt, flat_prompts
+
+def maybe_generate_runbook(section: str = "home", doc_heading: Optional[str] = None):
+    """
+    Generate a runbook DOCX from the prompt blocks generated by section and render download.
+
+    Parameters:
+    - section: str — used to customize default document heading and filename
+    - doc_heading: Optional[str] — override the heading shown in the document
+    """
+    schedule_placeholder = "<<INSERT_SCHEDULE_TABLE>>"
+
+    # Always generate fresh blocks from source
+    prompt_blocks = generate_all_prompt_blocks(section)
+    combined_prompt = "\n\n".join(prompt_blocks)
+
+    # Fallback: If no blocks generated, try session fallback
+    if not prompt_blocks and st.session_state.get("generated_prompt"):
+        prompt_blocks = [st.session_state["generated_prompt"]]
+        if st.session_state.get("enable_debug_mode"):
+            st.info("⚠️ No prompt blocks returned — using combined prompt from session.")
+
+    # Clean: Remove any empty or whitespace-only blocks
+    prompt_blocks = [b for b in prompt_blocks if b.strip()]
+    if not prompt_blocks:
+        st.warning("⚠️ No valid prompt blocks available. Cannot generate runbook.")
+        return
+
+    # Set default heading if needed
+    if doc_heading is None:
+        doc_heading = f"{section.replace('_', ' ').title()} Emergency Runbook"
+
+    # Button logic to trigger LLM + DOCX generation
+    button_key = f"generate_runbook_button_{section}"
+    generate_triggered = st.button("📄 Click Me to Generate Runbook", key=button_key)
+
+    if generate_triggered:
+        final_prompt_blocks = prompt_blocks.copy()
+
+        # ✅ Schedule placeholder (if applicable)
+        if section == "mail_trash_handling":
+            if all(schedule_placeholder not in block for block in final_prompt_blocks):
+                final_prompt_blocks.append(f"## 📆 Mail & Trash Pickup Schedule\n\n{schedule_placeholder}")
+
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown("### 🧾 Prompt Blocks Being Sent to LLM")
+            for i, block in enumerate(final_prompt_blocks):
+                st.code(f"[Block {i + 1}]\n{block}", language="markdown")
+
+        try:
+            buffer, llm_output = generate_docx_from_split_prompts(
+                prompts=final_prompt_blocks,
+                api_key=os.getenv("MISTRAL_TOKEN"),
+                doc_heading=doc_heading,
+                debug=st.session_state.get("enable_debug_mode", False)
+            )
+
+            # Store result under section scope
+            st.session_state[f"{section}_runbook_buffer"] = buffer
+            st.session_state[f"{section}_runbook_text"] = llm_output
+            st.session_state[f"{section}_runbook_ready"] = True
+
+            if st.session_state.get("enable_debug_mode"):
+                st.markdown("### 📥 LLM Response (Combined)")
+                st.code(llm_output, language="markdown")
+
+        except Exception as e:
+            st.error(f"❌ Failed to generate runbook: {e}")
+            st.session_state[f"{section}_runbook_ready"] = False
+
+    # Show download link if ready
+    if st.session_state.get(f"{section}_runbook_ready"):
+        st.markdown("___")
+        st.write("⏲️ Runbook Ready")
+        maybe_render_download(section=section)
+
+def preview_runbook_output(runbook_text: str, label: str = "📖 Preview Runbook"):
+    """
+    Shows an expandable markdown preview of the runbook text when a button is clicked.
+
+    Args:
+        runbook_text (str): The raw LLM-generated markdown-style text.
+        label (str): Button label to trigger the preview.
+    """
+    if not runbook_text:
+        st.warning("⚠️ No runbook content available to preview.")
+        return
+
+    if st.button(label):
+        with st.expander("🧠 AI-Generated Runbook Preview", expanded=True):
+            st.markdown(runbook_text)
 
 def render_prompt_preview(missing: list, section: str = "home"):
     confirmed = st.session_state.get(f"{section}_user_confirmation", False)
@@ -349,78 +418,7 @@ def render_prompt_preview(missing: list, section: str = "home"):
         st.success("✅ Prompt ready! This is what will be sent to the LLM.")
 
 
-def maybe_generate_runbook(section: str = "home", doc_heading: Optional[str] = None):
-    """
-    Generate a runbook DOCX from the prompt blocks stored in session state and render download.
 
-    Parameters:
-    - section: str — used to customize default document heading and filename
-    - doc_heading: Optional[str] — override the heading shown in the document
-    """
-    prompt_blocks: List[str] = st.session_state.get("prompt_blocks", [])
-    combined_prompt: str = st.session_state.get("generated_prompt", "")
-    
-    schedule_placeholder = "<<INSERT_SCHEDULE_TABLE>>"
-
-    # Fallback: If no blocks but prompt string exists
-    if not prompt_blocks and combined_prompt:
-        prompt_blocks = [combined_prompt]
-        if st.session_state.get("enable_debug_mode"):
-            st.info("⚠️ No prompt blocks found — using combined prompt as fallback.")
-
-    # Validate: Remove any blank/empty blocks
-    prompt_blocks = [block for block in prompt_blocks if block.strip()]
-    if not prompt_blocks:
-        st.warning("⚠️ No usable prompt blocks available. Cannot generate runbook.")
-        return
-
-    if doc_heading is None:
-        doc_heading = f"{section.replace('_', ' ').title()} Emergency Runbook"
-
-    button_key = f"generate_runbook_button_{section}"
-    generate_triggered = st.button("📄 Click Me to Generate Runbook", key=button_key)
-
-    if generate_triggered:
-        # ✅ Make a safe copy of the prompt blocks
-        final_prompt_blocks = prompt_blocks.copy()
-
-        # ✅ Add schedule placeholder only if needed
-        if section == "mail_trash_handling":
-            if all(schedule_placeholder not in block for block in final_prompt_blocks):
-                final_prompt_blocks.append(f"## 📆 Mail & Trash Pickup Schedule\n\n{schedule_placeholder}")
-
-        if st.session_state.get("enable_debug_mode"):
-            st.markdown("### 🧾 Prompt Blocks Being Sent to LLM")
-            for i, block in enumerate(final_prompt_blocks):
-                st.code(f"[Block {i + 1}]\n{block}", language="markdown")
-
-        try:
-            # 🔁 Call LLM for each block
-            buffer, llm_output = generate_docx_from_split_prompts(
-                prompts=final_prompt_blocks,
-                api_key=os.getenv("MISTRAL_TOKEN"),
-                doc_heading=doc_heading,
-                debug=st.session_state.get("enable_debug_mode", False)
-            )
-
-            # Save outputs to section-scoped session keys
-            st.session_state[f"{section}_runbook_buffer"] = buffer
-            st.session_state[f"{section}_runbook_text"] = llm_output
-            st.session_state[f"{section}_runbook_ready"] = True
-
-            if st.session_state.get("enable_debug_mode"):
-                st.markdown("### 📥 LLM Response (Combined)")
-                st.code(llm_output, language="markdown")
-
-        except Exception as e:
-            st.error(f"❌ Failed to generate runbook: {e}")
-            st.session_state[f"{section}_runbook_ready"] = False
-
-    # ✅ Always check if runbook is ready for download
-    if st.session_state.get(f"{section}_runbook_ready"):
-        st.markdown("___")
-        st.write("⏲️ Runbook Ready")
-        maybe_render_download(section=section)
 
 def maybe_render_download(section: str = "home", filename: Optional[str] = None):
     """

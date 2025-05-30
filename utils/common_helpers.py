@@ -376,12 +376,6 @@ def get_schedule_utils():
         "determine_frequency_tag": determine_frequency_tag
     }
 
-def switch_section(section: str):
-    last = st.session_state.get("active_section")
-    if last and last != section:
-        st.session_state[f"{last}_runbook_ready"] = False
-    st.session_state["active_section"] = section
-
 def get_schedule_placeholder_mapping() -> dict:
     """
     Scans session state for any keys ending in '_schedule_df' and builds a mapping
@@ -402,3 +396,8 @@ def get_schedule_placeholder_mapping() -> dict:
             mapping[placeholder] = key
     return mapping
 
+def switch_section(section: str):
+    last = st.session_state.get("active_section")
+    if last and last != section:
+        st.session_state[f"{last}_runbook_ready"] = False
+    st.session_state["active_section"] = section
