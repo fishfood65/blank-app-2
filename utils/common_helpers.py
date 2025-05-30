@@ -374,3 +374,29 @@ def get_schedule_utils():
         "normalize_date": normalize_date,
         "determine_frequency_tag": determine_frequency_tag
     }
+
+def switch_section(section: str):
+    last = st.session_state.get("active_section")
+    if last and last != section:
+        st.session_state[f"{last}_runbook_ready"] = False
+    st.session_state["active_section"] = section
+
+def get_schedule_placeholder_mapping() -> dict:
+    """
+    Scans session state for any keys ending in '_schedule_df' and builds a mapping
+    of placeholder strings to their corresponding DataFrame keys.
+
+    Example:
+        If 'mail_schedule_df' exists in st.session_state,
+        returns { '<<INSERT_MAIL_SCHEDULE_TABLE>>': 'mail_schedule_df' }
+
+    Returns:
+        Dict[str, str]: Mapping of placeholders to DataFrame keys.
+    """
+    mapping = {}
+    for key in st.session_state:
+        if key.endswith("_schedule_df") and isinstance(st.session_state[key], (pd.DataFrame, type(None))):
+            placeholder_name = key.replace("_schedule_df", "").upper()
+            placeholder = f"<<INSERT_{placeholder_name}_SCHEDULE_TABLE>>"
+            mapping[placeholder] = key
+    return mapping

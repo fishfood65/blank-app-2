@@ -3,7 +3,9 @@ from utils.common_helpers import (
     extract_all_trash_tasks_grouped, 
     extract_grouped_mail_task, 
     generate_flat_home_schedule_markdown,
-    get_schedule_utils
+    get_schedule_utils,
+    switch_section,
+    get_schedule_placeholder_mapping
 )
 from utils.utils_home_helpers import (
     get_corrected_providers,
@@ -239,6 +241,8 @@ def home_debug():
 
 def home():
     section = st.session_state.get("section", "home")
+    switch_section("home")
+
     st.subheader("Let's gather some information. Please enter your details:")
     # Step 1: Input collection
     get_home_inputs()
@@ -401,6 +405,8 @@ def emergency_kit_utilities():
         st.stop()  # 🔁 prevent rest of UI from running this frame
     
     section = st.session_state.get("section", "home")
+
+    switch_section("emergency_kit")
 
     # Step 1: Input collection
     emergency_kit()
@@ -566,8 +572,6 @@ def trash_handling(section="trash_handling"):
     #st.json(st.session_state.get("input_data", {}))
 
 def mail_trash_handling():
-    ### need to be able to pull out a schedule out from the output
-
     # 🔪 Optional: Reset controls for testing
     if st.checkbox("🔪 Reset Mail and Trash Session State"):
         for key in ["generated_prompt", "runbook_buffer", "runbook_text", "user_confirmation"]:
@@ -576,6 +580,7 @@ def mail_trash_handling():
         st.stop()  # 🔁 prevent rest of UI from running this frame
 
     section = st.session_state.get("section", "home")
+    switch_section("mail_trash_handling")
 
     # Create three tabs
     tab1, tab2, tab3 = st.tabs([
@@ -691,6 +696,7 @@ def mail_trash_handling():
 
 def home_security():
     section = "Home Security System"
+
     st.write("💝 Security-Conscious")
     render_lock_toggle(session_key="home_security_locked", label="Home Security Info")
     disabled = st.session_state.get("home_security_locked", False)
@@ -792,7 +798,12 @@ def rent_own():
 
 
 def security_convenience_ownership():
+    section = st.session_state.get("section", "home")
+
     st.subheader("Level 4: Home Security, Privacy, Quality-Orientation, and Support")
+
+    switch_section("home_security")
+
     # Step 1: User Input
     home_security()
     convenience_seeker()
@@ -1321,6 +1332,9 @@ def collect_document_details():
 
 
 def generate_kit_tab():
+    section = st.session_state.get("section", "home")
+    switch_section("emergency_kit_critical_documents")
+
     """Renders the Generate Kit UI and uses generate_runbook_from_prompt to run the LLM and export."""
     st.header("📦 Generate Emergency Document Kit")
 
@@ -1417,6 +1431,9 @@ def bonus_level():
 
     # ─── Tab 2: Generate Runbook ─────────────────────────────
         with tab2:
+            section = st.session_state.get("section", "home")
+            switch_section("bonus_level")
+
             st.subheader("Select and Generate Your Runbook")
 
             # 1) Must have at least one Bonus input
