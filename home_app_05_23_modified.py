@@ -239,7 +239,7 @@ def home_debug():
 
 def home():
     section = st.session_state.get("section", "home")
-    st.write("Let's gather some information. Please enter your details:")
+    st.subheader("Let's gather some information. Please enter your details:")
     # Step 1: Input collection
     get_home_inputs()
 
@@ -262,6 +262,7 @@ def home():
         st.success("Utility providers updated!")
 
     # Step 4: Confirm and maybe generate prompt
+    st.subheader("👍 Review and Approve")
     confirm_key = f"confirm_ai_prompt_{section}"
     user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
     st.session_state[f"{section}_user_confirmation"] = user_confirmation
@@ -276,9 +277,8 @@ def home():
     render_prompt_preview(missing, section=section)
 
     # Step 6: Optionally generate runbook if inputs are valid and confirmed
+    st.subheader("🎉 Reward")
     if not missing and st.session_state.get("generated_prompt"):
-        st.markdown("---")
-        st.markdown("### 📄 Runbook Generator")
         maybe_generate_runbook(section=section)
         # Level 1 Complete - for Progress
         st.session_state["level_progress"]["home"] = True
@@ -334,7 +334,7 @@ def homeowner_kit_stock():
     return selected
 
 def emergency_kit():
-    st.header("🧰 Emergency Kit Setup")
+    st.subheader("🧰 Emergency Kit Setup")
 
     # 1. Kit ownership status
     emergency_kit_status = capture_input(
@@ -406,6 +406,7 @@ def emergency_kit_utilities():
     emergency_kit()
     
     # Step 2: Confirm and maybe generate prompt
+    st.subheader("👍 Review and Approve")
     confirm_key = f"confirm_ai_prompt_{section}"
     user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
     st.session_state[f"{section}_user_confirmation"] = user_confirmation
@@ -420,9 +421,8 @@ def emergency_kit_utilities():
     render_prompt_preview(missing, section=section)
 
     # Step 4: Optionally generate runbook if inputs are valid and confirmed
+    st.subheader("🎉 Reward")
     if not missing and st.session_state.get("generated_prompt"):
-        st.markdown("---")
-        st.markdown("### 📄 Runbook Generator")
         maybe_generate_runbook(section=section)
         # Level 2 Complete - for Progress
         st.session_state["level_progress"]["emergency_kit"] = True
@@ -430,7 +430,7 @@ def emergency_kit_utilities():
 ##### Level 3 - Mail Handling and Trash
 
 def mail(section="mail"):
-    st.subheader("📬 Mail & Package Instructions")
+    st.subheader("📥 Mail & Package Instructions")
 
     # 🔒 Lock/unlock toggle
     render_lock_toggle(session_key="mail_locked", label="Mail Info")
@@ -438,7 +438,7 @@ def mail(section="mail"):
     # Determine whether inputs are editable
     disabled = st.session_state.get("mail_locked", False)
 
-    with st.expander("📥 Instructions", expanded=True):
+    with st.expander("📋 Details", expanded=True):
         mailbox_location = capture_input(
             "📍 Mailbox Location", st.text_area, section,
             placeholder="E.g., 'At the end of the driveway...'", disabled=disabled
@@ -463,7 +463,7 @@ def mail(section="mail"):
     #st.json(st.session_state.get("input_data", {}))
 
 def trash_handling(section="trash_handling"):
-    st.subheader("🗑️ Trash & Recycling")
+    st.subheader("🗑️ Trash & Recycling Instructions")
 
     # 🔒 Lock/unlock toggle
     render_lock_toggle(session_key="trash_locked", label="Trash Info")
@@ -471,7 +471,7 @@ def trash_handling(section="trash_handling"):
     # Determine whether inputs are editable
     disabled = st.session_state.get("trash_locked", False)
 
-    with st.expander("Kitchen and Bath Trash Details", expanded=True):
+    with st.expander("Indoor Trash Disposal Details", expanded=True):
         capture_input(
             "Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags",
             st.text_area,
@@ -501,7 +501,7 @@ def trash_handling(section="trash_handling"):
             disabled=disabled
         )
 
-    with st.expander("Outdoor Bin Details", expanded=True):
+    with st.expander("Outdoor Trash Disposal Details", expanded=True):
         capture_input("What the Outdoor Trash Bins Look Like", st.text_area, section, disabled=disabled)
         capture_input("Specific Location or Instructions for Outdoor Bins", st.text_area, section, disabled=disabled)
 
@@ -579,9 +579,9 @@ def mail_trash_handling():
 
     # Create three tabs
     tab1, tab2, tab3 = st.tabs([
-        "📬 Mail Input",
-        "🗑️ Trash Input",
-        "🧐 Review & Generate"
+        "📬 Mail",
+        "🗑️ Trash",
+        "🧐 Review & Reward"
     ])
 
     # ─── Tab 1: Mail Input ────────────────────────────────────
@@ -594,6 +594,7 @@ def mail_trash_handling():
 
     # ─── Tab 3: Prompt Review & Generate ──────────────────────────────
     with tab3:
+        st.subheader("🎁 Customize, Review and Reward")
 
         # Step 1: Let user select the date range
         choice, start_date, end_date, valid_dates = select_runbook_date_range()
@@ -620,7 +621,17 @@ def mail_trash_handling():
             )
 
             # Step 4: Combine into one unified DataFrame
-            combined_schedule_df = pd.concat([mail_df, trash_df], ignore_index=True)
+            combined_schedule_df= pd.concat([mail_df, trash_df], ignore_index=True)
+
+            # This merges the structured outputs (from mail and trash task extraction functions) into a single pandas DataFrame. It's used to:
+            #   Provide a master table of all scheduled tasks.
+            #   Be passed into:
+            #   - The markdown generator for preview display.
+            #   - The DOCX generator for inserting an actual table.
+            #   - "combined_home_schedule_df" for 
+            #       - add_table_from_schedule() for generating table in DOCX
+            #💡 Why it's needed:
+            #   You want both mail and trash tasks aligned by date, tagged, and grouped for rendering and prompt generation.
 
             if "Date" not in combined_schedule_df.columns:
                 st.error("❌ Combined schedule missing 'Date' column.")
@@ -629,6 +640,11 @@ def mail_trash_handling():
             # Step 5: Generate flat markdown for rendering or prompt
             else:
                 flat_schedule_md = generate_flat_home_schedule_markdown(combined_schedule_df)
+            # Used in:
+            #   - Prompt preview (render_prompt_preview) so users can visually confirm the schedule.
+            #   - Prompt string via .replace("<<INSERT_SCHEDULE_TABLE>>", flat_schedule_md) — so the LLM sees a human-readable version of the schedule when generating the runbook. 
+            #   - "home_schedule_markdown" 
+            #       - render_prompt_preview() for prompt preview and prompt substitution
 
             # Step 6: Store all data into session
             st.session_state.update({
@@ -647,6 +663,7 @@ def mail_trash_handling():
             #st.write(f"🧪 show what is saved in 'home_schedule_markdown': {flat_schedule_md}")
 
             # Step 7: Confirm and maybe generate prompt
+            st.subheader("👍 Review and Approve")
             confirm_key = f"confirm_ai_prompt_{section}"
             user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key) 
             st.session_state[f"{section}_user_confirmation"] = user_confirmation
@@ -661,72 +678,13 @@ def mail_trash_handling():
             render_prompt_preview(missing, section=section)
 
             # Step 9: Optionally generate runbook if inputs are valid and confirmed
+            st.subheader("🎉 Reward")
             if not missing and st.session_state.get("generated_prompt"):
                 st.markdown("---")
                 st.markdown("### 📄 Runbook Generator")
                 maybe_generate_runbook(section=section)
                 # Level 2 Complete - for Progress
                 st.session_state["level_progress"]["emergency_kit"] = True
-
-            # Step 7: Confirm AI prompt generation
-            #confirm_key = "confirm_ai_prompt_mail_trash"
-            #user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
-            #st.session_state["user_confirmation"] = user_confirmation
-
-            #if user_confirmation:
-            #    prompts = [
-            #        emergency_kit_utilities_runbook_prompt(),
-            #        mail_trash_runbook_prompt(), 
-            #    ]
-            #    st.session_state["generated_prompt"] = prompts
-            #else:
-            #    st.session_state["generated_prompt"] = None
-
-        # Step 8: Preview the generated prompts
-        #with st.expander("🧠 AI Prompt Preview (Optional)", expanded=True):
-        #    if not start_date or not end_date:
-        #        st.warning("📅 Please select a care date range before generating the runbook.")
-        #    elif not valid_dates:
-        #        st.warning("📅 No valid dates available from your date selection.")
-        #    elif not user_confirmation:
-        #        st.info("☝️ Please check the box to confirm AI prompt generation.")
-        #    elif st.session_state.get("generated_prompt"):
-        #        for i, prompt in enumerate(st.session_state["generated_prompt"], start=1):
-        #            st.markdown(f"**Prompt {i}:**")
-        #            st.code(prompt, language="markdown")
-        #        st.success("✅ Prompt ready! Now you can generate your runbook.")
-        #    else:
-        #        st.warning("⚠️ Prompt not generated yet.")
-
-        # Step 9: Runbook generation
-        #if st.session_state.get("generated_prompt"):
-        #    if st.button("📄 Generate Runbook Document"):
-        #        buffer, runbook_text = generate_docx_from_split_prompts(
-        #            prompts=st.session_state["generated_prompt"],
-        #            api_key=os.getenv("MISTRAL_TOKEN"),
-        #            doc_heading="Home Emergency Readiness: Utilities & Kit"
-        #        )
-        #        st.session_state.update({
-        #            "runbook_buffer": buffer,
-        #            "runbook_text": runbook_text,
-        #            "level_progress": {**st.session_state.get("level_progress", {}), "mail_trash_handling": True}
-        #        })
-
-        # Step 10: Display DOCX download + text preview
-        #buffer = st.session_state.get("runbook_buffer")
-        #runbook_text = st.session_state.get("runbook_text")
-
-        #if buffer:
-        #    st.download_button(
-        #        label="📥 Download DOCX",
-        #        data=buffer,
-        #        file_name="home_utilities_emergency.docx",
-        #        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        #    )
-        #    st.success("✅ Runbook ready for download!")
-
-        #if runbook_text:
-        #   preview_runbook_output(runbook_text)
 
       
 ##### Level 4 - Home Security and Services

@@ -202,8 +202,8 @@ def get_filtered_dates(start_date, end_date, refinement):
     
 def select_runbook_date_range():
     section = "Runbook Date Range"
-    st.subheader("📅 Choose Date(s) or Timeframe")
-    st.write("Choose a timeframe you would like a runbook generated for.")
+    #st.subheader("📅 Choose Date(s) or Timeframe")
+    st.write("📅 First Select Date(s) or Timeframe for Your Runbook.")
 
     options = ["Pick Dates", "General"]
     choice = capture_input(

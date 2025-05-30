@@ -337,45 +337,21 @@ Ensure the run book is clearly formatted using Markdown, with bold headers and b
 """.strip()
 
 #### Mail + Trash Prompt ####
-def mail_trash_runbook_prompt(debug_key="trash_info_debug"):
+def mail_trash_runbook_prompt(debug_key="trash_info_debug") -> list:
+    """
+    Returns a list of smaller prompt blocks instead of one large prompt string.
+    Suitable for passing into multi-step LLM document generation.
+    """
     input_data = st.session_state.get("input_data", {})
-    #st.write("🧪 [DEBUG] input_data keys:", list(input_data.keys()))
-
-    # Check for merged view first (if maybe_generate_prompt merged subsections)
-    merged_entries = st.session_state.get("input_data", {}).get("mail_trash_handling", [])
-    #st.write("📬 [DEBUG] mail_trash_handling entries seen by prompt:", merged_entries)
+    merged_entries = input_data.get("mail_trash_handling", [])
 
     if merged_entries:
-        #st.write("🧩 [DEBUG] Merged Entries:", merged_entries)
-        mail_entries = [
-            e for e in merged_entries
-            if "mail" in str(e.get("section", "")).lower()
-        ]
-        trash_entries = [
-            e for e in merged_entries
-            if "trash" in str(e.get("section", "")).lower()
-        ]
-
-        #st.write("📬 [DEBUG] Filtered Mail Entries:", mail_entries)
-        #st.write("🗑️ [DEBUG] Filtered Trash Entries:", trash_entries)
-
+        mail_entries = [e for e in merged_entries if "mail" in str(e.get("section", "")).lower()]
+        trash_entries = [e for e in merged_entries if "trash" in str(e.get("section", "")).lower()]
     else:
-        st.warning("⚠️ No merged entries found; falling back to section-based retrieval.")
-        input_data = st.session_state.get("input_data", {})
         mail_entries = input_data.get("mail") or input_data.get("Mail & Packages", [])
         trash_entries = input_data.get("Trash Handling", []) or input_data.get("trash_handling", [])
-        #st.write("📦 [DEBUG] Fallback Mail Entries:", mail_entries)
-        #st.write("🗑️ [DEBUG] Fallback Trash Entries:", trash_entries)
 
-
-    # Debugging view
-    #if st.sidebar.checkbox("🔍 Show Mail/Trash Debug"):
-        #st.sidebar.markdown("**Mail Entries Found:**")
-       # st.sidebar.code("\n".join(e["question"] for e in mail_entries), language="text")
-       # st.sidebar.markdown("**Trash Entries Found:**")
-       # st.sidebar.code("\n".join(e["question"] for e in trash_entries), language="text")
-
-    # Flatten into dicts for easy access
     mail_info = {entry["question"]: entry["answer"] for entry in mail_entries}
     trash_info = {entry["question"]: entry["answer"] for entry in trash_entries}
 
@@ -388,30 +364,21 @@ def mail_trash_runbook_prompt(debug_key="trash_info_debug"):
         if flag:
             return f"- **{label}**: Yes\n  - **{detail_label}**: {detail_value or 'N/A'}"
         return ""
-    #### Debug check to see what is saved into session state
-    #if st.sidebar.checkbox("🔍 Show Trash Info Debug", key=debug_key):
-    #    st.sidebar.write("🧾 `trash_info` Keys:")
-    #   st.sidebar.code("\n".join(sorted(trash_info.keys())), language="text")
 
-    # --- MAIL SECTION ---
-    mail_lines = [
-        safe_line("Mailbox Location", mail_info.get("📍 Mailbox Location")),
-        safe_line("Mailbox Key Info", mail_info.get("🔑 Mailbox Key (Optional)")),
-        safe_line("Pick-Up Schedule", mail_info.get("📆 Mail Pick-Up Schedule")),
-        safe_line("Mail Sorting Instructions", mail_info.get("📥 What to Do with the Mail")),
-        safe_line("Delivery Packages", mail_info.get("📦 Packages")),
-    ]
-    mail_block = f"## 📬 Mail Handling Instructions\n\n" + "\n".join(filter(None, mail_lines)) if mail_lines else ""
+    mail_block = "\n".join(filter(None, [
+        safe_line("Mailbox Location", mail_info.get("\ud83d\udccd Mailbox Location")),
+        safe_line("Mailbox Key Info", mail_info.get("\ud83d\udd11 Mailbox Key (Optional)")),
+        safe_line("Pick-Up Schedule", mail_info.get("\ud83d\udcc6 Mail Pick-Up Schedule")),
+        safe_line("Mail Sorting Instructions", mail_info.get("\ud83d\udce5 What to Do with the Mail")),
+        safe_line("Delivery Packages", mail_info.get("\ud83d\udce6 Packages")),
+    ]))
 
-    # --- INDOOR TRASH ---
-    indoor_lines = [
+    indoor_block = "\n".join(filter(None, [
         safe_line("Kitchen Trash", trash_info.get("Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags")),
         safe_line("Bathroom Trash", trash_info.get("Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags")),
         safe_line("Other Rooms Trash", trash_info.get("Other Room Trash Bin Emptying Schedule and Replacement Trash Bags")),
-    ]
-    indoor_block = f"### Indoor Trash\n" + "\n".join(filter(None, indoor_lines)) if indoor_lines else ""
+    ]))
 
-    # --- OUTDOOR BINS ---
     outdoor_lines = [
         safe_line("Please take the bins", trash_info.get("Instructions for Placing and Returning Outdoor Bins")),
         safe_line("Bins Description", trash_info.get("What the Outdoor Trash Bins Look Like")),
@@ -425,75 +392,76 @@ def mail_trash_runbook_prompt(debug_key="trash_info_debug"):
                 filename = st.session_state.trash_images[label]
                 outdoor_image_tags.append(f'<img src="{filename}" alt="{label}" width="300"/>')
 
-    outdoor_block = f"### Outdoor Bins\n" + "\n".join(filter(None, outdoor_lines + outdoor_image_tags)) if (outdoor_lines or outdoor_image_tags) else ""
+    outdoor_block = "\n".join(filter(None, outdoor_lines + outdoor_image_tags))
 
-    # --- COLLECTION SCHEDULE ---
-    collection_lines = [
+    collection_block = "\n".join(filter(None, [
         safe_line("Garbage Pickup", f"{trash_info.get('Garbage Pickup Day', '')}, {trash_info.get('Garbage Pickup Time', '')}".strip(", ")),
         safe_line("Recycling Pickup", f"{trash_info.get('Recycling Pickup Day', '')}, {trash_info.get('Recycling Pickup Time', '')}".strip(", ")),
-    ]
-    collection_block = f"### Collection Schedule\n" + "\n".join(filter(None, collection_lines)) if collection_lines else ""
+    ]))
 
-    # --- COMPOSTING ---
     composting_used = trash_info.get("Compost Used", "").strip().lower() == "yes"
-    composting_text = safe_yes_no(
-        "Composting Used",
-        composting_used,
-        "Compost Instructions",
-        trash_info.get("Compost Instructions")
-    )
-    composting_block = f"### Composting\n{composting_text}" if composting_text else ""
+    composting_block = safe_yes_no("Composting Used", composting_used, "Compost Instructions", trash_info.get("Compost Instructions"))
 
-    # --- COMMON DISPOSAL ---
     common_disposal_used = trash_info.get("Common Disposal Used", "").strip().lower() == "yes"
-    common_disposal_text = safe_yes_no(
-        "Common Disposal Area Used",
-        common_disposal_used,
-        "Instructions",
-        trash_info.get("Common Disposal Area Instructions")
-    )
-    common_disposal_block = f"### Common Disposal Area\n{common_disposal_text}" if common_disposal_text else ""
+    common_disposal_block = safe_yes_no("Common Disposal Area Used", common_disposal_used, "Instructions", trash_info.get("Common Disposal Area Instructions"))
 
-    # --- WASTE MANAGEMENT ---
-    wm_lines = list(filter(None, [
-    safe_line("Company Name", trash_info.get("Waste Management Company Name")),
-    safe_line("Phone", trash_info.get("Contact Phone Number")),
-    safe_line("When to Contact", trash_info.get("When to Contact")),
+    wm_block = "\n".join(filter(None, [
+        safe_line("Company Name", trash_info.get("Waste Management Company Name")),
+        safe_line("Phone", trash_info.get("Contact Phone Number")),
+        safe_line("When to Contact", trash_info.get("When to Contact")),
     ]))
-    wm_block = f"### Waste Management Contact\n" + "\n".join(wm_lines) if wm_lines else ""
 
+    schedule_md = st.session_state.get("home_schedule_markdown", "_Schedule missing._")
 
-    # --- TRASH SECTION COMBINED ---
-    trash_blocks = "\n\n".join(filter(None, [
-        indoor_block,
-        outdoor_block,
-        collection_block,
-        composting_block,
-        common_disposal_block,
-        wm_block
-    ]))
-    trash_main = f"## 🗑️ Trash & Recycling Instructions\n\n{trash_blocks}" if trash_blocks else ""
+    # Final prompt chunks
+    return [
+        """
+You are an expert assistant generating a Mail Run Book. Compose a clear and concise guide for house sitters.
 
-    # --- FINAL SCHEDULE PLACEHOLDER ---
-    # schedule_block = "\n\n## 📆 Mail & Trash Pickup Schedule\n\n<<INSERT_SCHEDULE_TABLE>>" -- commmented out for debug
-    schedule_block = "\n\n## 📆 Mail & Trash Pickup Schedule\n\n" + st.session_state.get("home_schedule_markdown", "_Schedule missing._")
-
-    # --- FINAL PROMPT OUTPUT ---
-    return f"""
-You are an expert assistant generating a Mail and Waste Management Run Book. Compose a comprehensive, easy-to-follow guide for house sitters and people watching the house when occupants are out of town. For any values set to No please omit those lines.
-
-# 📕 Mail Handling and Waste Management Instructions
+## 📬 Mail Handling Instructions
 
 {mail_block}
+""".strip().format(mail_block=mail_block),
+        """
+You are an expert assistant describing indoor trash handling instructions.
 
----
+### Indoor Trash
 
-{trash_main}
+{indoor_block}
+""".strip().format(indoor_block=indoor_block),
+        """
+You are an expert assistant describing outdoor trash and bin logistics.
 
----
+### Outdoor Bins
 
-{schedule_block}
-""".strip()
+{outdoor_block}
+""".strip().format(outdoor_block=outdoor_block),
+        """
+### Collection Schedule
+
+{collection_block}
+""".strip().format(collection_block=collection_block),
+        """
+### Composting
+
+{composting_block}
+""".strip().format(composting_block=composting_block),
+        """
+### Common Disposal Area
+
+{common_disposal_block}
+""".strip().format(common_disposal_block=common_disposal_block),
+        """
+### Waste Management Contact
+
+{wm_block}
+""".strip().format(wm_block=wm_block),
+        """
+## 📆 Mail & Trash Pickup Schedule
+
+{schedule_md}
+""".strip().format(schedule_md=schedule_md),
+    ]
 
 #### Security and Services Prompt ####
 

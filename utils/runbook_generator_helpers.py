@@ -127,9 +127,9 @@ def generate_docx_from_split_prompts(
             continue
 
         if line == "<<INSERT_SCHEDULE_TABLE>>" and not schedule_inserted:
-            schedule_df = st.session_state.get("home_schedule_df", pd.DataFrame())
+            schedule_df = st.session_state.get("combined_home_schedule_df", pd.DataFrame())
             if debug:
-                doc.add_paragraph("✅ [DEBUG] Schedule table inserted below.")
+                doc.add_paragraph("✅ [DEBUG] Table inserted below.")
                 print("📋 Found INSERT_SCHEDULE_TABLE marker.")
                 print("📋 Schedule DataFrame passed to add_table_from_schedule:\n", schedule_df)
             add_table_from_schedule(doc, schedule_df)
@@ -223,20 +223,12 @@ def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = 
     """
     Generate a section-specific prompt and return both the final combined prompt string
     and a list of individual prompt fragments (if any).
-    
-    Parameters:
-    - section: str — like "home", "pets", etc.
-    - prompts: Optional[List[str]] — used to collect individual prompts
-
-    Returns:
-    - Tuple of (combined_prompt_string or None, list_of_prompt_strings)
     """
     confirm_key = f"confirm_ai_prompt_{section}"
     confirmed = st.session_state.get(confirm_key, False)
 
     st.write(f"🧪 maybe_generate_prompt() called for section: `{section}`")
     st.write(f"🧪 Confirmation checkbox state: {confirmed}")
-    #st.write(f"🧪 Current input data for section:", st.session_state.get("input_data", {}).get(section, []))
 
     if not confirmed:
         st.session_state["generated_prompt"] = None
@@ -245,29 +237,15 @@ def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = 
     if prompts is None:
         prompts = []
 
-        # Merge inputs from related subsections if needed
+    # Section-specific logic
     if section == "mail_trash_handling":
         merged_inputs = (
             st.session_state.get("input_data", {}).get("mail", []) +
             st.session_state.get("input_data", {}).get("trash_handling", [])
         )
-        st.session_state["input_data"]["mail_trash_handling"] = merged_inputs  # 🔁 Save merged view
+        st.session_state["input_data"]["mail_trash_handling"] = merged_inputs
         st.write("📬 [DEBUG] Saved merged input_data['mail_trash_handling']:", merged_inputs)
 
-    #if "mail_trash_handling" in st.session_state.get("input_data", {}):
-    #    st.subheader("🧪 Debug: Merged Mail & Trash Inputs")
-    #    st.json(st.session_state["input_data"]["mail_trash_handling"])
-    #else:
-    #    st.info("ℹ️ No merged mail_trash_handling input found in session_state.")
-
-    #if st.sidebar.checkbox("🧪 Show `mail_trash_handling` Data"):
-    #    merged_inputs = st.session_state.get("input_data", {}).get("mail_trash_handling", [])
-    #    for i, entry in enumerate(merged_inputs):
-     #       st.sidebar.markdown(f"**Entry {i + 1}**")
-    #        for k, v in entry.items():
-    #            st.sidebar.write(f"- `{k}`: {v}")
-
-    # Section-specific logic
     if section == "home":
         prompts.append(utilities_emergency_runbook_prompt())
     elif section == "emergency_kit":
@@ -277,10 +255,6 @@ def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = 
             emergency_kit_utilities_runbook_prompt(),
             mail_trash_runbook_prompt(debug_key="trash_info_debug_preview"),
         ])
-        prompt = mail_trash_runbook_prompt(debug_key="trash_info_debug_run")
-        #st.write("📬 [DEBUG] mail_trash_runbook_prompt returned:", prompt)
-        prompts.append(prompt)
-
     elif section == "home_security":
         prompts.extend([
             emergency_kit_utilities_runbook_prompt(),
@@ -292,16 +266,20 @@ def maybe_generate_prompt(section: str = "home", prompts: Optional[List[str]] = 
     elif section == "bonus_level":
         prompts.append(bonus_level_runbook_prompt())
     else:
-        prompts.append = (f"# ⚠️ No prompt available for section: {section}")
+        prompts.append(f"# ⚠️ No prompt available for section: {section}")
 
-    # Combine into a single prompt string
-    combined_prompt = "\n\n".join(prompts)
+    # ✅ Flatten prompts in case any were lists
+    flat_prompts = []
+    for p in prompts:
+        if isinstance(p, list):
+            flat_prompts.extend(p)
+        else:
+            flat_prompts.append(p)
 
-    # Save to session
+    combined_prompt = "\n\n".join(flat_prompts)
     st.session_state["generated_prompt"] = combined_prompt
-    st.write("🧪 [DEBUG] Combined Prompt:", st.session_state["generated_prompt"])
 
-    return combined_prompt, prompts
+    return combined_prompt, flat_prompts
 
 def render_prompt_preview(missing: list, section: str = "home"):
     confirmed = st.session_state.get(f"{section}_user_confirmation", False)
@@ -313,14 +291,14 @@ def render_prompt_preview(missing: list, section: str = "home"):
             st.info("☕️ Please check the box to confirm AI prompt generation.")
         elif st.session_state.get("generated_prompt"):
             prompt = st.session_state["generated_prompt"] # added for debug
-            #st.code(st.session_state["generated_prompt"], language="markdown") #-- commented out for debugging
+            st.code(st.session_state["generated_prompt"], language="markdown") #-- commented out for debugging
 
             schedule_md = st.session_state.get("home_schedule_markdown", "_No schedule available._") # added for debug
             prompt_with_schedule = prompt.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md) # added for debug
             st.success("✅ Prompt ready! Now you can generate your runbook.")
 
             # Show in code block
-            st.code(prompt_with_schedule, language="markdown") # added for debuging
+            #st.code(prompt_with_schedule, language="markdown") # added for debuging
             #st.success("✅ Prompt ready! Now you can generate your runbook.")
 
         else:
@@ -348,8 +326,8 @@ def maybe_render_download(section: str = "home", filename: Optional[str] = None)
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
         st.success("✅ Runbook ready for download!")
-        st.write("📋 [DEBUG] runbook_text preview:") # for debug
-        st.code(runbook_text, language="markdown") # for debug
+        #st.write("📋 [DEBUG] runbook_text preview:") # for debug
+        #st.code(runbook_text, language="markdown") # for debug
 
     if runbook_text:
         preview_runbook_output(runbook_text)
@@ -371,14 +349,14 @@ def maybe_generate_runbook(section: str = "home", doc_heading: Optional[str] = N
     if doc_heading is None:
         doc_heading = f"{section.replace('_', ' ').title()} Emergency Runbook"
 
-    if st.button("📄 Generate Runbook Document"):
+    if st.button("📄 Click Me to Generate Runbook"):
         schedule_md = st.session_state.get("home_schedule_markdown", "_No schedule available._")
         prompt_with_schedule = prompt.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
 
         # ✅ Debugging block: show prompt and schedule
         if st.session_state.get("enable_debug_mode"):
             st.write("📋 Raw Prompt with Schedule:", prompt_with_schedule)
-            st.write("📊 Schedule DataFrame:", st.session_state.get("home_schedule_df"))
+            st.write("📊 Schedule DataFrame:", st.session_state.get("combined_home_schedule_df"))
 
         try:
             buffer, llm_output = generate_docx_from_split_prompts(
@@ -395,8 +373,19 @@ def maybe_generate_runbook(section: str = "home", doc_heading: Optional[str] = N
             st.session_state["runbook_buffer"] = buffer
             st.session_state["runbook_text"] = llm_output # taken from full_text generated from generate_docx_from_split_prompts()
             st.session_state["runbook_ready"] = True  # ✅ Flag that buffer is ready
+       
+            # ✅ Optional debugging view
+            if st.session_state.get("enable_debug_mode"):
+                st.markdown("### 📤 Prompt Sent to LLM")
+                st.code(prompt_with_schedule, language="markdown")
+
+                st.markdown("### 📥 LLM Response (Inserted into DOCX)")
+                st.code(llm_output, language="markdown")
+       
         except Exception as e:
             st.error(f"❌ Failed to generate runbook: {e}")
         # Always show preview/download if runbook is ready
     if st.session_state.get("runbook_ready"):
+        st.write("________")
+        st.write("⏲️ Runbooks Ready")
         maybe_render_download(section=section)
