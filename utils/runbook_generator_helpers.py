@@ -329,11 +329,12 @@ def maybe_generate_runbook(section: str = "home", doc_heading: Optional[str] = N
 
     if generate_triggered:
         final_prompt_blocks = prompt_blocks.copy()
+        st.write("🧩 Placeholder Mapping:", get_schedule_placeholder_mapping())
 
         # ✅ Schedule placeholder (if applicable)
-        if section == "mail_trash_handling":
-            if all(schedule_placeholder not in block for block in final_prompt_blocks):
-                final_prompt_blocks.append(f"## 📆 Mail & Trash Pickup Schedule\n\n{schedule_placeholder}")
+        #if section == "mail_trash_handling":
+        #    if all(schedule_placeholder not in block for block in final_prompt_blocks):
+        #        final_prompt_blocks.append(f"## 📆 Mail & Trash Pickup Schedule\n\n{schedule_placeholder}")
 
         if st.session_state.get("enable_debug_mode"):
             st.markdown("### 🧾 Prompt Blocks Being Sent to LLM")

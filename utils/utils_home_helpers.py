@@ -132,3 +132,42 @@ def add_home_schedule_to_docx(doc, schedule_df):
                 cells[2].text = category
 
         doc.add_paragraph("")  # spacing
+
+def generate_convenience_tasks(section_data: dict) -> list[dict]:
+    """
+    Generates task dictionaries from convenience_seeker section inputs.
+    Each dict includes fields required for schedule generation.
+    """
+    tasks = []
+    for service, answers in section_data.items():
+        service_name = service.replace(" ", "_").lower()
+
+        company = answers.get(f"{service} Company Name", "")
+        phone = answers.get(f"{service} Company Phone Number", "")
+        freq = answers.get(f"{service} Frequency", "")
+        day = answers.get(f"{service} Day of the Week", "")
+        access = answers.get(f"Access Method for {service}", "")
+        postproc = answers.get(f"Post-{service} Procedures", "")
+        verify = answers.get(f"{service} Crew Identity Verification", "")
+
+        if freq and day:
+            task = {
+                "Task": f"{service} Service",
+                "Category": "home",
+                "Area": "Quality-Oriented Services",
+                "Source": "convenience_seeker",
+                "Tag": service_name,
+                "Date": None,  # To be filled in later when expanded to actual calendar dates
+                "Day": day,
+                "Frequency": freq,
+                "Details": {
+                    "Company": company,
+                    "Phone": phone,
+                    "Access": access,
+                    "PostProcedure": postproc,
+                    "Verification": verify
+                }
+            }
+            tasks.append(task)
+    return tasks
+

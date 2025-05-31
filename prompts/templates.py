@@ -1,18 +1,32 @@
 # prompts/templates.py
 
 def wrap_prompt_block(content: str, *, title: str = "", instructions: str = "", debug: bool = False) -> str:
-    """Wraps a content block with optional title and LLM-specific guidance."""
+    """
+    Wraps a content block with optional title and LLM-specific guidance.
+    Handles str, list, dict, and other types defensively.
+    """
+    # 🛡️ Defensive conversion
+    if isinstance(content, list):
+        content = "\n\n".join(str(item) for item in content)
+    elif isinstance(content, dict):
+        content = "\n".join(f"- **{k}**: {v}" for k, v in content.items())
+    elif not isinstance(content, str):
+        content = str(content)
+
     block = []
     if title:
         block.append(f"# {title}")
     if instructions:
         block.append(f"_Instructions: {instructions}_")
     block.append(content)
+
     final = "\n\n".join(block).strip()
+
     if debug:
         import streamlit as st
         st.markdown("### 🧱 Debug: Wrapped Prompt Block")
         st.code(final, language="markdown")
+
     return final
 
 def emergency_kit_utilities_prompt_template(
@@ -109,6 +123,10 @@ Please retrieve:
 Ensure the run book is clearly formatted using Markdown, with bold headers and bullet points. Use ⚠️ to highlight missing kit items.
 """.strip()
 
+def home_services_runbook_prompt()->str:
+    return f"""
+""".strip()
+
 def utilities_emergency_prompt_template(city: str, zip_code: str, internet: str, electricity: str, gas: str, water: str) -> str:
     return f"""
 
@@ -190,3 +208,83 @@ Please retrieve:
 - Contact Info
 - Emergency Steps
 """.strip()
+
+def mail_prompt_template(mail_block: str) -> str:
+    """Returns a list of structured markdown blocks for trash runbook content."""
+    return [
+        f"""
+
+You are an expert assistant describing instructions for handling mail and packages.
+
+## 📬 Mail Handling Instructions
+
+{mail_block}
+
+""".strip(),
+
+        f"""
+### 📆 Mail Pickup Schedule
+
+<<INSERT_MAIL_SCHEDULE_TABLE>>
+""".strip(),
+    ]
+
+def trash_prompt_template(
+    indoor_block: str,
+    outdoor_block: str,
+    collection_block: str,
+    composting_block: str,
+    common_disposal_block: str,
+    wm_block: str,
+) -> list[str]:
+    """Returns a list of structured markdown blocks for trash runbook content."""
+    return [
+        f"""
+You are an expert assistant describing indoor trash handling instructions.
+
+## 🗑️ Trash and Recycling Instructions
+
+### Indoor Trash
+
+{indoor_block}
+""".strip(),
+
+        f"""
+You are an expert assistant describing outdoor trash and bin logistics.
+
+### Outdoor Bins
+
+{outdoor_block}
+""".strip(),
+
+        f"""
+### Collection Schedule
+
+{collection_block}
+""".strip(),
+
+        f"""
+### Composting
+
+{composting_block}
+""".strip(),
+
+        f"""
+### Common Disposal Area
+
+{common_disposal_block}
+""".strip(),
+
+        f"""
+### Waste Management Contact
+
+{wm_block}
+""".strip(),
+
+        f"""
+### 📆 Trash and Recycling Pickup Schedule
+
+<<INSERT_TRASH_SCHEDULE_TABLE>>
+""".strip(),
+    ]
+

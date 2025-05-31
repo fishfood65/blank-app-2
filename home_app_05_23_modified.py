@@ -5,7 +5,11 @@ from utils.common_helpers import (
     generate_flat_home_schedule_markdown,
     get_schedule_utils,
     switch_section,
-    get_schedule_placeholder_mapping
+    get_schedule_placeholder_mapping,
+    debug_saved_schedule_dfs
+)
+from prompts.llm_queries import(
+    fetch_utility_providers
 )
 from utils.utils_home_helpers import (
     get_corrected_providers,
@@ -178,7 +182,7 @@ def main():
     elif section == "mail_trash_handling":
         st.subheader("📬 Level 3 Mail & Trash Handling")
         mail_trash_handling()
-    elif section == "home_security":
+    elif section == "homesvc_security":
         st.subheader("🏡 Level 4 Home Services")
         security_convenience_ownership()
 
@@ -588,6 +592,10 @@ def mail_trash_handling():
     with tab3:
         st.subheader("🎁 Customize, Review and Reward")
 
+        if st.session_state.get("enable_debug_mode"):
+            debug_saved_schedule_dfs()
+
+
         # Step 1: Let user select the date range
         choice, start_date, end_date, valid_dates = select_runbook_date_range()
 
@@ -603,6 +611,8 @@ def mail_trash_handling():
 
             # Step 2: Extract grouped schedule summaries for mail and trash
             mail_task = extract_grouped_mail_task(valid_dates)
+            st.markdown("### 📬 Debug: Raw `mail_task` Output")
+            st.write(mail_task)
             trash_df = extract_all_trash_tasks_grouped(valid_dates, utils)
 
             # Step 3: Convert mail task to DataFrame
@@ -611,6 +621,7 @@ def mail_trash_handling():
             mail_df = pd.DataFrame(mail_task) if mail_task else pd.DataFrame(
                 columns=["Task", "Category", "Area", "Source", "Tag", "Date", "Day"]
             )
+            st.session_state["mail_schedule_df"] = mail_df
 
             # Step 4: Combine into one unified DataFrame
             combined_schedule_df= pd.concat([mail_df, trash_df], ignore_index=True)
@@ -624,6 +635,24 @@ def mail_trash_handling():
             #       - add_table_from_schedule() for generating table in DOCX
             #💡 Why it's needed:
             #   You want both mail and trash tasks aligned by date, tagged, and grouped for rendering and prompt generation.
+
+            # Step 4a: Create individual DataFrame and generate flat markdown for rendering or prompt
+            if "Date" not in mail_df.columns:
+                st.error("❌ Mail schedule missing 'Date' column.")
+                st.write("📊 mail_schedule_df:", mail_df)
+                mail_flat_schedule_md = "_Schedule data incomplete or malformed._"
+            # Generate flat markdown for rendering or prompt
+            else:
+                mail_flat_schedule_md = generate_flat_home_schedule_markdown(mail_df)
+
+            if "Date" not in trash_df.columns:
+                st.error("❌ Trash schedule missing 'Date' column.")
+                st.write("📊 trash_schedule_df:", trash_df)
+                trash_flat_schedule_md = "_Schedule data incomplete or malformed._"
+            
+            # Step 5: Generate flat markdown for rendering or prompt
+            else:
+                trash_flat_schedule_md = generate_flat_home_schedule_markdown(trash_df)
 
             if "Date" not in combined_schedule_df.columns:
                 st.error("❌ Combined schedule missing 'Date' column.")
@@ -644,7 +673,26 @@ def mail_trash_handling():
                 "grouped_trash_schedule": trash_df,
                 "combined_home_schedule_df": combined_schedule_df,
                 "home_schedule_markdown": flat_schedule_md,
+                "mail_schedule_df": mail_df,
+                "mail_schedule_markdown": mail_flat_schedule_md,
+                "trash_schedule_df": trash_df,
+                "trash_flat_schedule_md": trash_flat_schedule_md
             })
+            mail_df = st.session_state.get("mail_schedule_df")
+
+            if isinstance(mail_df, pd.DataFrame):
+                if not mail_df.empty:
+                    st.write("📬 Mail Schedule DataFrame:")
+                    st.dataframe(mail_df)
+                else:
+                    st.warning("⚠️ mail_schedule_df is registered but empty.")
+            else:
+                st.error("❌ mail_schedule_df is not a valid DataFrame or not found.")
+            
+            mail_flat_schedule_md = generate_flat_home_schedule_markdown(mail_df)
+            st.session_state["mail_schedule_markdown"] = mail_flat_schedule_md
+
+
             # 🧪 Preview what’s going into the prompt -- Debug
             #st.markdown("### 🧪 Flat Schedule Markdown Preview")
            # st.code(flat_schedule_md, language="markdown")
@@ -685,7 +733,15 @@ def mail_trash_handling():
 ##### Level 4 - Home Security and Services
 
 def home_security():
-    section = "Home Security System"
+    # 🔪 Optional: Reset controls for testing
+    if st.checkbox("🔪 Reset Security and Home Services Session State"):
+        for key in ["generated_prompt", "runbook_buffer", "runbook_text", "user_confirmation"]:
+            st.session_state.pop(key, None)
+        st.success("🔄 Level 4 session state reset.")
+        st.stop()  # 🔁 prevent rest of UI from running this frame
+
+    section = st.session_state.get("section", "home")
+    switch_section("homesvc_security")
 
     st.write("💝 Security-Conscious")
     render_lock_toggle(session_key="home_security_locked", label="Home Security Info")
@@ -798,66 +854,130 @@ def security_convenience_ownership():
     home_security()
     convenience_seeker()
     rent_own()
+
+    # Step 1: Let user select the date range
+    choice, start_date, end_date, valid_dates = select_runbook_date_range()
+
+    # st.write("🗓️ valid_dates selected:", valid_dates)
+
+    if start_date and end_date:
+        st.session_state["start_date"] = start_date
+        st.session_state["end_date"] = end_date
+        st.session_state["valid_dates"] = valid_dates
+
+        # Build once and reuse
+        utils = get_schedule_utils()
+
+        # Step 2: Extract grouped schedule summaries for mail and trash
+        mail_task = extract_grouped_mail_task(valid_dates)
+        st.markdown("### 📬 Debug: Raw `mail_task` Output")
+        st.write(mail_task)
+        trash_df = extract_all_trash_tasks_grouped(valid_dates, utils)
+
+        # Step 3: Convert mail task to DataFrame
+        #st.write("📬 mail_task raw output:", mail_task)
+        #st.write("🗑️ trash_df raw output (pre-check):", trash_df)
+        mail_df = pd.DataFrame(mail_task) if mail_task else pd.DataFrame(
+            columns=["Task", "Category", "Area", "Source", "Tag", "Date", "Day"]
+        )
+        st.session_state["mail_schedule_df"] = mail_df
+
+        # Step 4: Combine into one unified DataFrame
+        combined_schedule_df= pd.concat([mail_df, trash_df], ignore_index=True)
+
+        # This merges the structured outputs (from mail and trash task extraction functions) into a single pandas DataFrame. It's used to:
+        #   Provide a master table of all scheduled tasks.
+        #   Be passed into:
+        #   - The markdown generator for preview display.
+        #   - The DOCX generator for inserting an actual table.
+        #   - "combined_home_schedule_df" for 
+        #       - add_table_from_schedule() for generating table in DOCX
+        #💡 Why it's needed:
+        #   You want both mail and trash tasks aligned by date, tagged, and grouped for rendering and prompt generation.
+
+        # Step 4a: Create individual DataFrame and generate flat markdown for rendering or prompt
+        if "Date" not in mail_df.columns:
+            st.error("❌ Mail schedule missing 'Date' column.")
+            st.write("📊 mail_schedule_df:", mail_df)
+            mail_flat_schedule_md = "_Schedule data incomplete or malformed._"
+        # Generate flat markdown for rendering or prompt
+        else:
+            mail_flat_schedule_md = generate_flat_home_schedule_markdown(mail_df)
+
+        if "Date" not in trash_df.columns:
+            st.error("❌ Trash schedule missing 'Date' column.")
+            st.write("📊 trash_schedule_df:", trash_df)
+            trash_flat_schedule_md = "_Schedule data incomplete or malformed._"
+        
+        # Step 5: Generate flat markdown for rendering or prompt
+        else:
+            trash_flat_schedule_md = generate_flat_home_schedule_markdown(trash_df)
+
+        if "Date" not in combined_schedule_df.columns:
+            st.error("❌ Combined schedule missing 'Date' column.")
+            st.write("📊 combined_schedule_df:", combined_schedule_df)
+            flat_schedule_md = "_Schedule data incomplete or malformed._"
+        # Step 5: Generate flat markdown for rendering or prompt
+        else:
+            flat_schedule_md = generate_flat_home_schedule_markdown(combined_schedule_df)
+        # Used in:
+        #   - Prompt preview (render_prompt_preview) so users can visually confirm the schedule.
+        #   - Prompt string via .replace("<<INSERT_SCHEDULE_TABLE>>", flat_schedule_md) — so the LLM sees a human-readable version of the schedule when generating the runbook. 
+        #   - "home_schedule_markdown" 
+        #       - render_prompt_preview() for prompt preview and prompt substitution
+
+        # Step 6: Store all data into session
+        st.session_state.update({
+            "grouped_mail_task": mail_task,
+            "grouped_trash_schedule": trash_df,
+            "combined_home_schedule_df": combined_schedule_df,
+            "home_schedule_markdown": flat_schedule_md,
+            "mail_schedule_df": mail_df,
+            "mail_schedule_markdown": mail_flat_schedule_md,
+            "trash_schedule_df": trash_df,
+            "trash_flat_schedule_md": trash_flat_schedule_md
+        })
+        mail_df = st.session_state.get("mail_schedule_df")
+
+        if isinstance(mail_df, pd.DataFrame):
+            if not mail_df.empty:
+                st.write("📬 Mail Schedule DataFrame:")
+                st.dataframe(mail_df)
+            else:
+                st.warning("⚠️ mail_schedule_df is registered but empty.")
+        else:
+            st.error("❌ mail_schedule_df is not a valid DataFrame or not found.")
+        
+        mail_flat_schedule_md = generate_flat_home_schedule_markdown(mail_df)
+        st.session_state["mail_schedule_markdown"] = mail_flat_schedule_md
     
-    # Step 2: Preview prompt
+    # Step 7: Confirm and maybe generate prompt
+    st.subheader("👍 Review and Approve")
 
-    # Move this outside the expander
-    user_confirmation = st.checkbox("✅ Confirm AI Prompt")
-    st.session_state["user_confirmation"] = user_confirmation # store confirmation in session
+    # Set and track confirmation state
+    confirm_key = f"confirm_ai_prompt_{section}"
+    user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
+    st.session_state[f"{section}_user_confirmation"] = user_confirmation
 
-    st.session_state.progress["level_4_completed"] = True
-    save_progress(st.session_state.progress)
-
+    # Generate prompts if confirmed
     if user_confirmation:
-        prompt_emergency = emergency_kit_utilities_runbook_prompt()
-        prompt_mail_trash = mail_trash_runbook_prompt()
-        prompt_home_caretaker = home_caretaker_runbook_prompt()
-        st.session_state["prompt_emergency"] = prompt_emergency
-        st.session_state["prompt_mail_trash"] = prompt_mail_trash
-        st.session_state["prompt_home_caretaker"]= prompt_home_caretaker
-    else:
-        st.session_state["prompt_emergency"] = None
-        st.session_state["prompt_mail_trash"] = None
-        st.session_state["prompt_home_caretaker"]= None
+        combined_prompt, prompt_blocks = maybe_generate_prompt(section=section)
 
-# Show prompt in expander
-    with st.expander("AI Prompt Preview (Optional)"):
-        if st.session_state.get("prompt_emergency"):
-            st.markdown("#### 🆘 Emergency + Utilities Prompt")
-            st.code(st.session_state["prompt_emergency"], language="markdown")
-        if st.session_state.get("prompt_mail_trash"):
-            st.markdown("#### 📬 Mail + Trash Prompt")
-            st.code(st.session_state["prompt_mail_trash"], language="markdown")
-        if st.session_state.get("prompt_home_caretaker"):
-            st.markdown("#### 💝 Home Protection + Services Prompt")
-            st.code(st.session_state["prompt_home_caretaker"], language="markdown")
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown("### 🧾 Prompt Preview")
+            st.code(combined_prompt or "", language="markdown")
 
-    # Step 3: Generate runbook using reusable function
-    st.write("Next, click the button to generate your personalized utilities emergency runbook document:")
+    # Step 8: Prompt preview + runbook
+    missing = check_missing_utility_inputs()
+    render_prompt_preview(missing, section=section)
 
-    st.markdown("### 🧪 Debug Info")
-
-    st.write("🔑 **API Key Loaded:**", "✅ Yes" if os.getenv("MISTRAL_TOKEN") else "❌ No")
-
-    st.write("✅ **User Confirmed Prompt:**", st.session_state.get("user_confirmation", False))
-
-    st.write("📄 **Emergency Prompt Exists:**", "✅ Yes" if st.session_state.get("prompt_emergency") else "❌ No")
-    st.code(st.session_state.get("prompt_emergency", "⚠️ Emergency prompt not generated."), language="markdown")
-
-    st.write("📬 **Mail & Trash Prompt Exists:**", "✅ Yes" if st.session_state.get("prompt_mail_trash") else "❌ No")
-    st.code(st.session_state.get("prompt_mail_trash", "⚠️ Mail/Trash prompt not generated."), language="markdown")
-
-    generate_runbook_from_multiple_prompts(
-        prompts=[
-            st.session_state.get("prompt_emergency", ""),
-            st.session_state.get("prompt_mail_trash", ""),
-            st.session_state.get("prompt_home_caretaker", "")
-        ],
-        api_key=os.getenv("MISTRAL_TOKEN"),
-        button_text="Complete Level 4 Mission",
-        doc_heading="Comprehensive Housekeeping Runbook",
-        doc_filename="housekeeping_runbook.docx"
-    )
+    # Step 9: Optionally generate runbook if inputs are valid and confirmed
+    st.subheader("🎉 Reward")
+    if not missing and st.session_state.get("generated_prompt"):
+        maybe_generate_runbook(section=section)
+        # Level 3 Complete - for Progress
+    st.session_state["level_progress"]["mail_trash_handling"] = True
+   
 ##### Level 5 - Emergency Kit Critical Documents
 
 def emergency_kit_critical_documents():
