@@ -47,31 +47,31 @@ def capture_input(
     validate_fn=None,
     preprocess_fn=None,
     required=False,
+    autofill=True,
     **kwargs
 ):
-    """
-    Displays input using input_fn, stores structured metadata, and supports validation.
-
-    Parameters:
-    - label (str): Label/question shown to user.
-    - input_fn (callable): Streamlit input widget (e.g., st.text_input, st.radio).
-    - section (str): Optional logical section (default = session_state["section"] or "default").
-    - validate_fn (callable): Optional validation function. Raises Exception or returns False on invalid input.
-    - preprocess_fn (callable): Optional transform function to preprocess value before storing.
-    - required (bool): Whether the field is required. Adds metadata, does not block submission.
-    - *args, **kwargs: Passed directly to the input_fn.
-    """
     if section is None:
         section = st.session_state.get("section", "default")
 
-    # Use safe auto-generated key unless explicitly provided
     unique_key = kwargs.get("key", f"{section}_{label.replace(' ', '_').lower()}")
     kwargs["key"] = unique_key
 
-    # Show the input widget
+    # Auto-fill value using get_answer()
+    default_value = None
+    if autofill:
+        default_value = get_answer(label, section)
+        if default_value is not None and "value" not in kwargs:
+            kwargs["value"] = default_value
+
+        # 🛡️ Defensive cleanup
+        if input_fn in [st.radio, st.selectbox] and "value" in kwargs:
+            kwargs.pop("value")
+        if input_fn == st.multiselect and "value" in kwargs:
+            kwargs.pop("value")
+
+
     value = input_fn(label, *args, **kwargs)
 
-    # Apply optional preprocessing
     if preprocess_fn:
         try:
             value = preprocess_fn(value)
@@ -79,7 +79,6 @@ def capture_input(
             st.error(f"❌ Error processing input: {e}")
             return None
 
-    # Apply optional validation
     if validate_fn:
         try:
             is_valid = validate_fn(value)
@@ -90,10 +89,8 @@ def capture_input(
             st.error(f"❌ Validation failed: {e}")
             return None
 
-    # Ensure section is initialized
     init_section(section)
 
-    # Store the entry
     entry = {
         "question": label,
         "answer": value,
@@ -108,17 +105,40 @@ def capture_input(
         st.session_state["input_data"] = {}
     st.session_state["input_data"].setdefault(section, []).append(entry)
 
-    # Logging + Autosave
     log_interaction("input", label, value, section)
     autosave_input_data()
 
     return value
 
-def get_answer(question_label, section=None):
+
+def get_answer(question_label: str, section: str = None, *, nested_parent: str = None, nested_child: str = None):
     """
-    Retrieves the most recent answer matching the question_label,
-    optionally scoped to a specific section.
+    Retrieves the most recent answer matching the question_label.
+    
+    Lookup Order:
+    1. If nested_parent and nested_child are given, check nested structure.
+    2. Otherwise, check flat input_data log scoped by section.
+
+    Args:
+        question_label (str): The exact label used during capture_input.
+        section (str): The flat section name in input_data (optional).
+        nested_parent (str): Top-level nested dict key (e.g. "quality_services").
+        nested_child (str): Second-level nested dict key (e.g. "Cleaning").
+    
+    Returns:
+        str | None: The matched answer, or None if not found.
     """
+    # ✅ Check nested dict structure
+    if nested_parent and nested_child:
+        nested_value = (
+            st.session_state.get(nested_parent, {})
+            .get(nested_child, {})
+            .get(question_label)
+        )
+        if nested_value is not None:
+            return nested_value
+
+    # ✅ Fallback to flat legacy input_data
     data = st.session_state.get("input_data", {})
     sections = [section] if section else data.keys()
 

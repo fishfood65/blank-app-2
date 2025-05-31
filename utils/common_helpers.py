@@ -153,141 +153,71 @@ def extract_all_trash_tasks_grouped(valid_dates, utils):
     else:
         return combined_df
 
-def extract_all_security_home_services_tasks_grouped(valid_dates, utils):
-    utils = utils or get_schedule_utils()
-    #st.write("🗑️ [DEBUG] extract_all_trash_tasks_grouped received:", valid_dates)
-    #st.write("🗑️ [DEBUG] input_data:", st.session_state.get("input_data", {}))
+def extract_quality_service_schedule():
+    """
+    Builds a schedule of recurring quality-oriented household services.
+    Returns a list of dicts or a DataFrame for calendar rendering or export.
+    """
+    schedule = []
+    data = st.session_state.get("input_data", {})
+    root = data.get("Quality-Oriented Household Services", {})
 
-    input_data = st.session_state.get("input_data", {})
-    trash_entries = input_data.get("Security & Home Serivces", []) or input_data.get("homesvc_security")
-    #st.write("🧪 trash_entries:", trash_entries) -- for Debug
-    label_map = {entry["question"]: entry["answer"] for entry in trash_entries}
-    #st.write("🧪 trash label_map keys:", list(label_map.keys())) -- for Debug
+    for service, fields in root.items():
+        frequency = fields.get("Frequency")
+        day = fields.get("Day of the Week")
 
-    emoji_tags = utils["emoji_tags"]
-    weekday_to_int = utils["weekday_to_int"]
-    extract_week_interval = utils["extract_week_interval"]
-    extract_weekday_mentions = utils["extract_weekday_mentions"]
-    extract_dates = utils["extract_dates"]
-    normalize_date = utils["normalize_date"]
+        if frequency and day and day != "Not Specified":
+            task = {
+                "Task": f"{service} Service Visit",
+                "Category": "Quality Service",
+                "Source": "convenience_seeker",
+                "Tag": fields.get("Company Name", ""),
+                "Area": "home",
+                "Frequency": frequency,
+                "Day": day,
+                "Notes": fields.get(f"Post-{service} Procedures", ""),
+            }
+            schedule.append(task)
 
-    def add_task_row(date_obj, label, answer, tag):
-        return {
-            "Date": str(date_obj),
-            "Day": date_obj.strftime("%A"),
-            "Task": f"{label} – {answer}",
-            "Tag": tag,
-            "Category": "Security and Home Services",
-            "Area": "home",
-            "Source": "Security and Home Services"
-        }
+    return pd.DataFrame(schedule) if schedule else pd.DataFrame(
+        columns=["Task", "Category", "Source", "Tag", "Area", "Frequency", "Day", "Notes"]
+    )
 
-    def schedule_task(label, answer):
-        rows = []
-        interval = extract_week_interval(answer)
-        weekday_mentions = extract_weekday_mentions(answer)
+def extract_rent_own_service_schedule():
+    """
+    Builds a schedule of recurring quality-oriented household services.
+    Returns a list of dicts or a DataFrame for calendar rendering or export.
+    """
+    schedule = []
+    data = st.session_state.get("input_data", {})
+    root = data.get("Rent or Own", {})
 
-        task_already_scheduled = False
+    for service, fields in root.items():
+        frequency = fields.get("Frequency")
+        day = fields.get("Day of the Week")
 
-        for ds in extract_dates(answer):
-            parsed_date = normalize_date(ds)
-            if parsed_date and parsed_date in valid_dates:
-                rows.append(add_task_row(parsed_date, label, answer, emoji_tags["[One-Time]"]))
-                task_already_scheduled = True
+        if frequency and day and day != "Not Specified":
+            task = {
+                "Task": f"{service} Service Visit",
+                "Category": "Quality Service",
+                "Source": "convenience_seeker",
+                "Tag": fields.get("Company Name", ""),
+                "Area": "home",
+                "Frequency": frequency,
+                "Day": day,
+                "Notes": fields.get(f"Post-{service} Procedures", ""),
+            }
+            schedule.append(task)
 
-        if interval:
-            base_date = valid_dates[0]
-            for d in valid_dates:
-                if (d - base_date).days % (interval * 7) == 0:
-                    rows.append(add_task_row(d, label, answer, f"↔️ Every {interval} Weeks"))
-                    task_already_scheduled = True
+    return pd.DataFrame(schedule) if schedule else pd.DataFrame(
+        columns=["Task", "Category", "Source", "Tag", "Area", "Frequency", "Day", "Notes"]
+    )
+def get_pool_schedule():
+    selected_months = st.session_state.get("pool_seasonal_months", [])
+    if not selected_months:
+        return "No pool maintenance schedule defined."
 
-        if weekday_mentions and not interval:
-            for wd in weekday_mentions:
-                weekday_idx = weekday_to_int.get(wd)
-                for d in valid_dates:
-                    if d.weekday() == weekday_idx:
-                        rows.append(add_task_row(d, label, answer, emoji_tags["[Weekly]"]))
-                        task_already_scheduled = True
-
-        if "monthly" in answer.lower():
-            current_date = pd.to_datetime(valid_dates[0])
-            while current_date.date() <= valid_dates[-1]:
-                if current_date.date() in valid_dates:
-                    rows.append(add_task_row(current_date.date(), label, answer, emoji_tags["[Monthly]"]))
-                    task_already_scheduled = True
-                current_date += pd.DateOffset(months=1)
-
-        if not task_already_scheduled and not weekday_mentions and not extract_dates(answer):
-            for d in valid_dates:
-                rows.append(add_task_row(d, label, answer, emoji_tags["[Daily]"]))
-        return rows
-
-    security_task_labels = [
-        "Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags",
-        "Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags",
-        "Other Room Trash Bin Emptying Schedule and Replacement Trash Bags",
-        "Recycling Trash Bin Location and Emptying Schedule (if available) and Sorting Instructions"
-    ]
-
-    security_task_labels_rows = []
-    for label in security_task_labels:
-        answer = str(label_map.get(label, "")).strip()
-        if answer:
-            security_task_labels_rows.extend(schedule_task(label, answer))
-
-    convenience_seeker_rows = []
-
-    # Home Services combined scheduling
-    home_services_related_labels = {
-        "Garbage Pickup Day": [
-            "Instructions for Placing and Returning Outdoor Bins",
-            "What the Outdoor Trash Bins Look Like",
-            "Specific Location or Instructions for Outdoor Bins"
-        ],
-        "Recycling Pickup Day": [
-            "Instructions for Placing and Returning Outdoor Bins",
-            "What the Outdoor Trash Bins Look Like",
-            "Specific Location or Instructions for Outdoor Bins"
-        ]
-    }
-
-    garbage_day = label_map.get("Garbage Pickup Day", "").strip()
-    recycling_day = label_map.get("Recycling Pickup Day", "").strip()
-
-    weekday_mentions_garbage = extract_weekday_mentions(garbage_day)
-    weekday_mentions_recycling = extract_weekday_mentions(recycling_day)
-
-    shared_days = set(weekday_mentions_garbage).intersection(weekday_mentions_recycling)
-    scheduled_days = set()
-
-    for pickup_type, anchor_labels in pickup_related_labels.items():
-        pickup_day = label_map.get(pickup_type, "").strip()
-        weekday_mentions = extract_weekday_mentions(pickup_day)
-
-        for wd in weekday_mentions:
-            weekday_idx = weekday_to_int.get(wd)
-            for date in valid_dates:
-                if date.weekday() == weekday_idx and wd not in scheduled_days:
-                    tag = "♻️ Shared Pickup Instructions" if wd in shared_days else emoji_tags["[Weekly]"]
-                    for anchor_label in anchor_labels:
-                        answer = label_map.get(anchor_label, "").strip()
-                        if answer:
-                            outdoor_rows.append(add_task_row(
-                                date, f"{pickup_type} - {anchor_label}", answer, tag
-                            ))
-                    scheduled_days.add(wd)
-
-    for pickup_label in ["Garbage Pickup Day", "Recycling Pickup Day"]:
-        answer = str(label_map.get(pickup_label, "")).strip()
-        if answer:
-            outdoor_rows.extend(schedule_task(pickup_label, answer))
-
-    combined_df = pd.DataFrame(indoor_rows + outdoor_rows)
-    if not combined_df.empty:
-        return combined_df.sort_values(by=["Date", "Day", "Category", "Tag", "Task"]).reset_index(drop=True)
-    else:
-        return combined_df
+    return "\n".join(f"- Pool Maintenance: Scheduled in **{month}**" for month in selected_months)
 
 def extract_grouped_mail_task(valid_dates):
     utils = get_schedule_utils()

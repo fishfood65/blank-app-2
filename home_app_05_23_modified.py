@@ -182,7 +182,7 @@ def main():
     elif section == "mail_trash_handling":
         st.subheader("📬 Level 3 Mail & Trash Handling")
         mail_trash_handling()
-    elif section == "homesvc_security":
+    elif section == "home_security":
         st.subheader("🏡 Level 4 Home Services")
         security_convenience_ownership()
 
@@ -733,16 +733,7 @@ def mail_trash_handling():
 ##### Level 4 - Home Security and Services
 
 def home_security():
-    # 🔪 Optional: Reset controls for testing
-    if st.checkbox("🔪 Reset Security and Home Services Session State"):
-        for key in ["generated_prompt", "runbook_buffer", "runbook_text", "user_confirmation"]:
-            st.session_state.pop(key, None)
-        st.success("🔄 Level 4 session state reset.")
-        st.stop()  # 🔁 prevent rest of UI from running this frame
-
-    section = st.session_state.get("section", "home")
-    switch_section("homesvc_security")
-
+    section = "Home Security"
     st.write("💝 Security-Conscious")
     render_lock_toggle(session_key="home_security_locked", label="Home Security Info")
     disabled = st.session_state.get("home_security_locked", False)
@@ -779,31 +770,37 @@ def convenience_seeker():
         )
 
         for service in selected_services:
+            nested_section = f"{section}.{service}"
             st.subheader(f"🔧 {service} Service Info")
-            capture_input(f"{service} Company Name", st.text_input, section, disabled=disabled)
-            capture_input(f"{service} Company Phone Number", st.text_input, section, disabled=disabled)
+
+            capture_input(f"Company Name", st.text_input, section=nested_section, disabled=disabled)
+            capture_input(f"Company Phone Number", st.text_input, section=nested_section, disabled=disabled)
+
+            capture_input(f"Access Method", st.text_input, section=nested_section, disabled=disabled)
+            capture_input(f"Post-Service Procedures", st.text_area, section=nested_section, disabled=disabled)
+            capture_input(f"Crew Identity Verification", st.text_area, section=nested_section, disabled=disabled)
 
             if service in ["Cleaning", "Gardening/Landscape", "Pool Maintenance"]:
-                capture_input(f"{service} Frequency", st.selectbox, section,
-                              options=["Monthly", "Bi-Weekly", "Weekly"], disabled=disabled)
-                capture_input(f"{service} Day of the Week", st.selectbox, section,
-                              options=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "Not Specified"], disabled=disabled)
-
-            capture_input(f"Access Method for {service}", st.text_input, section, disabled=disabled)
-            capture_input(f"Post-{service} Procedures", st.text_area, section, disabled=disabled)
-            capture_input(f"{service} Crew Identity Verification", st.text_area, section, disabled=disabled)
+                capture_input(
+                    "Frequency", st.selectbox, section=nested_section,
+                    options=["Monthly", "Bi-Weekly", "Weekly"], disabled=disabled
+                )
+                capture_input(
+                    "Day of the Week", st.selectbox, section=nested_section,
+                    options=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "Not Specified"],
+                    disabled=disabled
+                )
 
         if "Pool Maintenance" in selected_services:
             months = ["January", "February", "March", "April", "May", "June",
                       "July", "August", "September", "October", "November", "December"]
             selected_months = st.multiselect("Seasonal Months:", options=months, default=[], key="pool_seasonal_months")
-            st.session_state["pool_seasonal_months"] = selected_months
-
 
 def rent_own():
     section = "Rent or Own"
     st.write("🏠 Home Ownership Status")
 
+    # Capture housing status via radio (wrap in lambda for compatibility)
     housing_status = st.radio(
         "Do you rent or own your home?",
         options=["Rent", "Own"],
@@ -814,10 +811,11 @@ def rent_own():
 
     if housing_status == "Rent":
         st.subheader("🏢 Property Management Info")
-        capture_input("Company Name", st.text_input, section, disabled=False)
-        capture_input("Company Phone Number", st.text_input, section, disabled=False)
-        capture_input("Company Email", st.text_input, section, disabled=False)
-        capture_input("When to Contact", st.text_area, section, disabled=False)
+        rent_section = f"{section}.Property Management"
+        capture_input("Company Name", st.text_input, section=rent_section)
+        capture_input("Company Phone Number", st.text_input, section=rent_section)
+        capture_input("Company Email", st.text_input, section=rent_section)
+        capture_input("When to Contact", st.text_area, section=rent_section)
 
     elif housing_status == "Own":
         st.subheader("🧰 Homeowner Contacts")
@@ -830,31 +828,46 @@ def rent_own():
         )
 
         for role in selected_services:
+            role_section = f"{section}.{role}"
             st.subheader(f"🔧 {role}")
-            capture_input(f"{role} Name", st.text_input, section, disabled=False)
-            capture_input(f"{role} Phone Number", st.text_input, section, disabled=False)
-            capture_input(f"When to Contact {role}?", st.text_area, section, disabled=False)
+            capture_input("Name", st.text_input, section=role_section)
+            capture_input("Phone Number", st.text_input, section=role_section)
+            capture_input("When to Contact", st.text_area, section=role_section)
 
         if "HOA" in selected_services:
             st.subheader("🏘️ HOA / Property Management")
-            capture_input("Company Name (HOA)", st.text_input, section, disabled=False)
-            capture_input("Phone Number (HOA)", st.text_input, section, disabled=False)
-            capture_input("Email (HOA)", st.text_input, section, disabled=False)
-            capture_input("When to Contact (HOA)", st.text_area, section, disabled=False)
-
+            hoa_section = f"{section}.HOA"
+            capture_input("Company Name", st.text_input, section=hoa_section)
+            capture_input("Phone Number", st.text_input, section=hoa_section)
+            capture_input("Email", st.text_input, section=hoa_section)
+            capture_input("When to Contact", st.text_area, section=hoa_section)
 
 def security_convenience_ownership():
+    # 🔪 Optional: Reset controls for testing
+    if st.checkbox("🔪 Reset Security and Home Services Session State"):
+        for key in ["generated_prompt", "runbook_buffer", "runbook_text", "user_confirmation"]:
+            st.session_state.pop(key, None)
+        st.success("🔄 Level 4 session state reset.")
+        st.stop()  # 🔁 prevent rest of UI from running this frame
+
     section = st.session_state.get("section", "home")
+    switch_section("home_security")
 
     st.subheader("Level 4: Home Security, Privacy, Quality-Orientation, and Support")
 
-    switch_section("home_security")
-
     # Step 1: User Input
+    st.write("🗑️ [DEBUG] input_data:", st.session_state.get("input_data", {}))
     home_security()
     convenience_seeker()
     rent_own()
+    security_home_services_runbook()
 
+def security_home_services_runbook():
+    if st.session_state.get("enable_debug_mode"):
+        debug_saved_schedule_dfs()
+    
+    section = st.session_state.get("section", "home")
+    
     # Step 1: Let user select the date range
     choice, start_date, end_date, valid_dates = select_runbook_date_range()
 
@@ -950,34 +963,45 @@ def security_convenience_ownership():
         
         mail_flat_schedule_md = generate_flat_home_schedule_markdown(mail_df)
         st.session_state["mail_schedule_markdown"] = mail_flat_schedule_md
-    
-    # Step 7: Confirm and maybe generate prompt
-    st.subheader("👍 Review and Approve")
 
-    # Set and track confirmation state
-    confirm_key = f"confirm_ai_prompt_{section}"
-    user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
-    st.session_state[f"{section}_user_confirmation"] = user_confirmation
 
-    # Generate prompts if confirmed
-    if user_confirmation:
-        combined_prompt, prompt_blocks = maybe_generate_prompt(section=section)
+        # 🧪 Preview what’s going into the prompt -- Debug
+        #st.markdown("### 🧪 Flat Schedule Markdown Preview")
+        # st.code(flat_schedule_md, language="markdown")
 
-        if st.session_state.get("enable_debug_mode"):
-            st.markdown("### 🧾 Prompt Preview")
-            st.code(combined_prompt or "", language="markdown")
+        #st.write(f"🧪 show what is saved in 'grouped_mail_task': {mail_task}")
+        #st.write(f"🧪 show what is saved in 'grouped_trash_schedule': {trash_df}")
+        #st.write(f"🧪 show what is saved in 'combined_home_schedule_df': {combined_schedule_df}")
+        #st.write(f"🧪 show what is saved in 'home_schedule_markdown': {flat_schedule_md}")
 
-    # Step 8: Prompt preview + runbook
-    missing = check_missing_utility_inputs()
-    render_prompt_preview(missing, section=section)
 
-    # Step 9: Optionally generate runbook if inputs are valid and confirmed
-    st.subheader("🎉 Reward")
-    if not missing and st.session_state.get("generated_prompt"):
-        maybe_generate_runbook(section=section)
-        # Level 3 Complete - for Progress
-    st.session_state["level_progress"]["mail_trash_handling"] = True
-   
+        # Step 7: Confirm and maybe generate prompt
+        st.subheader("👍 Review and Approve")
+
+        # Set and track confirmation state
+        confirm_key = f"confirm_ai_prompt_{section}"
+        user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
+        st.session_state[f"{section}_user_confirmation"] = user_confirmation
+
+        # Generate prompts if confirmed
+        if user_confirmation:
+            combined_prompt, prompt_blocks = maybe_generate_prompt(section=section)
+
+            if st.session_state.get("enable_debug_mode"):
+                st.markdown("### 🧾 Prompt Preview")
+                st.code(combined_prompt or "", language="markdown")
+
+        # Step 8: Prompt preview + runbook
+        missing = check_missing_utility_inputs()
+        render_prompt_preview(missing, section=section)
+
+        # Step 9: Optionally generate runbook if inputs are valid and confirmed
+        st.subheader("🎉 Reward")
+        if not missing and st.session_state.get("generated_prompt"):
+            maybe_generate_runbook(section=section)
+            # Level 3 Complete - for Progress
+            st.session_state["level_progress"]["mail_trash_handling"] = True
+
 ##### Level 5 - Emergency Kit Critical Documents
 
 def emergency_kit_critical_documents():
