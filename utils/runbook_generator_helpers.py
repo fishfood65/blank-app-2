@@ -1,7 +1,7 @@
 import streamlit as st
 from mistralai import Mistral, UserMessage, SystemMessage
 import csv
-from io import BytesIO
+from io import BytesIO, StringIO
 import io
 from datetime import datetime, timedelta
 from docx import Document
@@ -74,6 +74,40 @@ def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
                 row_cells[1].text = ""
 
         doc.add_paragraph("")  # spacing between tables
+
+def add_table_from_schedule_to_markdown(schedule_df: pd.DataFrame) -> str:
+    """
+    Converts a schedule DataFrame into a grouped markdown table by date.
+    Each date section includes a table of tasks and optional image placeholders.
+
+    Args:
+        schedule_df (pd.DataFrame): The structured schedule with at least 'Date' and 'Task' columns.
+
+    Returns:
+        str: A markdown-formatted string of the grouped schedule.
+    """
+    if schedule_df.empty:
+        return "_No schedule data available._"
+
+    # Convert and sort
+    schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
+    schedule_df = schedule_df.sort_values(by=["Date", "Source", "Tag", "Task"])
+    schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
+    schedule_df["DateStr"] = schedule_df["Date"].dt.strftime("%Y-%m-%d")
+
+    output = StringIO()
+    for date, group in schedule_df.groupby("Date"):
+        day_str = date.strftime("%A, %Y-%m-%d")
+        output.write(f"### 📅 {day_str}\n\n")
+        output.write("| Task | Image |\n")
+        output.write("|------|-------|\n")
+        for _, row in group.iterrows():
+            task = row["Task"]
+            # Image column remains blank or placeholder
+            output.write(f"| {task} |  |\n")
+        output.write("\n")
+
+    return output.getvalue()
 
 def generate_docx_from_split_prompts(
     prompts: List[str],
