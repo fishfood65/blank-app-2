@@ -17,6 +17,7 @@ import tempfile
 from .common_helpers import get_schedule_placeholder_mapping
 from .prompt_block_utils import generate_all_prompt_blocks
 from task_schedule_utils_updated import export_schedule_to_markdown
+import base64
 
 def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
     if schedule_df.empty:
@@ -77,37 +78,49 @@ def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
 
 def add_table_from_schedule_to_markdown(schedule_df: pd.DataFrame) -> str:
     """
-    Converts a schedule DataFrame into a grouped markdown table by date.
-    Each date section includes a table of tasks and optional image placeholders.
-
-    Args:
-        schedule_df (pd.DataFrame): The structured schedule with at least 'Date' and 'Task' columns.
-
-    Returns:
-        str: A markdown-formatted string of the grouped schedule.
+    Convert a schedule DataFrame into grouped markdown tables by date,
+    with image placeholders or markdown image links if available.
     """
     if schedule_df.empty:
         return "_No schedule data available._"
 
-    # Convert and sort
+    # Sort and format dates
     schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
     schedule_df = schedule_df.sort_values(by=["Date", "Source", "Tag", "Task"])
     schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
     schedule_df["DateStr"] = schedule_df["Date"].dt.strftime("%Y-%m-%d")
 
-    output = StringIO()
-    for date, group in schedule_df.groupby("Date"):
+    output_md = []
+
+    grouped = schedule_df.groupby("Date")
+
+    for date, group in grouped:
         day_str = date.strftime("%A, %Y-%m-%d")
-        output.write(f"### 📅 {day_str}\n\n")
-        output.write("| Task | Image |\n")
-        output.write("|------|-------|\n")
+        output_md.append(f"### 📅 {day_str}\n")
+        output_md.append("| Task | Image |\n|------|-------|")
+
         for _, row in group.iterrows():
             task = row["Task"]
-            # Image column remains blank or placeholder
-            output.write(f"| {task} |  |\n")
-        output.write("\n")
+            image_markdown = ""
 
-    return output.getvalue()
+            # Match on known labels for trash/recycling uploaded image placeholders
+            for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
+                if label.lower().replace(" image", "") in task.lower():
+                    uploaded = st.session_state.get("trash_images", {}).get(label)
+                    if uploaded:
+                        # Encode image to base64
+                        image_bytes = uploaded.getvalue() if hasattr(uploaded, 'getvalue') else uploaded.read()
+                        base64_img = base64.b64encode(image_bytes).decode("utf-8")
+                        mime = "image/png"  # Could inspect MIME if needed
+                        image_markdown = f"![{label}](data:{mime};base64,{base64_img})"
+                    break
+
+            output_md.append(f"| {task} | {image_markdown} |")
+
+        output_md.append("")  # spacing
+
+    return "\n".join(output_md)
+
 
 def generate_docx_from_split_prompts(
     prompts: List[str],
@@ -423,15 +436,15 @@ def preview_runbook_output(runbook_text: str, label: str = "📖 Preview Runbook
         st.warning("⚠️ No runbook content available to preview.")
         return
 
-    schedule_df = st.session_state.get("combined_home_schedule_df")
-    if isinstance(schedule_df, pd.DataFrame):
-        markdown_schedule = add_table_from_schedule_to_markdown(schedule_df)
-        runbook_text = runbook_text.replace("<<INSERT_SCHEDULE_TABLE>>", markdown_schedule)
-   
     if st.button(label):
+        # Optionally add schedule preview
+        schedule_df = st.session_state.get("combined_home_schedule_df")
+        if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
+            schedule_md = add_table_from_schedule_to_markdown(schedule_df)
+            runbook_text = runbook_text.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
+
         with st.expander("🧠 AI-Generated Runbook Preview", expanded=True):
-            # Main LLM output
-            st.markdown(runbook_text)
+            st.markdown(runbook_text, unsafe_allow_html=True)
 
 def render_prompt_preview(missing: list, section: str = "home"):
     confirmed = st.session_state.get(f"{section}_user_confirmation", False)
