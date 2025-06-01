@@ -68,12 +68,14 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
         blocks.append(build_prompt_block("Utilities and Emergency Services", utilities_emergency_runbook_prompt()))
     
     elif section == "mail_trash_handling":
-        blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
+        blocks.append(build_prompt_block("Utilities and Emergency Services", utilities_emergency_runbook_prompt()))
+        #blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
         blocks.append(build_prompt_block("Mail Instructions", mail_runbook_prompt()))
         blocks.append(build_prompt_block("Trash Instructions", trash_runbook_prompt()))
     
     elif section == "home_security":
-        blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
+        blocks.append(build_prompt_block("Utilities and Emergency Services", utilities_emergency_runbook_prompt()))
+        #blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
         blocks.append(build_prompt_block("Mail Instructions", mail_runbook_prompt()))
         blocks.append(build_prompt_block("Trash Instructions", trash_runbook_prompt()))
         blocks.append(build_prompt_block("Home Services Instructions", home_services_runbook_prompt()))
