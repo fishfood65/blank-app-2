@@ -16,6 +16,7 @@ from typing import List, Tuple, Optional
 import tempfile
 from .common_helpers import get_schedule_placeholder_mapping
 from .prompt_block_utils import generate_all_prompt_blocks
+from task_schedule_utils_updated import export_schedule_to_markdown
 
 def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
     if schedule_df.empty:
@@ -376,13 +377,31 @@ def preview_runbook_output(runbook_text: str, label: str = "📖 Preview Runbook
         runbook_text (str): The raw LLM-generated markdown-style text.
         label (str): Button label to trigger the preview.
     """
+    # use the following code with home_app_05_23_modified.py
+    #if not runbook_text:
+    #    st.warning("⚠️ No runbook content available to preview.")
+    #    return
+
+    #if st.button(label):
+    #    with st.expander("🧠 AI-Generated Runbook Preview", expanded=True):
+    #        st.markdown(runbook_text)
     if not runbook_text:
         st.warning("⚠️ No runbook content available to preview.")
         return
 
     if st.button(label):
         with st.expander("🧠 AI-Generated Runbook Preview", expanded=True):
+            # Main LLM output
             st.markdown(runbook_text)
+
+            # Optional Schedule Table Preview
+            schedule_df = st.session_state.get("combined_home_schedule_df")
+            if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
+                st.markdown("### 📆 Schedule Summary")
+                schedule_md = export_schedule_to_markdown(schedule_df)
+                st.markdown(schedule_md)
+            else:
+                st.info("ℹ️ No schedule available to display.")
 
 def render_prompt_preview(missing: list, section: str = "home"):
     confirmed = st.session_state.get(f"{section}_user_confirmation", False)
