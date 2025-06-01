@@ -423,19 +423,15 @@ def preview_runbook_output(runbook_text: str, label: str = "📖 Preview Runbook
         st.warning("⚠️ No runbook content available to preview.")
         return
 
+    schedule_df = st.session_state.get("combined_home_schedule_df")
+    if isinstance(schedule_df, pd.DataFrame):
+        markdown_schedule = add_table_from_schedule_to_markdown(schedule_df)
+        runbook_text = runbook_text.replace("<<INSERT_SCHEDULE_TABLE>>", markdown_schedule)
+   
     if st.button(label):
         with st.expander("🧠 AI-Generated Runbook Preview", expanded=True):
             # Main LLM output
             st.markdown(runbook_text)
-
-            # Optional Schedule Table Preview
-            schedule_df = st.session_state.get("combined_home_schedule_df")
-            if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
-                st.markdown("### 📆 Schedule Summary")
-                schedule_md = export_schedule_to_markdown(schedule_df)
-                st.markdown(schedule_md)
-            else:
-                st.info("ℹ️ No schedule available to display.")
 
 def render_prompt_preview(missing: list, section: str = "home"):
     confirmed = st.session_state.get(f"{section}_user_confirmation", False)
