@@ -200,7 +200,7 @@ def mail_runbook_prompt(debug: bool = False) -> str:
         safe_line("Mailbox key location", mail_info.get("🔑 Mailbox Key (Optional)")),
         safe_line("Mail pick-up schedule", mail_info.get("📆 Mail Pick-Up Schedule")),
         safe_line("After mail pickup, what to do with it", mail_info.get("📥 What to Do with the Mail")),
-        safe_line("Where to pick up and store medium or large packages", mail_info.get("📦 Packages")),
+        safe_line("Where to pick up and store all packages", mail_info.get("📦 Packages")),
     ]))
 
     raw = mail_prompt_template(mail_block)
@@ -208,7 +208,7 @@ def mail_runbook_prompt(debug: bool = False) -> str:
     return wrap_prompt_block(
         content=raw,
         title="📬 Mail Handling Instructions",
-        instructions="Use the provided instructions for where, when, and how to collect and store mail and packages.",
+        instructions="Use the provided instructions for where, when, and how to collect and store mail and packages. DO NOT invent details, add advice, or insert a schedule table. Leave all placeholders untouched",
         debug=debug
     )
 
@@ -275,8 +275,6 @@ def trash_runbook_prompt(debug: bool = False) -> list[str]:
     raw = trash_prompt_template(
         indoor_block=indoor_block,
         outdoor_block=outdoor_block,
-        collection_block="",  # collected above already
-        composting_block="",  # handled by indoor
         common_disposal_block=common_block,
         wm_block=wm_block,
     )

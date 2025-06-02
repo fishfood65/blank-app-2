@@ -214,7 +214,7 @@ def mail_prompt_template(mail_block: str) -> str:
     return [
         f"""
 
-You are an expert assistant describing instructions for handling mail and packages.
+You are a formatting assistant. Reformat the bullet points into readable markdown only. Do not add or infer anything.
 
 ## 📬 Mail Handling Instructions
 

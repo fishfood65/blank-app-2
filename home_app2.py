@@ -654,11 +654,11 @@ def trash_handling(section="trash_handling"):
 
     # ─── Outdoor Trash Disposal ────────────────────────────────
     with st.expander("Outdoor Trash Disposal Details", expanded=True):
-        register_task_input("How often and when is Outdoor Garbage and Recycling Collected?", st.text_area, section, is_freq=True, disabled=disabled, placeholder="E.g., 'Trash and garbage is collected weekly on Tuesdays.'",
+        register_task_input("How often and when is Outdoor Garbage and Recycling Collected?", st.text_area, task_type="Outdoor Trash", section=section, is_freq=True, disabled=disabled, placeholder="E.g., 'Trash and garbage is collected weekly on Tuesdays.'",
                             metadata={"task_type": "Outdoor Trash", "task_label": "Outdoor Trash Bins"})
-        register_task_input("What the Outdoor Trash Bins Look Like", st.text_area, section, disabled=disabled, placeholder="E.g., 'Black bin with green lid is for compost.  Black bin with black lid is for garbage.  Grey bin with blue lid is for plastic and glass container recycling. Grey bin with yellow lid is for paper recycling.'",
+        register_task_input("What the Outdoor Trash Bins Look Like", st.text_area, task_type="Outdoor Trash", section=section, disabled=disabled, placeholder="E.g., 'Black bin with green lid is for compost.  Black bin with black lid is for garbage.  Grey bin with blue lid is for plastic and glass container recycling. Grey bin with yellow lid is for paper recycling.'",
                             metadata={"task_type": "Outdoor Trash", "task_label": "Outdoor Trash Bins"})
-        register_task_input("Specific Location or Instructions for Emptying Outdoor Bins", st.text_area, section, disabled=disabled, placeholder="E.g., 'Bins are kept in the garage when it's not garbage day.  Please wheel out all the bins from the garage to the end of the driveway on Monday night before Garbage day.  Tuesday night please pick up the bins from the driveway and return them to the garage.'",
+        register_task_input("Specific Location or Instructions for Emptying Outdoor Bins", st.text_area, task_type="Outdoor Trash", section=section, disabled=disabled, placeholder="E.g., 'Bins are kept in the garage when it's not garbage day.  Please wheel out all the bins from the garage to the end of the driveway on Monday night before Garbage day.  Tuesday night please pick up the bins from the driveway and return them to the garage.'",
                             metadata={"task_type": "Outdoor Trash", "task_label": "Outdoor Trash Bins"})
 
         def handle_image(label, display_name):
@@ -687,20 +687,20 @@ def trash_handling(section="trash_handling"):
 
     # ─── Common Disposal Area ─────────────────────────────────
     with st.expander("Common Disposal Area (if applicable)", expanded=True):
-        uses_common_disposal = register_task_input("Is there a common disposal area?", st.checkbox, section, disabled=disabled,
+        uses_common_disposal = register_task_input("Is there a common disposal area?", st.checkbox, task_type="Outdoor Trash", section=section, disabled=disabled,
                                                    metadata={"task_type": "boolean", "task_label": "Common Area?"})
         if uses_common_disposal and not disabled:
-            register_task_input("Instructions for Common Disposal Area", st.text_area, section, disabled=disabled,
+            register_task_input("Instructions for Common Disposal Area", st.text_area, task_type="Outdoor Trash", section=section, disabled=disabled,
                                 metadata={"task_type": "instruction", "task_label": "Use Common Area"})
             handle_image("Common Area", "Common Disposal Area")
 
     # ─── Waste Management Contact ─────────────────────────────
     with st.expander("Waste Management Contact Info", expanded=True):
-        register_task_input("Waste Management Company Name", st.text_input, section, disabled=disabled,
+        register_task_input("Waste Management Company Name", st.text_input, task_type="Outdoor Trash", section=section, disabled=disabled,
                             metadata={"task_type": "contact", "task_label": "Waste Management Co"})
-        register_task_input("Contact Phone Number", st.text_input, section, disabled=disabled,
+        register_task_input("Contact Phone Number", st.text_input, task_type="Outdoor Trash", section=section, disabled=disabled,
                             metadata={"task_type": "contact"})
-        register_task_input("When to Contact", st.text_area, section, disabled=disabled,
+        register_task_input("When to Contact", st.text_area, task_type="Outdoor Trash", section=section, disabled=disabled,
                             metadata={"task_type": "contact"})
 
     # ─── Display Images ───────────────────────────────────────
