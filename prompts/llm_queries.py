@@ -354,98 +354,79 @@ You are an expert assistant describing outdoor trash and bin logistics.
 
 #### Security and Services Prompt ####
 
-def home_caretaker_runbook_prompt():
-    csi = st.session_state.get("convenience_seeker_info", {})
-    roi = st.session_state.get("rent_own_info", {})
-    hsi = st.session_state.get("home_security_info", {})
+def home_caretaker_runbook_prompt() -> str:
+    """Builds the LLM prompt for the caretaker runbook using dynamic field fetching."""
+    
+    def val(label, section):
+        return get_answer(label, section) or "⚠️ Not provided"
+        
+    blocks = []
 
+    # ── Home Security ──
+    sec = "Home Security"
+    blocks.append(generate_section_block("🔐 Home Security & Technology", [
+        ("Security Company Name", val("Security Company Name", sec)),
+        ("Security Company Number", val("Security Company Phone Number", sec)),
+        ("Arming/Disarming Instructions", val("Instructions to arm/disarm system", sec)),
+        ("If Alert is Triggered", val("Steps if a security alert is triggered", sec)),
+        ("Indoor Camera Notes", val("Indoor cameras/monitoring details and activation", sec)),
+        ("Emergency Access Instructions", val("Emergency access instructions & storage location", sec)),
+        ("Wi-Fi Info Location", val("Where is Wi-Fi network name/password stored?", sec)),
+        ("Guest Wi-Fi Access", val("Guest network details & password sharing method", sec)),
+        ("Landline/VOIP Notes", val("Home phone setup & call-handling instructions", sec)),
+    ]))
+
+    # ── Quality-Oriented Services ──
+    for service in ["Cleaning", "Gardening/Landscape", "Pool Maintenance"]:
+        sec = f"Quality-Oriented Household Services.{service}"
+        blocks.append(generate_section_block(f"{service} Service Instructions", [
+            ("Company Name", val("Company Name", sec)),
+            ("Phone Number", val("Company Phone Number", sec)),
+            ("Schedule", f"{val('Frequency', sec)} on {val('Day of the Week', sec)}"),
+            ("Access Method", val("Access Method", sec)),
+            ("Post-Service Procedures", val("Post-Service Procedures", sec)),
+            ("Crew Identity Verification", val("Crew Identity Verification", sec)),
+        ]))
+
+    # ── Property Management ──
+    sec = "Rent or Own.Property Management"
+    blocks.append(generate_section_block("🏢 Property Management (Renters or HOA)", [
+        ("Company Name", val("Company Name", sec)),
+        ("Phone Number", val("Company Phone Number", sec)),
+        ("Email", val("Company Email", sec)),
+        ("When to Contact", val("When to Contact", sec)),
+    ]))
+
+    # ── Homeowner Contacts ──
+    for role in ["Handyman", "Electrician", "Exterminator", "Plumber"]:
+        sec = f"Rent or Own.{role}"
+        blocks.append(generate_section_block(f"🛠️ {role} Contact", [
+            ("Name", val("Name", sec)),
+            ("Phone", val("Phone Number", sec)),
+            ("When to Contact", val("When to Contact", sec)),
+        ]))
+
+    # ── HOA ──
+    sec = "Rent or Own.HOA"
+    blocks.append(generate_section_block("🏘️ HOA / Property Management", [
+        ("Company Name", val("Company Name", sec)),
+        ("Phone Number", val("Phone Number", sec)),
+        ("Email", val("Email", sec)),
+        ("When to Contact", val("When to Contact", sec)),
+    ]))
+
+    all_blocks = "\n".join([block for block in blocks if block.strip()])
+    
     return f"""
-You are a helpful assistant tasked with generating a professional, detailed, and easy-to-follow Home Caretaker & Guest Runbook. The goal is to ensure a smooth experience for caretakers or guests while the home occupants are away. 
+You are a helpful assistant tasked with generating a professional, detailed, and easy-to-follow Home Caretaker & Guest Runbook. The goal is to ensure a smooth experience for caretakers or guests while the home occupants are away.
 
-Please use the following information provided by the homeowner to write a clear and structured guide:
-Please omit any headings that return "Not provided" for all the values below it.
-Please omit any sub-headings that return "Not provided" for all the values below it.
-Please omit any lines that return "Not provided" or "N/A".
-Please omit any sub-headings that return "Not provided" or "N/A" for all the values below it.
-Please don't add a title to the runbook.
+Please omit any sections or bullet points where the value is "⚠️ Not provided". Do not invent or assume any missing information.
+
+Please do not include a title. Start directly with the structured guide below.
 
 ### 📕 Security and Services Guide
 
-#### 🔐 Home Security & Technology
-- Security Company Name: {hsi.get("home_security_comp_name", "Not provided")}
-- Security Company Number: {hsi.get("home_security_comp_num", "Not provided")}
-- Arming/Disarming Instructions: {hsi.get("arm_disarm_instructions", "Not provided")}
-- If Alert is Triggered: {hsi.get("security_alert_steps", "Not provided")}
-- Indoor Camera Notes: {hsi.get("indoor_cameras", "Not provided")}
-- Emergency Access Instructions: {hsi.get("access_emergency", "Not provided")}
-- Wi-Fi Info Location: {hsi.get("wifi_network_name", "Not provided")}
-- Guest Wi-Fi Access: {hsi.get("wifi_guests", "Not provided")}
-- Landline/VOIP Notes: {hsi.get("landline_voip", "Not provided")}
-
----
-
-#### 🧹 Cleaning Service Instructions
-- Company Name: {csi.get("cleaning_name", "Not provided")}
-- Phone Number: {csi.get("cleaning_number", "Not provided")}
-- Schedule: {csi.get("cleaning_schedule", "Not provided")}
-- Access Method: {csi.get("cleaning_access", "Not provided")}
-- Post-Cleaning Procedures: {csi.get("cleaning_finish_steps", "Not provided")}
-- Crew Identity Verification: {csi.get("cleaning_identity_confirmation", "Not provided")}
-
----
-
-#### 🌿 Gardening & Landscape Service Instructions
-- Company Name: {csi.get("gardening_name", "Not provided")}
-- Phone Number: {csi.get("gardening_number", "Not provided")}
-- Schedule: {csi.get("gardening_schedule", "Not provided")}
-- Access Method: {csi.get("gardening_access", "Not provided")}
-- Post-Service Procedures: {csi.get("gardening_finish_steps", "Not provided")}
-- Crew Identity Verification: {csi.get("gardening_identity_confirmation", "Not provided")}
-
----
-
-#### 🏊 Pool Maintenance Instructions
-- Company Name: {csi.get("pool_name", "Not provided")}
-- Phone Number: {csi.get("pool_number", "Not provided")}
-- Schedule: {csi.get("pool_schedule", "Not provided")}
-- Access Method: {csi.get("pool_access", "Not provided")}
-- Post-Service Procedures: {csi.get("pool_finish_steps", "Not provided")}
-- Crew Identity Verification: {csi.get("pool_identity_confirmation", "Not provided")}
-
----
-
-#### 🏢 Property Management (Renters or HOA)
-- Company Name: {roi.get("property_management_name", "Not provided")}
-- Phone Number: {roi.get("property_management_number", "Not provided")}
-- Email: {roi.get("property_management_email", "Not provided")}
-- When to Contact: {roi.get("property_management_description", "Not provided")}
-
----
-
-#### 🛠️ Service Contacts (For Homeowners)
-**Handyman**
-- Name: {roi.get("handyman_name", "N/A")}
-- Phone: {roi.get("handyman_number", "N/A")}
-- When to Contact: {roi.get("handyman_description", "N/A")}
-
-**Electrician**
-- Name: {roi.get("electrician_name", "N/A")}
-- Phone: {roi.get("electrician_number", "N/A")}
-- When to Contact: {roi.get("electrician_description", "N/A")}
-
-**Exterminator**
-- Name: {roi.get("exterminator_name", "N/A")}
-- Phone: {roi.get("exterminator_number", "N/A")}
-- When to Contact: {roi.get("exterminator_description", "N/A")}
-
-**Plumber**
-- Name: {roi.get("plumber_name", "N/A")}
-- Phone: {roi.get("plumber_number", "N/A")}
-- When to Contact: {roi.get("plumber_description", "N/A")}
-
----
-
-Please format the runbook clearly with headers and bullet points. Use “⚠️ Not provided” as a flag for incomplete or missing info that should be reviewed.
+{all_blocks.strip()}
 """.strip()
 
 #### Emergency Kit Documents ####

@@ -3,7 +3,6 @@ from utils.common_helpers import (
     extract_all_trash_tasks_grouped, 
     extract_grouped_mail_task, 
     generate_flat_home_schedule_markdown,
-    get_schedule_utils,
     switch_section,
     get_schedule_placeholder_mapping,
     debug_saved_schedule_dfs
@@ -39,7 +38,7 @@ from utils.runbook_generator_helpers import (
     maybe_generate_runbook,
     render_prompt_preview
 )
-from task_schedule_utils_updated import (
+from utils.task_schedule_utils_updated import (
     extract_and_schedule_all_tasks,
     get_schedule_utils,
     generate_flat_home_schedule_markdown
@@ -230,22 +229,150 @@ def home():
     switch_section("home")
 
     st.subheader("Let's gather some information. Please enter your details:")
-    # Step 1: Input collection
-    get_home_inputs()
+   
+# Step 1: Input collection
+    def get_home_inputs():
+        section = "Home Basics"
 
-    # Step 2: Fetch utility providers
+        city = register_task_input(
+            "City", st.text_input,
+            task_type="Location Info",
+            section=section
+        )
+
+        zip_code = register_task_input(
+            "ZIP Code", st.text_input,
+            task_type="Location Info",
+            section=section
+        )
+
+        internet_provider = register_task_input(
+            "Internet Provider", st.text_input,
+            task_type="Utilities",
+            section=section
+        )
+
+        # Store to session state directly for external access
+        st.session_state.city = city
+        st.session_state.zip_code = zip_code
+        st.session_state.internet_provider = internet_provider
+
+        return city, zip_code, internet_provider
+
+        get_home_inputs()
+
+# Step 2: Fetch utility providers
+
+    def query_utility_providers(test_mode=False) -> dict:
+        city = get_answer("City", "Home Basics")
+        zip_code = get_answer("ZIP Code", "Home Basics")
+
+        if test_mode:
+            return {
+                "electricity": "Austin Energy",
+                "natural_gas": "Atmos Energy",
+                "water": "Austin Water"
+            }
+
+        prompt = utility_provider_lookup_prompt(city, zip_code)
+
+        try:
+            response = client.chat.complete(
+                model="mistral-small-latest",
+                messages=[UserMessage(content=prompt)],
+                max_tokens=1500,
+                temperature=0.5,
+            )
+            content = response.choices[0].message.content
+        except Exception as e:
+            st.error(f"Error querying Mistral API: {str(e)}")
+            return {}
+
+        return extract_and_log_providers(content)
+
+
+    def register_provider_input(label, value, section="Utility Providers"):
+        """
+        Registers a utility provider entry using metadata for consistency with task systems.
+        """
+        if not label or not isinstance(label, str):
+            raise ValueError("Provider label must be a non-empty string.")
+
+        if not isinstance(value, str) or value.strip().lower() in ["", "not found", "n/a"]:
+            return
+
+        register_task_input(
+            label=f"{label} Provider",
+            answer=value,
+            section=section,
+            metadata=build_metadata(task_type="info", label=label)
+        )
+
+
+    def extract_and_log_providers(content: str) -> dict:
+        """
+        Extracts provider names and logs them using structured metadata.
+        """
+        providers = extract_providers_from_text(content)
+
+        register_provider_input("Electricity", providers["electricity"])
+        register_provider_input("Natural Gas", providers["natural_gas"])
+        register_provider_input("Water", providers["water"])
+
+        # Store for retrieval
+        st.session_state["utility_providers"] = providers
+        for key, val in providers.items():
+            st.session_state[f"{key}_provider"] = val
+
+        return providers
+
+
+    def fetch_utility_providers():
+        results = query_utility_providers()
+        st.session_state["utility_providers"] = results
+        return results
+
     if st.button("Find My Utility Providers"):
         with st.spinner("Fetching providers from Mistral..."):
             fetch_utility_providers()
             st.success("Providers stored in session state!")
 
     # Step 3: Handle corrections
-    results = st.session_state.get("utility_providers", {
+    current_results = st.session_state.get("utility_providers", {
         "electricity": "",
         "natural_gas": "",
         "water": ""
     })
-    updated = get_corrected_providers(results)
+    updated = get_corrected_providers(current_results)
+
+    def get_corrected_providers(results: dict) -> dict:
+        updated = {}
+        label_to_key = {
+            "Electricity": "electricity",
+            "Natural Gas": "natural_gas",
+            "Water": "water"
+        }
+
+        for label in label_to_key:
+            key = label_to_key[label]
+            current_value = results.get(key, "")
+            correct_flag = st.checkbox(f"Correct {label} Provider", value=False)
+            corrected = st.text_input(
+                f"{label} Provider",
+                value=current_value,
+                disabled=not correct_flag
+            )
+            if correct_flag and corrected != current_value:
+                register_provider_input(label, corrected)
+                st.session_state[f"{key}_provider"] = corrected
+            updated[key] = corrected if correct_flag else current_value
+
+        return updated
+
+    def update_session_state_with_providers(updated):
+        st.session_state["utility_providers"] = updated
+        for key, value in updated.items():
+            st.session_state[f"{key}_provider"] = value
 
     if st.button("Save Utility Providers"):
         update_session_state_with_providers(updated)
@@ -336,6 +463,7 @@ def emergency_kit():
         label="Do you have an Emergency Kit?",
         input_fn=st.radio,
         section="Emergency Kit",
+        metadata={"is_task": False, "frequency_field": False},
         options=["Yes", "No"],
         index=0,
         key="radio_emergency_kit_status"
@@ -351,6 +479,7 @@ def emergency_kit():
         label="Where is (or where will) the Emergency Kit be located?",
         input_fn=st.text_area,
         section="Emergency Kit",
+        metadata={"is_task": False, "frequency_field": False},
         placeholder="e.g., hall closet, garage bin"
     )
 
@@ -364,6 +493,7 @@ def emergency_kit():
         label="Add any additional emergency kit items not in the list above (comma-separated):",
         input_fn=st.text_input,
         section="Emergency Kit",
+        metadata={"is_task": False, "frequency_field": False},
         value=st.session_state.get("additional_kit_items", "")
     )
     if additional:
@@ -441,28 +571,35 @@ def mail(section="mail"):
     disabled = st.session_state.get("mail_locked", False)
 
     with st.expander("📋 Details", expanded=True):
-        mailbox_location = capture_input(
-            "📍 Mailbox Location", st.text_area, section,
+        register_task_input(
+            "📍 Mailbox Location", st.text_area,
+            task_type="Mail Handling", section=section,
             placeholder="E.g., 'At the end of the driveway...'", disabled=disabled
         )
-        mailbox_key = capture_input(
-            "🔑 Mailbox Key (Optional)", st.text_area, section,
+
+        register_task_input(
+            "🔑 Mailbox Key (Optional)", st.text_area,
+            task_type="Mail Handling", section=section,
             placeholder="E.g., 'On key hook...'", disabled=disabled
         )
-        pick_up_schedule = capture_input(
-            "📆 Mail Pick-Up Schedule", st.text_area, section,
+
+        register_task_input(
+            "📆 Mail Pick-Up Schedule", st.text_area,
+            task_type="Mail Handling", section=section, is_freq=True,
             placeholder="E.g., 'Mondays and Thursdays'", disabled=disabled
         )
-        what_to_do_with_mail = capture_input(
-            "📥 What to Do with the Mail", st.text_area, section,
+
+        register_task_input(
+            "📥 What to Do with the Mail", st.text_area,
+            task_type="Mail Handling", section=section,
             placeholder="E.g., 'Place in kitchen tray'", disabled=disabled
         )
-        what_to_do_with_packages = capture_input(
-            "📦 Packages", st.text_area, section,
-            placeholder="E.g., 'Inside entryway closet'", disabled=disabled
+
+        register_task_input(
+            "📦 Packages", st.text_area,
+            task_type="Mail Handling", section=section,
+            placeholder="E.g., 'Put packages inside entryway closet'", disabled=disabled
         )
-    #st.markdown("### Debug: Section Input State")
-    #st.json(st.session_state.get("input_data", {}))
 
 def trash_handling(section="trash_handling"):
     st.subheader("🗑️ Trash & Recycling Instructions")
@@ -472,40 +609,52 @@ def trash_handling(section="trash_handling"):
 
     # Determine whether inputs are editable
     disabled = st.session_state.get("trash_locked", False)
-
-    with st.expander("Indoor Trash Disposal Details", expanded=True):
-        capture_input(
-            "Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags",
-            st.text_area,
-            section,
-            placeholder="E.g. Bin is located under the kitchen sink...",
-            disabled=disabled
-        )
-        capture_input(
-            "Recycling Trash Bin Location and Emptying Schedule (if available) and Sorting Instructions",
-            st.text_area,
-            section,
-            placeholder="E.g. Bin is located under the kitchen sink...",
-            disabled=disabled
-        )
-        capture_input(
-            "Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags",
-            st.text_area,
-            section,
-            placeholder="E.g. Empty before Trash day. Bags are under the sink.",
-            disabled=disabled
-        )
-        capture_input(
-            "Other Room Trash Bin Emptying Schedule and Replacement Trash Bags",
-            st.text_area,
-            section,
-            placeholder="E.g. Empty before Trash day...",
+    
+    # ─── Indoor Trash Disposal ────────────────────────────────
+    with st.expander("Indoor Garbage Disposal (Kitchen, Recycling, Compost, Bath, Other)", expanded=True):
+        register_task_input(
+            "🧴 Kitchen Garbage Bin", st.text_area,
+            task_type="Indoor Trash", section=section, is_freq=True,
+            placeholder="E.g. Bin is under sink. Empty when full and on Monday nights before trash pickup day. Replacement bags under sink.",
             disabled=disabled
         )
 
+        register_task_input(
+            "♻️ Indoor Recycling Bin(s)", st.text_area,
+            task_type="Indoor Trash", section=section, is_freq=True,
+            placeholder="E.g. Bins are under sink. The one labeled Paper is for paper products.  The one labled contaniers is for plastic and glass containers. Empty when full and on Monday nights before trash pickup day. Don't forget to rinse containers.",
+            disabled=disabled
+        )
+
+        register_task_input(
+            "🧃 Indoor Compost or Green Waste", st.text_area,
+            task_type="Indoor Trash", section=section, is_freq=True,
+            placeholder="E.g. Bin is under sink and yellow in color. Empty when full and on Monday nights before trash pickup day. No plastic bags.",
+            disabled=disabled
+        )
+
+        register_task_input(
+            "🧼 Bathroom Trash Bin", st.text_area,
+            task_type="Indoor Trash", section=section, is_freq=True,
+            placeholder="E.g. Empty on Mondays before trash day. Replacment bags are under bathroom sink.",
+            disabled=disabled
+        )
+
+        register_task_input(
+            "🪑 Other Room Trash Bins", st.text_area,
+            task_type="Indoor Trash", section=section, is_freq=True,
+            placeholder="E.g. Empty bedroom and office bins weekly on Mondays before trash day. Replacment bags are under bathroom sink.",
+            disabled=disabled
+        )
+
+    # ─── Outdoor Trash Disposal ────────────────────────────────
     with st.expander("Outdoor Trash Disposal Details", expanded=True):
-        capture_input("What the Outdoor Trash Bins Look Like", st.text_area, section, disabled=disabled)
-        capture_input("Specific Location or Instructions for Outdoor Bins", st.text_area, section, disabled=disabled)
+        register_task_input("How often and when is Outdoor Garbage and Recycling Collected?", st.text_area, section, is_freq=True, disabled=disabled, placeholder="E.g., 'Trash and garbage is collected weekly on Tuesdays.'",
+                            metadata={"task_type": "Outdoor Trash", "task_label": "Outdoor Trash Bins"})
+        register_task_input("What the Outdoor Trash Bins Look Like", st.text_area, section, disabled=disabled, placeholder="E.g., 'Black bin with green lid is for compost.  Black bin with black lid is for garbage.  Grey bin with blue lid is for plastic and glass container recycling. Grey bin with yellow lid is for paper recycling.'",
+                            metadata={"task_type": "Outdoor Trash", "task_label": "Outdoor Trash Bins"})
+        register_task_input("Specific Location or Instructions for Emptying Outdoor Bins", st.text_area, section, disabled=disabled, placeholder="E.g., 'Bins are kept in the garage when it's not garbage day.  Please wheel out all the bins from the garage to the end of the driveway on Monday night before Garbage day.  Tuesday night please pick up the bins from the driveway and return them to the garage.'",
+                            metadata={"task_type": "Outdoor Trash", "task_label": "Outdoor Trash Bins"})
 
         def handle_image(label, display_name):
             image_key = f"{label} Image"
@@ -531,47 +680,30 @@ def trash_handling(section="trash_handling"):
         handle_image("Outdoor Bin", "Outdoor Trash Bin")
         handle_image("Recycling Bin", "Recycling Bin")
 
-    with st.expander("Collection Schedule", expanded=True):
-        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        times = ["Morning", "Afternoon", "Evening"]
-
-        capture_input("Garbage Pickup Day", st.selectbox, section, options=days, disabled=disabled)
-        capture_input("Garbage Pickup Time", st.selectbox, section, options=times, disabled=disabled)
-        capture_input("Recycling Pickup Day", st.selectbox, section, options=days, disabled=disabled)
-        capture_input("Recycling Pickup Time", st.selectbox, section, options=times, disabled=disabled)
-        capture_input("Instructions for Placing and Returning Outdoor Bins", st.text_area, section, disabled=disabled)
-
+    # ─── Common Disposal Area ─────────────────────────────────
     with st.expander("Common Disposal Area (if applicable)", expanded=True):
-        uses_common_disposal = capture_input("Is there a common disposal area?", st.checkbox, section, disabled=disabled)
+        uses_common_disposal = register_task_input("Is there a common disposal area?", st.checkbox, section, disabled=disabled,
+                                                   metadata={"task_type": "boolean", "task_label": "Common Area?"})
         if uses_common_disposal and not disabled:
-            capture_input("Instructions for Common Disposal Area", st.text_area, section, disabled=disabled)
+            register_task_input("Instructions for Common Disposal Area", st.text_area, section, disabled=disabled,
+                                metadata={"task_type": "instruction", "task_label": "Use Common Area"})
             handle_image("Common Area", "Common Disposal Area")
 
-    with st.expander("Composting Instructions (if applicable)", expanded=True):
-        compost_applicable = capture_input("Is composting used?", st.checkbox, section, disabled=disabled)
-        if compost_applicable and not disabled:
-            capture_input("Compost Instructions", st.text_area, section, disabled=disabled)
-
+    # ─── Waste Management Contact ─────────────────────────────
     with st.expander("Waste Management Contact Info", expanded=True):
-        capture_input("Waste Management Company Name", st.text_input, section, disabled=disabled)
-        capture_input("Contact Phone Number", st.text_input, section, disabled=disabled)
-        capture_input("When to Contact", st.text_area, section, disabled=disabled)
+        register_task_input("Waste Management Company Name", st.text_input, section, disabled=disabled,
+                            metadata={"task_type": "contact", "task_label": "Waste Management Co"})
+        register_task_input("Contact Phone Number", st.text_input, section, disabled=disabled,
+                            metadata={"task_type": "contact"})
+        register_task_input("When to Contact", st.text_area, section, disabled=disabled,
+                            metadata={"task_type": "contact"})
 
-    # Show uploaded images
+    # ─── Display Images ───────────────────────────────────────
     if "trash_images" in st.session_state:
         st.markdown("### 🖼️ Uploaded Trash & Recycling Photos")
         for label, img in st.session_state.trash_images.items():
             if img:
                 st.image(Image.open(io.BytesIO(img)), caption=label)
-
-    #st.markdown("### Debug: Section Input State")
-    #st.json(st.session_state.get("input_data", {}))
-
-from task_schedule_utils_updated import (
-    extract_and_schedule_all_tasks,
-    get_schedule_utils,
-    generate_flat_home_schedule_markdown
-)
 
 def mail_trash_handling():
     # Optional reset
@@ -581,6 +713,7 @@ def mail_trash_handling():
         st.success("🔄 Level 3 session state reset.")
         st.stop()
 
+    section = st.session_state.get("section", "home")
     switch_section("mail_trash_handling")
 
     tab1, tab2, tab3 = st.tabs(["📬 Mail", "🗑️ Trash", "🧐 Review & Reward"])

@@ -16,7 +16,7 @@ from typing import List, Tuple, Optional
 import tempfile
 from .common_helpers import get_schedule_placeholder_mapping
 from .prompt_block_utils import generate_all_prompt_blocks
-from task_schedule_utils_updated import export_schedule_to_markdown
+from .task_schedule_utils_updated import export_schedule_to_markdown
 import base64
 
 def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):

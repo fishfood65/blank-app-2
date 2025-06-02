@@ -9,8 +9,8 @@ pages = [
     #st.Page("Cat_Bingo_Game.py",     title="Cat Game",      icon="🐱"),
     #st.Page("Pet_Guide_Generator.py",     title="Pet Guide",      icon="📋"),
     st.Page("pet_app_updated.py",     title="Pet Game",      icon="📋"),
-    st.Page("home_app_05_23_modified.py", title="Home Guide Playground", icon="🏡"),
-    st.Page("home_app.py",     title="Home Guide",      icon="🏡"),
+    st.Page("home_app2.py", title="Home Guide Playground", icon="🏡"),
+    st.Page("home_app_05_23_modified.py",     title="Home Guide",      icon="🏡"),
     st.Page("mychatapp.py",     title="Chat Q&A",      icon="🗣️")
 ]
 

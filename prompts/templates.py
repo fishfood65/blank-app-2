@@ -288,3 +288,26 @@ You are an expert assistant describing outdoor trash and bin logistics.
 """.strip(),
     ]
 
+def home_caretaker_prompt_template(data: dict) -> str:
+    """
+    Generates a markdown-formatted Home Caretaker prompt.
+    Skips any section or subsection where all values are "⚠️ Not provided".
+    """
+    def section_block(title: str, fields: dict) -> str:
+        visible_items = {k: v for k, v in fields.items() if v != "⚠️ Not provided"}
+        if not visible_items:
+            return ""
+        lines = [f"#### {title}"]
+        for k, v in visible_items.items():
+            lines.append(f"- {k}: {v}")
+        return "\n".join(lines)
+
+    blocks = []
+
+    for section_title, section_fields in data.items():
+        if isinstance(section_fields, dict):
+            block = section_block(section_title, section_fields)
+            if block:
+                blocks.append(block)
+
+    return "\n\n---\n\n".join(blocks).strip()

@@ -78,7 +78,7 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
         #blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
         blocks.append(build_prompt_block("Mail Instructions", mail_runbook_prompt()))
         blocks.append(build_prompt_block("Trash Instructions", trash_runbook_prompt()))
-        blocks.append(build_prompt_block("Home Services Instructions", home_services_runbook_prompt()))
+        blocks.append(build_prompt_block("Home Caretaker & Guest Instructions", home_caretaker_runbook_prompt()))
     
     elif section == "emergency_kit":
         blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
@@ -285,3 +285,40 @@ def trash_runbook_prompt(debug: bool = False) -> list[str]:
         instructions="Use the provided information for context.",
         debug=debug
     )
+
+def home_caretaker_runbook_prompt() -> str:
+    from prompts.templates import home_caretaker_prompt_template
+    from utils.answers import get_answer
+
+    categories = [
+        ("🔐 Home Security & Technology", [
+            ("Security Company Name", "Home Security"),
+            ("Security Company Phone Number", "Home Security"),
+            ("Instructions to arm/disarm system", "Home Security"),
+            ("Steps if a security alert is triggered", "Home Security"),
+            ("Indoor cameras/monitoring details and activation", "Home Security"),
+            ("Emergency access instructions & storage location", "Home Security"),
+            ("Where is Wi-Fi network name/password stored?", "Home Security"),
+            ("Guest network details & password sharing method", "Home Security"),
+            ("Home phone setup & call-handling instructions", "Home Security"),
+        ]),
+        ("🧹 Cleaning Service Instructions", [
+            ("Company Name", "Quality-Oriented Household Services.Cleaning"),
+            ("Phone Number", "Quality-Oriented Household Services.Cleaning"),
+            ("Frequency", "Quality-Oriented Household Services.Cleaning"),
+            ("Day of the Week", "Quality-Oriented Household Services.Cleaning"),
+            ("Access Method", "Quality-Oriented Household Services.Cleaning"),
+            ("Post-Service Procedures", "Quality-Oriented Household Services.Cleaning"),
+            ("Crew Identity Verification", "Quality-Oriented Household Services.Cleaning"),
+        ]),
+        # Add Gardening, Pool, Rent/Own as needed...
+    ]
+
+    prompt_data = {}
+    for section_label, fields in categories:
+        group = {}
+        for label, section in fields:
+            group[label] = get_answer(label, section) or "⚠️ Not provided"
+        prompt_data[section_label] = group
+
+    return home_caretaker_prompt_template(prompt_data)

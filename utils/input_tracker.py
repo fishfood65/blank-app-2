@@ -39,6 +39,45 @@ def log_interaction(action_type, label, value, section_name):
         "section": section_name
     })
 
+def get_home_inputs():
+    city = capture_input("City", st.text_input, "Home Basics")
+    zip_code = capture_input("ZIP Code", st.text_input, "Home Basics")
+    internet_provider = capture_input("Internet Provider", st.text_input, "Home Basics")
+    st.session_state.city = city
+    st.session_state.zip_code = zip_code
+    st.session_state.internet_provider = internet_provider
+    return city, zip_code, internet_provider
+
+def get_corrected_providers(results):
+    updated = {}
+
+    label_to_key = {
+    "Electricity": "electricity",
+    "Natural Gas": "natural_gas",
+    "Water": "water"
+    }
+
+    for label in ["Electricity", "Natural Gas", "Water"]:
+        key = label_to_key[label]
+        current_value = results.get(key, "") # Use get() to avoid KeyError
+
+        correct_flag = st.checkbox(f"Correct {label} Provider", value=False)
+        corrected = st.text_input(
+            f"{label} Provider",
+            value=current_value,
+            disabled=not correct_flag
+        )
+        if correct_flag and corrected != current_value:
+            log_provider_result(label, corrected)
+            st.session_state[f"{key}_provider"] = corrected
+        updated[key] = corrected if correct_flag else current_value
+    return updated
+
+def update_session_state_with_providers(updated):
+    st.session_state["utility_providers"] = updated
+    for key, value in updated.items():
+        st.session_state[f"{key}_provider"] = value
+
 def capture_input(
     label,
     input_fn,
@@ -48,6 +87,7 @@ def capture_input(
     preprocess_fn=None,
     required=False,
     autofill=True,
+    metadata=None, 
     **kwargs
 ):
     if section is None:
@@ -99,6 +139,7 @@ def capture_input(
         "section": section,
         "session_id": st.session_state.get("session_id"),
         "required": required,
+        "metadata":  metadata or {},
     }
 
     if "input_data" not in st.session_state:
@@ -110,6 +151,48 @@ def capture_input(
 
     return value
 
+# Utility to build task metadata
+def build_metadata(task_type, label, is_freq=False):
+    return {
+        "is_task": True,
+        "task_label": label,
+        "task_type": task_type,
+        "frequency_field": is_freq,
+        "area": "home"  # or infer from section
+    }
+
+# Wrapper for task-based inputs
+def register_task_input(label, input_fn, section=None, is_freq=False, *args, **kwargs):
+    """
+    Registers an input as a potential scheduled task and attaches metadata.
+    Auto-generates a normalized task row saved into st.session_state["task_inputs"].
+    """
+    if section is None:
+        section = st.session_state.get("section", "default")
+
+    metadata = {
+        "is_task": True,
+        "task_label": label,
+        "is_freq": is_freq,
+        "area": "home",  # default unless overridden
+        "section": section
+    }
+    kwargs["metadata"] = metadata
+
+    value = capture_input(label, input_fn, section=section, *args, **kwargs)
+
+    # Store task candidate in a dedicated session list
+    if value not in (None, ""):
+        task_row = {
+            "question": label,
+            "answer": value,
+            "category": section,
+            "section": section,
+            "area": metadata.get("area", "home")
+        }
+        st.session_state.setdefault("task_inputs", []).append(task_row)
+
+    return value
 
 def get_answer(question_label: str, section: str = None, *, nested_parent: str = None, nested_child: str = None):
     """
