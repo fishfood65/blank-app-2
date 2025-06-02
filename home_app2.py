@@ -28,7 +28,8 @@ from utils.input_tracker import (
     render_lock_toggle,
     daterange,
     get_filtered_dates,
-    select_runbook_date_range
+    select_runbook_date_range,
+    register_task_input
 )
 from utils.runbook_generator_helpers import (
     generate_docx_from_split_prompts, 
@@ -41,7 +42,9 @@ from utils.runbook_generator_helpers import (
 from utils.task_schedule_utils_updated import (
     extract_and_schedule_all_tasks,
     get_schedule_utils,
-    generate_flat_home_schedule_markdown
+    generate_flat_home_schedule_markdown,
+    save_task_schedules_by_type,
+    extract_unscheduled_tasks_from_inputs_with_category
 )
 import streamlit as st
 import re
@@ -168,6 +171,9 @@ def main():
             available_levels = [LEVEL_LABELS["home"]]
         else:
             available_levels = levels
+
+    if "task_inputs" in st.session_state:
+        st.session_state["task_inputs"] = []
 
     st.sidebar.checkbox("🐞 Enable Debug Mode", key="enable_debug_mode")
     selected = st.sidebar.radio("Choose a Level:", available_levels)
@@ -326,6 +332,29 @@ def home():
 
         return providers
 
+        def get_corrected_providers(results: dict) -> dict:
+            updated = {}
+            label_to_key = {
+                "Electricity": "electricity",
+                "Natural Gas": "natural_gas",
+                "Water": "water"
+            }
+
+            for label in label_to_key:
+                key = label_to_key[label]
+                current_value = results.get(key, "")
+                correct_flag = st.checkbox(f"Correct {label} Provider", value=False)
+                corrected = st.text_input(
+                    f"{label} Provider",
+                    value=current_value,
+                    disabled=not correct_flag
+                )
+                if correct_flag and corrected != current_value:
+                    register_provider_input(label, corrected)
+                    st.session_state[f"{key}_provider"] = corrected
+                updated[key] = corrected if correct_flag else current_value
+
+            return updated
 
     def fetch_utility_providers():
         results = query_utility_providers()
@@ -345,29 +374,6 @@ def home():
     })
     updated = get_corrected_providers(current_results)
 
-    def get_corrected_providers(results: dict) -> dict:
-        updated = {}
-        label_to_key = {
-            "Electricity": "electricity",
-            "Natural Gas": "natural_gas",
-            "Water": "water"
-        }
-
-        for label in label_to_key:
-            key = label_to_key[label]
-            current_value = results.get(key, "")
-            correct_flag = st.checkbox(f"Correct {label} Provider", value=False)
-            corrected = st.text_input(
-                f"{label} Provider",
-                value=current_value,
-                disabled=not correct_flag
-            )
-            if correct_flag and corrected != current_value:
-                register_provider_input(label, corrected)
-                st.session_state[f"{key}_provider"] = corrected
-            updated[key] = corrected if correct_flag else current_value
-
-        return updated
 
     def update_session_state_with_providers(updated):
         st.session_state["utility_providers"] = updated
@@ -433,17 +439,18 @@ def homeowner_kit_stock():
 
             for idx, item in enumerate(chunk):
                 key = f"kit_{item.lower().replace(' ', '_').replace('(', '').replace(')', '')}"
-                # Use capture_input to register the checkbox
-                has_item = capture_input(
+                has_item = register_task_input(
                     label=item,
                     input_fn=cols[idx].checkbox,
                     section="Emergency Kit",
+                    task_type="Emergency Supply",
+                    is_freq=False,
                     key=key,
                     value=st.session_state.get(key, False)
                 )
                 if has_item:
                     selected.append(item)
-                
+
         submitted = st.form_submit_button("Submit")
 
     if submitted:
@@ -456,16 +463,17 @@ def homeowner_kit_stock():
     return selected
 
 def emergency_kit():
+    section = "Emergency Kit"
     st.subheader("🧰 Emergency Kit Setup")
 
     # 1. Kit ownership status
-    emergency_kit_status = capture_input(
+    emergency_kit_status = register_task_input(
         label="Do you have an Emergency Kit?",
         input_fn=st.radio,
-        section="Emergency Kit",
-        metadata={"is_task": False, "frequency_field": False},
+        section=section,
         options=["Yes", "No"],
         index=0,
+        metadata={"is_task": False, "frequency_field": False},
         key="radio_emergency_kit_status"
     )
 
@@ -475,26 +483,26 @@ def emergency_kit():
         st.warning("⚠️ Let's build your emergency kit with what you have.")
 
     # 2. Kit location
-    emergency_kit_location = capture_input(
+    emergency_kit_location = register_task_input(
         label="Where is (or where will) the Emergency Kit be located?",
         input_fn=st.text_area,
-        section="Emergency Kit",
-        metadata={"is_task": False, "frequency_field": False},
-        placeholder="e.g., hall closet, garage bin"
+        section=section,
+        placeholder="e.g., hall closet, garage bin",
+        metadata={"is_task": False, "frequency_field": False}
     )
 
-    # 3. Core stock selector (refactored homeowner_kit_stock already uses capture_input)
+    # 3. Core stock selector (uses capture_input internally with task metadata)
     selected_items = homeowner_kit_stock()
     if selected_items is not None:
-        st.session_state['homeowner_kit_stock'] = selected_items  # keep this for backwards compatibility
+        st.session_state['homeowner_kit_stock'] = selected_items  # keep for backward compatibility
 
     # 4. Custom additions
-    additional = capture_input(
+    additional = register_task_input(
         label="Add any additional emergency kit items not in the list above (comma-separated):",
         input_fn=st.text_input,
-        section="Emergency Kit",
-        metadata={"is_task": False, "frequency_field": False},
-        value=st.session_state.get("additional_kit_items", "")
+        section=section,
+        value=st.session_state.get("additional_kit_items", ""),
+        metadata={"is_task": False, "frequency_field": False}
     )
     if additional:
         st.session_state['additional_kit_items'] = additional
@@ -512,9 +520,6 @@ def emergency_kit():
         "Local maps and contact lists"
     ]
     not_selected_items = [item for item in kit_items if item not in selected_items]
-    st.session_state['not_selected_items'] = not_selected_items
-
-    return not_selected_items
 
 def emergency_kit_utilities():
 
@@ -741,33 +746,27 @@ def mail_trash_handling():
 
             utils = get_schedule_utils()
 
+            df = extract_unscheduled_tasks_from_inputs_with_category()
+            st.write("✅ Raw Task Inputs:", df)
+
+
             # 🆕 Universal scheduler
             combined_df = extract_and_schedule_all_tasks(valid_dates, utils)
+            save_task_schedules_by_type(combined_df)
+            st.write("📆 Scheduled Tasks:", combined_df)
 
             # Legacy breakdowns for Markdown placeholders
-            mail_df = combined_df[combined_df["Category"] == "Mail"].copy()
-            trash_df = combined_df[combined_df["Category"] == "Trash Handling"].copy()
+            #mail_df = combined_df[combined_df["Category"] == "Mail"].copy()
+            #trash_df = combined_df[combined_df["Category"] == "Trash Handling"].copy()
 
             st.session_state.update({
-                "mail_schedule_df": mail_df,
-                "trash_schedule_df": trash_df,
+            #    "mail_schedule_df": mail_df,
+            #    "trash_schedule_df": trash_df,
                 "combined_home_schedule_df": combined_df,
-                "mail_schedule_markdown": generate_flat_home_schedule_markdown(mail_df),
-                "trash_flat_schedule_md": generate_flat_home_schedule_markdown(trash_df),
-                "home_schedule_markdown": generate_flat_home_schedule_markdown(combined_df),
+            #    "mail_schedule_markdown": generate_flat_home_schedule_markdown(mail_df),
+            #    "trash_flat_schedule_md": generate_flat_home_schedule_markdown(trash_df),
+            #    "home_schedule_markdown": generate_flat_home_schedule_markdown(combined_df),
             })
-
-            if not mail_df.empty:
-                st.success("📬 Mail schedule loaded")
-                st.dataframe(mail_df)
-            else:
-                st.warning("⚠️ No mail tasks found.")
-
-            if not trash_df.empty:
-                st.success("🗑️ Trash schedule loaded")
-                st.dataframe(trash_df)
-            else:
-                st.warning("⚠️ No trash tasks found.")
 
             if st.session_state.get("enable_debug_mode"):
                 st.markdown("### 🧪 Combined Schedule Markdown")
@@ -805,66 +804,158 @@ def mail_trash_handling():
 def home_security():
     section = "Home Security"
     st.write("💝 Security-Conscious")
+
+    # 🔒 Lock/unlock toggle
     render_lock_toggle(session_key="home_security_locked", label="Home Security Info")
     disabled = st.session_state.get("home_security_locked", False)
 
     with st.expander("Home Security System (if applicable)", expanded=True):
         st.markdown("##### Home Security and Privacy Info")
-        security_used = st.checkbox("Are you home security and privacy conscious?", key="home_security_used")
 
-        if security_used:
-            capture_input("Security Company Name", st.text_input, section, disabled=disabled)
-            capture_input("Security Company Phone Number", st.text_input, section, disabled=disabled)
-            capture_input("Instructions to arm/disarm system", st.text_area, section, disabled=disabled)
-            capture_input("Steps if a security alert is triggered", st.text_area, section, disabled=disabled)
-            capture_input("Indoor cameras/monitoring details and activation", st.text_area, section, disabled=disabled)
-            capture_input("Emergency access instructions & storage location", st.text_area, section, disabled=disabled)
-            capture_input("Where is Wi-Fi network name/password stored?", st.text_input, section, disabled=disabled)
-            capture_input("Guest network details & password sharing method", st.text_input, section, disabled=disabled)
-            capture_input("Home phone setup & call-handling instructions", st.text_area, section, disabled=disabled)
+        security_used = st.checkbox(
+            "Are you privacy (i.e. your Internet Wifi has a password) and home security conscious?",
+            key="home_security_used"
+        )
+
+        if not security_used:
+            st.info("✅ No security system info needed.")
+            return  # Skip the rest if unchecked
+
+        # Only shown if security_used is True
+        register_task_input(
+            "Where is Wi-Fi network name/password stored?", st.text_input,
+            section=section, disabled=disabled,
+            task_type="Internet Wifi"
+        )
+        register_task_input(
+            "Guest network details & password sharing method", st.text_input,
+            section=section, disabled=disabled,
+            task_type="Internet Wifi"
+        )
+        register_task_input(
+            "Security Company Name", st.text_input,
+            section=section, disabled=disabled,
+            task_type="Security System"
+        )
+        register_task_input(
+            "Security Company Phone Number", st.text_input,
+            section=section, disabled=disabled,
+            task_type="Security System"
+        )
+        register_task_input(
+            "Instructions to arm/disarm system", st.text_area,
+            section=section, disabled=disabled,
+            task_type="Security System"
+        )
+        register_task_input(
+            "Steps if a security alert is triggered", st.text_area,
+            section=section, disabled=disabled,
+            task_type="Security System"
+        )
+        register_task_input(
+            "Indoor cameras/monitoring details and activation", st.text_area,
+            section=section, disabled=disabled,
+            task_type="Security System"
+        )
+        register_task_input(
+            "Emergency access instructions & storage location", st.text_area,
+            section=section, disabled=disabled,
+            task_type="Security System"
+        )
+        register_task_input(
+            "Home phone setup & call-handling instructions", st.text_area,
+            section=section, disabled=disabled,
+            task_type="Home Phone"
+        )
 
 def convenience_seeker():
     section = "Quality-Oriented Household Services"
     st.write("🧼 Quality-Oriented Household Services")
+
     render_lock_toggle(session_key="convenience_seeker_locked", label="Household Services")
     disabled = st.session_state.get("convenience_seeker_locked", False)
 
     with st.expander("Home Quality-Oriented (if applicable)", expanded=True):
         st.markdown("##### Services You Invest In")
         services = ["Cleaning", "Gardening/Landscape", "Pool Maintenance"]
-        selected_services = st.multiselect(
-            "What services do you pay for?",
+
+        # Track selected services as a task
+        selected_services = register_task_input(
+            "What services do you pay for?", st.multiselect,
+            section=section,
             options=services,
             default=[],
-            key="convenience_seeker_options"
+            key="convenience_seeker_options",
+            metadata={"is_task": True, "task_type": "Service", "area": "home"}
         )
 
         for service in selected_services:
             nested_section = f"{section}.{service}"
             st.subheader(f"🔧 {service} Service Info")
 
-            capture_input(f"Company Name", st.text_input, section=nested_section, disabled=disabled)
-            capture_input(f"Company Phone Number", st.text_input, section=nested_section, disabled=disabled)
-
-            capture_input(f"Access Method", st.text_input, section=nested_section, disabled=disabled)
-            capture_input(f"Post-Service Procedures", st.text_area, section=nested_section, disabled=disabled)
-            capture_input(f"Crew Identity Verification", st.text_area, section=nested_section, disabled=disabled)
+            register_task_input(
+                "Company Name", st.text_input,
+                section=nested_section,
+                disabled=disabled,
+                task_type="Service"
+            )
+            register_task_input(
+                "Company Phone Number", st.text_input,
+                section=nested_section,
+                disabled=disabled,
+                task_type="Service"
+            )
+            register_task_input(
+                "Access Method", st.text_input,
+                section=nested_section,
+                disabled=disabled,
+                task_type="Service"
+            )
+            register_task_input(
+                "Post-Service Procedures", st.text_area,
+                section=nested_section,
+                disabled=disabled,
+                task_type="Service"
+            )
+            register_task_input(
+                "Crew Identity Verification", st.text_area,
+                section=nested_section,
+                disabled=disabled,
+                task_type="Service"
+            )
 
             if service in ["Cleaning", "Gardening/Landscape", "Pool Maintenance"]:
-                capture_input(
-                    "Frequency", st.selectbox, section=nested_section,
-                    options=["Monthly", "Bi-Weekly", "Weekly"], disabled=disabled
+                register_task_input(
+                    "Frequency", st.selectbox,
+                    section=nested_section,
+                    options=["Monthly", "Bi-Weekly", "Weekly"],
+                    disabled=disabled,
+                    is_freq=True,
+                    task_type="Service"
                 )
-                capture_input(
-                    "Day of the Week", st.selectbox, section=nested_section,
-                    options=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "Not Specified"],
-                    disabled=disabled
+                register_task_input(
+                    "Day of the Week", st.selectbox,
+                    section=nested_section,
+                    options=[
+                        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+                        "Saturday", "Sunday", "Not Specified"
+                    ],
+                    disabled=disabled,
+                    is_freq=True,
+                    task_type="Service"
                 )
 
         if "Pool Maintenance" in selected_services:
-            months = ["January", "February", "March", "April", "May", "June",
-                      "July", "August", "September", "October", "November", "December"]
-            selected_months = st.multiselect("Seasonal Months:", options=months, default=[], key="pool_seasonal_months")
+            months = [
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"
+            ]
+            st.multiselect(
+                "Seasonal Months:",
+                options=months,
+                default=[],
+                key="pool_seasonal_months"
+            )
 
 def rent_own():
     section = "Rent or Own"

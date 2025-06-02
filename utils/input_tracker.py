@@ -162,7 +162,7 @@ def build_metadata(task_type, label, is_freq=False):
     }
 
 # Wrapper for task-based inputs
-def register_task_input(label, input_fn, section=None, is_freq=False, *args, **kwargs):
+def register_task_input(label, input_fn, section=None, is_freq=False, task_type=None, *args, **kwargs):
     """
     Registers an input as a potential scheduled task and attaches metadata.
     Auto-generates a normalized task row saved into st.session_state["task_inputs"].
@@ -174,8 +174,9 @@ def register_task_input(label, input_fn, section=None, is_freq=False, *args, **k
         "is_task": True,
         "task_label": label,
         "is_freq": is_freq,
-        "area": "home",  # default unless overridden
-        "section": section
+        "area": "home",
+        "section": section,
+        "task_type": task_type,
     }
     kwargs["metadata"] = metadata
 
@@ -188,7 +189,9 @@ def register_task_input(label, input_fn, section=None, is_freq=False, *args, **k
             "answer": value,
             "category": section,
             "section": section,
-            "area": metadata.get("area", "home")
+            "area": metadata.get("area", "home"),
+            "task_type": metadata.get("task_type", None),
+            "is_freq": metadata.get("is_freq", False)
         }
         st.session_state.setdefault("task_inputs", []).append(task_row)
 
@@ -455,10 +458,21 @@ def import_input_data_from_json(json_str: str):
 def convert_to_csv(data_list):
     if not data_list:
         return ""
+
+    # Collect all possible keys
+    fieldnames = sorted({key for row in data_list for key in row})
+
     output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=data_list[0].keys())
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
-    writer.writerows(data_list)
+
+    for row in data_list:
+        row_copy = row.copy()
+        for k, v in row_copy.items():
+            if isinstance(v, dict):
+                row_copy[k] = json.dumps(v)
+        writer.writerow(row_copy)
+
     return output.getvalue()
 
 def export_input_data_as_csv(file_name="input_data.csv"):

@@ -480,9 +480,6 @@ def render_prompt_preview(missing: list, section: str = "home"):
             st.markdown(st.session_state.get("home_schedule_markdown", "_No schedule available._"))
         st.success("✅ Prompt ready! This is what will be sent to the LLM.")
 
-
-
-
 def maybe_render_download(section: str = "home", filename: Optional[str] = None):
     """
     Renders download button and preview for generated runbook.
@@ -509,3 +506,76 @@ def maybe_render_download(section: str = "home", filename: Optional[str] = None)
         )
         st.success("✅ Runbook ready for download!")
     
+import base64
+
+def render_schedule_grouped_by_date_then_type_markdown(schedule_df: pd.DataFrame) -> str:
+    """
+    Returns markdown formatted string grouped by date then task_type with bullets,
+    including base64 image links if matched (e.g. trash/recycling).
+    """
+    if schedule_df.empty:
+        return "_No schedule data available._"
+
+    schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
+    schedule_df = schedule_df.sort_values(by=["Date", "task_type", "Task"])
+    schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
+
+    lines = []
+    current_date = None
+    trash_images = st.session_state.get("trash_images", {})
+
+    grouped = schedule_df.groupby(["Date", "task_type"])
+
+    for (date, task_type), group in grouped:
+        if date != current_date:
+            lines.append(f"### 📅 {date.strftime('%A, %Y-%m-%d')}\n")
+            current_date = date
+
+        lines.append(f"#### 📌 {task_type} Schedule\n")
+
+        for _, row in group.iterrows():
+            task = row["Task"]
+            image_md = ""
+
+            # Attempt to attach image via label match
+            for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
+                if label.lower().replace(" image", "") in task.lower():
+                    uploaded = trash_images.get(label)
+                    if uploaded:
+                        try:
+                            image_bytes = uploaded.getvalue() if hasattr(uploaded, 'getvalue') else uploaded.read()
+                            base64_img = base64.b64encode(image_bytes).decode("utf-8")
+                            mime = "image/png"
+                            image_md = f" ![image](data:{mime};base64,{base64_img})"
+                        except Exception:
+                            image_md = " ⚠️ (image error)"
+                    break
+
+            lines.append(f"- {task}{image_md}")
+
+        lines.append("")  # spacing
+
+    return "\n".join(lines)
+
+def render_schedule_grouped_by_date_then_type(doc: Document, combined_df: pd.DataFrame):
+    """
+    Adds a single combined schedule to the DOCX, grouped by Date then task_type,
+    with image support for matching task labels.
+    """
+    if combined_df.empty:
+        doc.add_paragraph("_No scheduled tasks available._")
+        return
+
+    combined_df["Date"] = pd.to_datetime(combined_df["Date"], errors="coerce")
+    combined_df = combined_df.sort_values(by=["Date", "task_type", "Task"])
+    combined_df["Day"] = combined_df["Date"].dt.strftime("%A")
+
+    trash_images = st.session_state.get("trash_images", {})
+
+    current_date = None
+    grouped = combined_df.groupby(["Date", "task_type"])
+
+    for (date, task_type), group_df in grouped:
+        if date != current_date:
+            if current_date is not None:
+                doc.add_paragraph("")  # spacing b_

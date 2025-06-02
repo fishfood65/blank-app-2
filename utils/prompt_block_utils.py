@@ -181,13 +181,12 @@ def emergency_kit_utilities_runbook_prompt(debug: bool = False) -> str:
     )
 
 def mail_runbook_prompt(debug: bool = False) -> str:
+    """
+    Builds mail handling prompt from structured mail inputs.
+    """
+    section = "mail"
     input_data = st.session_state.get("input_data", {})
-    merged_entries = input_data.get("mail_trash_handling", [])
-
-    if merged_entries:
-        mail_entries = [e for e in merged_entries if "mail" in str(e.get("section", "")).lower()]
-    else:
-        mail_entries = input_data.get("mail") or input_data.get("Mail & Packages", [])
+    mail_entries = input_data.get(section, []) or input_data.get("Mail & Packages", [])
 
     mail_info = {entry["question"]: entry["answer"] for entry in mail_entries}
 
@@ -197,30 +196,30 @@ def mail_runbook_prompt(debug: bool = False) -> str:
         return None
 
     mail_block = "\n".join(filter(None, [
-        safe_line("where the mailbox key is located", mail_info.get("🔑 Mailbox Key (Optional)")),
-        safe_line("Where to Collect Mail and Small Packages", mail_info.get("📍 Mailbox Location")),
-        safe_line("When and how often should mail be picked up from the mailbox", mail_info.get("📆 Mail Pick-Up Schedule")),
-        safe_line("What to do after picking up mail (not packages)", mail_info.get("📥 What to Do with the Mail")),
-        safe_line("Where to pickup medium and large packages and where to store all packages", mail_info.get("📦 Packages")),
+        safe_line("Where to collect mail and small packages", mail_info.get("📍 Mailbox Location")),
+        safe_line("Mailbox key location", mail_info.get("🔑 Mailbox Key (Optional)")),
+        safe_line("Mail pick-up schedule", mail_info.get("📆 Mail Pick-Up Schedule")),
+        safe_line("After mail pickup, what to do with it", mail_info.get("📥 What to Do with the Mail")),
+        safe_line("Where to pick up and store medium or large packages", mail_info.get("📦 Packages")),
     ]))
 
     raw = mail_prompt_template(mail_block)
 
     return wrap_prompt_block(
-        raw,
-        title="📬 Mail Handling Block",
-        instructions="Use the provided information for context. Do NOT invent mail-handling policies or contact information.",
+        content=raw,
+        title="📬 Mail Handling Instructions",
+        instructions="Use the provided instructions for where, when, and how to collect and store mail and packages.",
         debug=debug
     )
 
-
 def trash_runbook_prompt(debug: bool = False) -> list[str]:
     """
-    Builds trash handling prompts as separate blocks and wraps them using structured templates.
-    The actual schedule table is inserted later using <<INSERT_TRASH_SCHEDULE_TABLE>>.
+    Builds trash handling prompts as structured blocks with image embedding.
+    The actual schedule table is inserted later via <<INSERT_TRASH_SCHEDULE_TABLE>>.
     """
+    section = "trash_handling"
     input_data = st.session_state.get("input_data", {})
-    trash_entries = input_data.get("Trash Handling", []) or input_data.get("trash_handling", [])
+    trash_entries = input_data.get(section, [])
 
     trash_info = {entry["question"]: entry["answer"] for entry in trash_entries}
 
@@ -232,40 +231,43 @@ def trash_runbook_prompt(debug: bool = False) -> list[str]:
             return f"- **{label}**: Yes\n  - **{detail_label}**: {detail_value or 'N/A'}"
         return ""
 
+    # Indoor Trash Instructions
     indoor_block = "\n".join(filter(None, [
-        safe_line("Kitchen Trash", trash_info.get("Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags")),
-        safe_line("Bathroom Trash", trash_info.get("Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags")),
-        safe_line("Other Rooms Trash", trash_info.get("Other Room Trash Bin Emptying Schedule and Replacement Trash Bags")),
+        safe_line("Kitchen Trash", trash_info.get("🧴 Kitchen Garbage Bin")),
+        safe_line("Indoor Recycling", trash_info.get("♻️ Indoor Recycling Bin(s)")),
+        safe_line("Compost / Green Waste", trash_info.get("🧃 Indoor Compost or Green Waste")),
+        safe_line("Bathroom Trash", trash_info.get("🧼 Bathroom Trash Bin")),
+        safe_line("Other Room Trash", trash_info.get("🪑 Other Room Trash Bins")),
     ]))
 
-    outdoor_lines = [
-        safe_line("Please take the bins", trash_info.get("Instructions for Placing and Returning Outdoor Bins")),
-        safe_line("Bins Description", trash_info.get("What the Outdoor Trash Bins Look Like")),
-        safe_line("Location", trash_info.get("Specific Location or Instructions for Outdoor Bins")),
-    ]
+    # Outdoor Trash Instructions
+    outdoor_block = "\n".join(filter(None, [
+        safe_line("Outdoor Collection Schedule", trash_info.get("How often and when is Outdoor Garbage and Recycling Collected?")),
+        safe_line("Bin Appearance", trash_info.get("What the Outdoor Trash Bins Look Like")),
+        safe_line("Placement Instructions", trash_info.get("Specific Location or Instructions for Emptying Outdoor Bins")),
+    ]))
 
     outdoor_image_tags = []
     if "trash_images" in st.session_state:
         for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
-            if st.session_state.trash_images.get(label):
-                filename = st.session_state.trash_images[label]
-                outdoor_image_tags.append(f'<img src="{filename}" alt="{label}" width="300"/>')
+            img_bytes = st.session_state.trash_images.get(label)
+            if img_bytes:
+                b64_img = base64.b64encode(img_bytes).decode("utf-8")
+                mime = "image/png"
+                outdoor_image_tags.append(f'<img src="data:{mime};base64,{b64_img}" alt="{label}" width="300"/>')
 
-    outdoor_block = "\n".join(filter(None, outdoor_lines + outdoor_image_tags))
+    outdoor_block += "\n" + "\n".join(outdoor_image_tags)
 
-    collection_block = "\n".join(filter(None, [
-        safe_line("Garbage Pickup", f"{trash_info.get('Garbage Pickup Day', '')}, {trash_info.get('Garbage Pickup Time', '')}".strip(", ")),
-        safe_line("Recycling Pickup", f"{trash_info.get('Recycling Pickup Day', '')}, {trash_info.get('Recycling Pickup Time', '')}".strip(", ")),
-    ]))
+    # Common Disposal Area
+    common_used = trash_info.get("Is there a common disposal area?", False)
+    common_block = ""
+    if common_used:
+        common_instr = trash_info.get("Instructions for Common Disposal Area", "")
+        common_block = safe_yes_no("Common Disposal Area", True, "Instructions", common_instr)
 
-    composting_used = trash_info.get("Compost Used", "").strip().lower() == "yes"
-    composting_block = safe_yes_no("Composting Used", composting_used, "Compost Instructions", trash_info.get("Compost Instructions"))
-
-    common_disposal_used = trash_info.get("Common Disposal Used", "").strip().lower() == "yes"
-    common_disposal_block = safe_yes_no("Common Disposal Area Used", common_disposal_used, "Instructions", trash_info.get("Common Disposal Area Instructions"))
-
+    # Waste Management Contact
     wm_block = "\n".join(filter(None, [
-        safe_line("Company Name", trash_info.get("Waste Management Company Name")),
+        safe_line("Company", trash_info.get("Waste Management Company Name")),
         safe_line("Phone", trash_info.get("Contact Phone Number")),
         safe_line("When to Contact", trash_info.get("When to Contact")),
     ]))
@@ -273,16 +275,16 @@ def trash_runbook_prompt(debug: bool = False) -> list[str]:
     raw = trash_prompt_template(
         indoor_block=indoor_block,
         outdoor_block=outdoor_block,
-        collection_block=collection_block,
-        composting_block=composting_block,
-        common_disposal_block=common_disposal_block,
+        collection_block="",  # collected above already
+        composting_block="",  # handled by indoor
+        common_disposal_block=common_block,
         wm_block=wm_block,
-)
+    )
 
     return wrap_prompt_block(
         content=raw,
         title="🗑️ Trash and Recycling Instructions",
-        instructions="Use the provided information for context.",
+        instructions="Use the provided information and images for clarity.",
         debug=debug
     )
 

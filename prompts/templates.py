@@ -225,19 +225,20 @@ You are an expert assistant describing instructions for handling mail and packag
         f"""
 ### 📆 Mail Pickup Schedule
 
-<<INSERT_MAIL_SCHEDULE_TABLE>>
+<<INSERT_MAIL_HANDLING_SCHEDULE_TABLE>>
 """.strip(),
     ]
 
 def trash_prompt_template(
     indoor_block: str,
     outdoor_block: str,
-    collection_block: str,
-    composting_block: str,
     common_disposal_block: str,
     wm_block: str,
 ) -> list[str]:
-    """Returns a list of structured markdown blocks for trash runbook content."""
+    """
+    Returns structured markdown prompt blocks for trash runbook content.
+    Omits composting/collection if already handled in indoor/outdoor sections.
+    """
     return [
         f"""
 You are an expert assistant describing indoor trash handling instructions.
@@ -258,18 +259,6 @@ You are an expert assistant describing outdoor trash and bin logistics.
 """.strip(),
 
         f"""
-### Collection Schedule
-
-{collection_block}
-""".strip(),
-
-        f"""
-### Composting
-
-{composting_block}
-""".strip(),
-
-        f"""
 ### Common Disposal Area
 
 {common_disposal_block}
@@ -284,7 +273,7 @@ You are an expert assistant describing outdoor trash and bin logistics.
         f"""
 ### 📆 Trash and Recycling Pickup Schedule
 
-<<INSERT_TRASH_SCHEDULE_TABLE>>
+<<INSERT_COMBINED_HOME_SCHEDULE_TABLE>>
 """.strip(),
     ]
 

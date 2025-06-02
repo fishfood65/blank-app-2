@@ -46,14 +46,8 @@ def schedule_tasks_from_templates(
     """
     Given a list of task dicts and valid_dates, produce a scheduled DataFrame using known frequency/dates.
 
-    Each task dict must contain:
-      - 'question': the label
-      - 'answer': the text to parse
-      - 'category': task category
-      - 'section': original input section (optional)
-
     Returns:
-        pd.DataFrame with: Date, Day, Task, Tag, Category, Area, Source
+        pd.DataFrame with: Date, Day, Task, Tag, Category, Area, Source, task_type
     """
     if not isinstance(tasks, list):
         raise ValueError("Expected list of task dicts for 'tasks'")
@@ -72,24 +66,25 @@ def schedule_tasks_from_templates(
 
     for task in tasks:
         if not isinstance(task, dict):
-            continue  # skip invalid task
+            continue
+
         label = task.get("question", "")
         answer = str(task.get("answer", "")).strip()
         category = task.get("category", "Uncategorized")
         section = task.get("section", "")
-        area = task.get("Area", "home")
-        tag = determine_frequency_tag(answer, valid_dates)
+        area = task.get("area", "home")
+        task_type = task.get("task_type", None)
         source = section or category
 
         if not label or not answer:
-            continue  # skip empty tasks
+            continue
 
         if debug:
-            print(f"🔍 Scheduling: {label} → {tag} | From: {answer[:60]}")
+            print(f"🔍 Scheduling: {label} – {answer[:60]}")
 
         rows = []
 
-        # One-time dates
+        # 1. One-time explicit dates
         for ds in extract_dates(answer):
             parsed_date = normalize_date(ds)
             if parsed_date and parsed_date in valid_dates:
@@ -97,13 +92,14 @@ def schedule_tasks_from_templates(
                     "Date": str(parsed_date),
                     "Day": parsed_date.strftime("%A"),
                     "Task": f"{label} – {answer}",
-                    "Tag": emoji_tags.get("[One-Time]", tag),
+                    "Tag": emoji_tags.get("[One-Time]", "📅 One-Time"),
                     "Category": category,
                     "Source": source,
-                    "Area": area
+                    "Area": area,
+                    "task_type": task_type
                 })
 
-        # Repeating (interval-based)
+        # 2. Repeating intervals (e.g. every 2 weeks)
         interval = extract_week_interval(answer)
         if interval:
             base_date = valid_dates[0]
@@ -116,10 +112,11 @@ def schedule_tasks_from_templates(
                         "Tag": f"↔️ Every {interval} Weeks",
                         "Category": category,
                         "Source": source,
-                        "Area": area
+                        "Area": area,
+                        "task_type": task_type
                     })
 
-        # Weekly mentions
+        # 3. Weekly days mentioned (e.g. "Tuesdays")
         weekday_mentions = extract_weekday_mentions(answer)
         if weekday_mentions and not interval:
             for wd in weekday_mentions:
@@ -130,13 +127,14 @@ def schedule_tasks_from_templates(
                             "Date": str(d),
                             "Day": d.strftime("%A"),
                             "Task": f"{label} – {answer}",
-                            "Tag": emoji_tags.get("[Weekly]"),
+                            "Tag": emoji_tags.get("[Weekly]", "🔁 Weekly"),
                             "Category": category,
                             "Source": source,
-                            "Area": area
+                            "Area": area,
+                            "task_type": task_type
                         })
 
-        # Monthly catch-all
+        # 4. Monthly catch-all
         if "monthly" in answer.lower():
             current_date = pd.to_datetime(valid_dates[0])
             while current_date.date() <= valid_dates[-1]:
@@ -145,25 +143,17 @@ def schedule_tasks_from_templates(
                         "Date": str(current_date.date()),
                         "Day": current_date.strftime("%A"),
                         "Task": f"{label} – {answer}",
-                        "Tag": emoji_tags.get("[Monthly]"),
+                        "Tag": emoji_tags.get("[Monthly]", "📆 Monthly"),
                         "Category": category,
                         "Source": source,
-                        "Area": area
+                        "Area": area,
+                        "task_type": task_type
                     })
                 current_date += pd.DateOffset(months=1)
 
-        # Fallback: daily if no pattern found
-        if not rows:
-            for d in valid_dates:
-                rows.append({
-                    "Date": str(d),
-                    "Day": d.strftime("%A"),
-                    "Task": f"{label} – {answer}",
-                    "Tag": emoji_tags.get("[Daily]"),
-                    "Category": category,
-                    "Source": source,
-                    "Area": area
-                })
+        # ✅ Skip fallback if no scheduling pattern matched
+        if not rows and debug:
+            print(f"⚠️ No schedule pattern matched for: {label}")
 
         all_rows.extend(rows)
 
@@ -192,51 +182,16 @@ def generate_combined_schedule(valid_dates, utils, sections=["Trash Handling", "
                 combined_rows.append(df)
     return pd.concat(combined_rows, ignore_index=True) if combined_rows else pd.DataFrame()
 
-def extract_unscheduled_tasks_from_inputs_with_category(section_key="input_data") -> pd.DataFrame:
+def extract_unscheduled_tasks_from_inputs_with_category(section_key="task_inputs") -> pd.DataFrame:
     """
-    Extracts all captured tasks from input_data across all sections and infers 'category' and 'Area'.
-    Returns a flat DataFrame with consistent columns.
+    Extracts structured tasks from session_state['task_inputs'] list.
+    Each row already contains task metadata like is_freq, task_type, etc.
     """
-    all_rows = []
-    input_data = st.session_state.get(section_key, {})
+    task_inputs = st.session_state.get(section_key, [])
+    df = pd.DataFrame(task_inputs)
 
-    for section, entries in input_data.items():
-        inferred_category = section or "Uncategorized"
-        if isinstance(entries, dict):  # Nested format (e.g. "Quality-Oriented Household Services.Cleaning")
-            for group_name, group_fields in entries.items():
-                if not isinstance(group_fields, dict):
-                    continue
-                for label, value in group_fields.items():
-                    if not value:
-                        continue
-                    all_rows.append({
-                        "question": label,
-                        "answer": value,
-                        "section": section,
-                        "subcategory": group_name,
-                        "category": inferred_category,
-                        "Area": "home",
-                    })
-
-        elif isinstance(entries, list):  # Flat format (e.g. pet or trash)
-            for item in entries:
-                label = item.get("question")
-                value = item.get("answer")
-                if not label or not value:
-                    continue
-                all_rows.append({
-                    "question": label,
-                    "answer": value,
-                    "section": section,
-                    "subcategory": None,
-                    "category": inferred_category,
-                    "Area": "home",
-                })
-
-    df = pd.DataFrame(all_rows)
-
-    # Ensure required columns exist, even if empty
-    for col in ["question", "answer", "category", "section", "subcategory", "Area"]:
+    # Ensure expected columns exist
+    for col in ["question", "answer", "category", "section", "area", "task_type", "is_freq"]:
         if col not in df.columns:
             df[col] = None
 
@@ -441,3 +396,30 @@ def extract_and_schedule_all_tasks(valid_dates: list, utils: dict = None) -> pd.
 
     return schedule_tasks_from_templates(raw_tasks, valid_dates, utils)
 
+
+def save_task_schedules_by_type(combined_df: pd.DataFrame):
+    """
+    Saves slices of combined_df into st.session_state keyed by task_type (in snake_case),
+    and prepares them for DOCX placeholder insertion.
+
+    Example:
+        task_type="Security System" → "security_system_schedule_df"
+        Will register placeholder: <<INSERT_SECURITY_SYSTEM_SCHEDULE_TABLE>>
+    """
+    if combined_df.empty or "task_type" not in combined_df.columns:
+        st.warning("⚠️ No scheduled tasks to save by type.")
+        return
+
+    for task_type, group_df in combined_df.groupby("task_type"):
+        if pd.isna(task_type) or group_df.empty:
+            continue
+
+        # Convert task_type to snake_case key and UPPER_CASE placeholder
+        snake_key = re.sub(r"[^\w]+", "_", task_type.strip().lower()).strip("_")
+        docx_key = f"{snake_key}_schedule_df"
+        placeholder = f"<<INSERT_{snake_key.upper()}_SCHEDULE_TABLE>>"
+
+        st.session_state[docx_key] = group_df.copy()
+
+        if st.session_state.get("enable_debug_mode"):
+            st.write(f"✅ Saved {len(group_df)} tasks to `{docx_key}` for placeholder `{placeholder}`")
