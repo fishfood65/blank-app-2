@@ -382,6 +382,75 @@ def generate_flat_home_schedule_markdown(schedule_df):
 
     return "\n".join(sections).strip()
 
+def humanize_task(row: dict, include_days: bool = True) -> str:
+    """
+    Create a clean, readable task label from a structured row.
+    Optionally appends inferred days if available.
+    """
+    label = row.get("question", "").strip().rstrip(":")
+    answer = str(row.get("answer", "")).strip()
+
+    if not label and not answer:
+        return ""
+
+    # Try to convert answer to readable summary
+    details = format_answer_as_bullets(answer)
+
+    # Base task phrasing
+    base = label
+
+    # Add brief detail if it's a short answer
+    if details and len(details) < 80 and "\n" not in details:
+        base = f"{label}: {details}"
+    elif details:
+        base = f"{label}\n{details}"
+
+    # Optionally add inferred days
+    inferred = row.get("inferred_days", [])
+    if include_days and inferred:
+        day_str = ", ".join(inferred)
+        base += f"\n📅 Days: {day_str}"
+
+    return base.strip()
+
+def format_answer_as_bullets(answer: str) -> str:
+    """
+    Converts multiline answer or semi-colon/comma separated values into bullet points.
+    """
+    if not answer:
+        return ""
+
+    # Split by common delimiters
+    parts = [p.strip() for p in re.split(r"[\n;\,•]", answer) if p.strip()]
+
+    # Return bullet list if multiple parts
+    if len(parts) > 1:
+        return "\n".join(f"• {p}" for p in parts)
+
+    return parts[0] if parts else ""
+
+def infer_relevant_days_from_text(text: str) -> list:
+    """
+    Returns a list of weekdays mentioned in the text.
+    Handles phrases like "alternate Mondays" and "every other Thursday".
+    """
+    text = text.lower()
+    weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    inferred = []
+
+    for day in weekdays:
+        patterns = [
+            rf"\b{day}s?\b",                     # "Monday", "Mondays"
+            rf"every other {day}",               # "every other Monday"
+            rf"alternate {day}",                 # "alternate Monday"
+            rf"on {day}s?\b",                    # "on Mondays"
+            rf"{day}s before",                   # "Mondays before..."
+        ]
+        if any(re.search(p, text) for p in patterns):
+            inferred.append(day.capitalize())
+
+    return inferred
+
 def extract_and_schedule_all_tasks(valid_dates: list, utils: dict = None) -> pd.DataFrame:
     """
     Extracts and schedules tasks using enrichment and inference:
@@ -391,7 +460,6 @@ def extract_and_schedule_all_tasks(valid_dates: list, utils: dict = None) -> pd.
     - Defers scheduling if no day match is found
     """
     if utils is None:
-        from utils.schedule_utils import get_schedule_utils
         utils = get_schedule_utils()
 
     raw_df = extract_unscheduled_tasks_from_inputs_with_category()
@@ -401,8 +469,18 @@ def extract_and_schedule_all_tasks(valid_dates: list, utils: dict = None) -> pd.
         question = row.get("question", "")
         answer = row.get("answer", "")
 
-        # Enrichment
-        clean = humanize_task(question, answer)
+        # 🧼 Coerce boolean or non-string answers to strings
+        if isinstance(answer, bool):
+            answer = "Yes" if answer else "No"
+        elif answer is None:
+            answer = ""
+        else:
+            answer = str(answer).strip()
+
+        row["answer"] = answer  # Update in-place
+
+        # 🧠 Enrichment
+        clean = humanize_task(row, include_days=False)
         inferred_days = infer_relevant_days_from_text(answer)
         formatted = format_answer_as_bullets(answer)
 
@@ -413,7 +491,7 @@ def extract_and_schedule_all_tasks(valid_dates: list, utils: dict = None) -> pd.
             "inferred_days": inferred_days,
         }
 
-        # Explode if inferred_days exist
+        # 📆 Explode if inferred_days exist
         if inferred_days:
             for day in inferred_days:
                 enriched_rows.append({**enriched, "inferred_day": day})
@@ -422,7 +500,7 @@ def extract_and_schedule_all_tasks(valid_dates: list, utils: dict = None) -> pd.
 
     enriched_df = pd.DataFrame(enriched_rows)
 
-    # 🔁 Use the same schedule_tasks_from_templates function
+    # ✅ Schedule using enriched + exploded rows
     return schedule_tasks_from_templates(
         tasks=enriched_df.to_dict(orient="records"),
         valid_dates=valid_dates,
