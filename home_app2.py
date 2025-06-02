@@ -713,9 +713,21 @@ def trash_handling(section="trash_handling"):
 def mail_trash_handling():
     # Optional reset
     if st.checkbox("🔪 Reset Mail and Trash Session State"):
-        for key in ["generated_prompt", "runbook_buffer", "runbook_text", "user_confirmation"]:
+        for key in [
+            "generated_prompt", "runbook_buffer", "runbook_text", "user_confirmation",
+            "combined_home_schedule_df",  # 🧹 Clear old combined schedule
+            "task_inputs",                # 🧼 Clear all captured task inputs
+            "input_data",                # Optional: clear processed input data
+            "trash_images",              # Optional: clear uploaded images
+            "mail_locked", "trash_locked",  # Optional: reset lock toggles
+        ]:
             st.session_state.pop(key, None)
-        st.success("🔄 Level 3 session state reset.")
+
+        # Reset edit locks
+        st.session_state.pop("mail_locked", None)
+        st.session_state.pop("trash_locked", None)
+
+        st.success("🔄 Full session state reset. Inputs are now editable.")
         st.stop()
 
     section = st.session_state.get("section", "home")
@@ -769,8 +781,14 @@ def mail_trash_handling():
             })
 
             if st.session_state.get("enable_debug_mode"):
-                st.markdown("### 🧪 Combined Schedule Markdown")
-                st.code(st.session_state["home_schedule_markdown"], language="markdown")
+                if st.session_state.get("enable_debug_mode"):
+                    st.markdown("### 🔍 Task Preview (Before vs After Enrichment)")
+
+                    if not df.empty:
+                        preview_raw = df.iloc[[0]].copy()
+                        preview_enriched = combined_df[combined_df["question"] == preview_raw.iloc[0]["question"]]
+                        st.write("📝 Raw Task:", preview_raw)
+                        st.write("✨ Enriched & Scheduled:", preview_enriched)
 
             # Step 7: Confirm and maybe generate prompt
             st.subheader("👍 Review and Approve")

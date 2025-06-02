@@ -384,17 +384,50 @@ def generate_flat_home_schedule_markdown(schedule_df):
 
 def extract_and_schedule_all_tasks(valid_dates: list, utils: dict = None) -> pd.DataFrame:
     """
-    Complete pipeline that extracts all captured tasks and schedules them using date templates.
+    Extracts and schedules tasks using enrichment and inference:
+    - Applies human-readable labels
+    - Infers day mentions
+    - Formats answers
+    - Defers scheduling if no day match is found
     """
     if utils is None:
+        from utils.schedule_utils import get_schedule_utils
         utils = get_schedule_utils()
 
-    # FIX: Ensure it's a list of dicts, not a DataFrame
     raw_df = extract_unscheduled_tasks_from_inputs_with_category()
-    raw_tasks = raw_df.to_dict(orient="records")
+    enriched_rows = []
 
-    return schedule_tasks_from_templates(raw_tasks, valid_dates, utils)
+    for row in raw_df.to_dict(orient="records"):
+        question = row.get("question", "")
+        answer = row.get("answer", "")
 
+        # Enrichment
+        clean = humanize_task(question, answer)
+        inferred_days = infer_relevant_days_from_text(answer)
+        formatted = format_answer_as_bullets(answer)
+
+        enriched = {
+            **row,
+            "clean_task": clean,
+            "formatted_answer": formatted,
+            "inferred_days": inferred_days,
+        }
+
+        # Explode if inferred_days exist
+        if inferred_days:
+            for day in inferred_days:
+                enriched_rows.append({**enriched, "inferred_day": day})
+        else:
+            enriched_rows.append(enriched)
+
+    enriched_df = pd.DataFrame(enriched_rows)
+
+    # 🔁 Use the same schedule_tasks_from_templates function
+    return schedule_tasks_from_templates(
+        tasks=enriched_df.to_dict(orient="records"),
+        valid_dates=valid_dates,
+        utils=utils
+    )
 
 def save_task_schedules_by_type(combined_df: pd.DataFrame):
     """
