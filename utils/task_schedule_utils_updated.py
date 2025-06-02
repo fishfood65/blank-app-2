@@ -387,7 +387,6 @@ def extract_and_schedule_all_tasks(valid_dates: list, utils: dict = None) -> pd.
     Complete pipeline that extracts all captured tasks and schedules them using date templates.
     """
     if utils is None:
-        from utils.schedule_utils import get_schedule_utils
         utils = get_schedule_utils()
 
     # FIX: Ensure it's a list of dicts, not a DataFrame
