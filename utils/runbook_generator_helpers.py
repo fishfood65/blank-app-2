@@ -122,7 +122,7 @@ def add_table_from_schedule_to_markdown(schedule_df: pd.DataFrame) -> str:
     return "\n".join(output_md)
 
 
-def generate_docx_from_split_prompts(
+def generate_docx_from_split_prompts( ### depreciate 
     prompts: List[str],
     api_key: str,
     *,
@@ -240,6 +240,157 @@ def generate_docx_from_split_prompts(
     doc.save(buffer)
     buffer.seek(0)
     return buffer, full_text
+
+def generate_docx_from_prompt_blocks(
+    blocks: List[str],
+    use_llm: bool = False,
+    api_key: Optional[str] = None,
+    doc_heading: str = "Runbook",
+    model: str = "mistral-small-latest",
+    debug: bool = False,
+) -> Tuple[io.BytesIO, str]:
+    from docx import Document
+    from docx.shared import Inches, Pt
+    import tempfile
+
+    doc = Document()
+    doc.add_heading(doc_heading, 0)
+    markdown_output = []
+
+    schedule_sources = get_schedule_placeholder_mapping()
+
+    for i, block in enumerate(blocks):
+        if not block.strip():
+            continue
+
+        if debug:
+            st.markdown(f"### 🧱 Prompt Block {i+1}")
+            st.code(block, language="markdown")
+
+        if use_llm:
+            try:
+                client = Mistral(api_key=api_key)
+                completion = client.chat.complete(
+                    model=model,
+                    messages=[SystemMessage(content=block)],
+                    max_tokens=2048,
+                    temperature=0.5,
+                )
+                response_text = completion.choices[0].message.content.strip()
+            except Exception as e:
+                response_text = f"❌ LLM error: {e}"
+        else:
+            response_text = block
+
+        # Split lines and handle formatting
+        lines = response_text.splitlines()
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            if line in schedule_sources:
+                df_key = schedule_sources[line]
+                schedule_df = st.session_state.get(df_key)
+                doc.add_paragraph("")
+                if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
+                    add_table_from_schedule(doc, schedule_df)
+                else:
+                    doc.add_paragraph("_No schedule available._")
+                doc.add_paragraph("")
+                continue
+
+            if line.startswith("##### "):
+                doc.add_heading(line[6:].strip(), level=4)
+            elif line.startswith("#### "):
+                doc.add_heading(line[5:].strip(), level=3)
+            elif line.startswith("### "):
+                doc.add_heading(line[4:].strip(), level=2)
+            elif line.startswith("## "):
+                doc.add_heading(line[3:].strip(), level=1)
+            elif line.startswith("# "):
+                doc.add_heading(line[2:].strip(), level=0)
+            elif line.startswith("- ") or line.startswith("* "):
+                doc.add_paragraph(line[2:].strip(), style="List Bullet")
+            elif re.match(r"^\d+\.\s", line):
+                doc.add_paragraph(re.sub(r"^\d+\.\s+", "", line), style="List Number")
+            else:
+                para = doc.add_paragraph()
+                cursor = 0
+                for match in re.finditer(r"(\*\*.*?\*\*)", line):
+                    start, end = match.span()
+                    if start > cursor:
+                        para.add_run(line[cursor:start])
+                    para.add_run(match.group(1)[2:-2]).bold = True
+                    cursor = end
+                if cursor < len(line):
+                    para.add_run(line[cursor:])
+                para.style.font.size = Pt(11)
+
+        markdown_output.append(response_text.strip())
+
+    # 📆 Final schedule section (DOCX + Markdown)
+    doc.add_page_break()
+    doc.add_heading("📆 Complete Schedule Summary", level=1)
+    combined_schedule = st.session_state.get("combined_home_schedule_df")
+    if isinstance(combined_schedule, pd.DataFrame) and not combined_schedule.empty:
+        # DOCX output grouped by date and sorted by category
+        combined_schedule["Date"] = pd.to_datetime(combined_schedule["Date"], errors="coerce")
+        combined_schedule = combined_schedule.sort_values(by=["Date", "Category", "Tag", "Task"])
+
+        for date, group in combined_schedule.groupby("Date"):
+            day_str = date.strftime("%A, %Y-%m-%d")
+            doc.add_heading(f"📅 {day_str}", level=2)
+
+            for category, cat_group in group.groupby("Category"):
+                doc.add_heading(category, level=3)
+                table = doc.add_table(rows=1, cols=2)
+                table.style = 'Light List'
+                table.autofit = True
+
+                hdr_cells = table.rows[0].cells
+                hdr_cells[0].text = 'Task'
+                hdr_cells[1].text = 'Image'
+
+                for _, row in cat_group.iterrows():
+                    task = row["Task"]
+                    image_path = ""
+
+                    for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
+                        if label.lower().replace(" image", "") in task.lower():
+                            uploaded = st.session_state.trash_images.get(label)
+                            if uploaded:
+                                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                                    tmp.write(uploaded.read())
+                                    image_path = tmp.name
+                            break
+
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = task
+
+                    if image_path:
+                        try:
+                            run = row_cells[1].paragraphs[0].add_run()
+                            run.add_picture(image_path, width=Inches(1.5))
+                        except Exception:
+                            row_cells[1].text = "⚠️ Image load failed"
+                    else:
+                        row_cells[1].text = ""
+
+                doc.add_paragraph("")
+
+        # Markdown output
+        markdown_output.append("## 📆 Complete Schedule Summary")
+        markdown_output.append(add_table_from_schedule_to_markdown(combined_schedule))
+    else:
+        markdown_output.append("## 📆 Complete Schedule Summary")
+        markdown_output.append("_No schedule data available._")
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+
+    return buffer, "\n\n---\n\n".join(markdown_output).strip()
 
 def generate_docx_from_text(text: str, doc_heading: str = "Runbook") -> BytesIO:
     doc = Document()
@@ -506,7 +657,6 @@ def maybe_render_download(section: str = "home", filename: Optional[str] = None)
         )
         st.success("✅ Runbook ready for download!")
     
-import base64
 
 def render_schedule_grouped_by_date_then_type_markdown(schedule_df: pd.DataFrame) -> str:
     """

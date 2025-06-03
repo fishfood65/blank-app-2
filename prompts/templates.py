@@ -1,11 +1,19 @@
 # prompts/templates.py
 
-def wrap_prompt_block(content: str, *, title: str = "", instructions: str = "", debug: bool = False) -> str:
+def wrap_prompt_block(
+    content: str,
+    *,
+    title: str = "",
+    instructions: str = "",
+    debug: bool = False,
+    for_llm: bool = False
+) -> str:
     """
-    Wraps a content block with optional title and LLM-specific guidance.
-    Handles str, list, dict, and other types defensively.
+    Wraps a content block with optional title and guidance.
+    Can be used for LLM prompts or export-ready formatting.
     """
-    # 🛡️ Defensive conversion
+
+    # 🛡️ Normalize input
     if isinstance(content, list):
         content = "\n\n".join(str(item) for item in content)
     elif isinstance(content, dict):
@@ -14,10 +22,16 @@ def wrap_prompt_block(content: str, *, title: str = "", instructions: str = "", 
         content = str(content)
 
     block = []
+
     if title:
         block.append(f"# {title}")
+
     if instructions:
-        block.append(f"_Instructions: {instructions}_")
+        if for_llm:
+            block.append(f"_Instructions: {instructions}_")  # LLM-friendly
+        else:
+            block.append(f"**Instructions:** {instructions}")  # Reader-friendly
+
     block.append(content)
 
     final = "\n\n".join(block).strip()
@@ -123,10 +137,6 @@ Please retrieve:
 Ensure the run book is clearly formatted using Markdown, with bold headers and bullet points. Use ⚠️ to highlight missing kit items.
 """.strip()
 
-def home_services_runbook_prompt()->str:
-    return f"""
-""".strip()
-
 def utilities_emergency_prompt_template(city: str, zip_code: str, internet: str, electricity: str, gas: str, water: str) -> str:
     return f"""
 
@@ -208,6 +218,93 @@ Please retrieve:
 - Contact Info
 - Emergency Steps
 """.strip()
+
+TEMPLATE_MAP = {
+    "mail": {
+        "title": "📬 Mail Handling Instructions",
+        "instructions": "Use the provided instructions for where, when, and how to collect and store mail and packages. DO NOT invent details or insert a schedule table. Leave all placeholders untouched.",
+        "question_order": [
+            "📍 Mailbox Location",
+            "🔑 Mailbox Key (Optional)",
+            "📆 Mail Pick-Up Schedule",
+            "📥 What to Do with the Mail",
+            "📦 Packages"
+        ]
+    },
+    "trash_handling": {
+        "title": "🗑️ Trash and Recycling Instructions",
+        "instructions": "Use the provided instructions and images to explain indoor and outdoor trash routines clearly. Leave all schedule placeholders untouched.",
+        "question_order": [
+            "🧴 Kitchen Garbage Bin",
+            "♻️ Indoor Recycling Bin(s)",
+            "🧃 Indoor Compost or Green Waste",
+            "🧼 Bathroom Trash Bin",
+            "🪑 Other Room Trash Bins",
+            "How often and when is Outdoor Garbage and Recycling Collected?",
+            "What the Outdoor Trash Bins Look Like",
+            "Specific Location or Instructions for Emptying Outdoor Bins",
+            "Is there a common disposal area?",
+            "Instructions for Common Disposal Area",
+            "Waste Management Company Name",
+            "Contact Phone Number",
+            "When to Contact"
+        ]
+    },
+    "home_security": {
+        "title": "🔐 Home Security & Technology",
+        "instructions": "Summarize home security access, alarm procedures, emergency entry, and home communication details.",
+        "question_order": [
+            "Security Company Name",
+            "Security Company Phone Number",
+            "Instructions to arm/disarm system",
+            "Steps if a security alert is triggered",
+            "Indoor cameras/monitoring details and activation",
+            "Emergency access instructions & storage location",
+            "Where is Wi-Fi network name/password stored?",
+            "Guest network details & password sharing method",
+            "Home phone setup & call-handling instructions"
+        ]
+    },
+    "cleaning": {
+        "title": "🧹 Cleaning Service Instructions",
+        "instructions": "Summarize how and when cleaning services arrive and how access and post-cleaning routines are handled.",
+        "question_order": [
+            "Company Name",
+            "Phone Number",
+            "Frequency",
+            "Day of the Week",
+            "Access Method",
+            "Post-Service Procedures",
+            "Crew Identity Verification"
+        ]
+    },
+    "gardening": {
+        "title": "🌿 Gardening Service Instructions",
+        "instructions": "Describe how often gardening service occurs and any preparation or follow-up needed.",
+        "question_order": [
+            "Company Name",
+            "Phone Number",
+            "Frequency",
+            "Day of the Week",
+            "Access Method",
+            "Post-Service Procedures",
+            "Crew Identity Verification"
+        ]
+    },
+    "pool": {
+        "title": "🏊 Pool Maintenance Instructions",
+        "instructions": "Summarize when and how pool maintenance takes place, and note any access or safety details.",
+        "question_order": [
+            "Company Name",
+            "Phone Number",
+            "Frequency",
+            "Day of the Week",
+            "Access Method",
+            "Post-Service Procedures",
+            "Crew Identity Verification"
+        ]
+    }
+}
 
 def mail_prompt_template(mail_block: str) -> str:
     """Returns a list of structured markdown blocks for trash runbook content."""

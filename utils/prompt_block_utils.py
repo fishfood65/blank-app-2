@@ -7,11 +7,21 @@ from prompts.templates import (
     emergency_kit_utilities_prompt_template,
     mail_prompt_template,
     trash_prompt_template,
-    home_services_runbook_prompt
+    home_caretaker_prompt_template,
+    TEMPLATE_MAP
 )    
 from .input_tracker import get_answer  
 import streamlit as st 
 from typing import List, Optional
+
+SECTION_ALIASES = {
+    "Mail & Packages": "mail",
+    "Quality-Oriented Household Services.Cleaning": "cleaning",
+    "Quality-Oriented Household Services.Gardening": "gardening",
+    "Quality-Oriented Household Services.Pool": "pool",
+    "Home Security": "home_security",
+    "Trash Handling": "trash_handling"
+}
 
 def build_prompt_block(
     title: str,
@@ -57,39 +67,97 @@ def build_prompt_block(
 
     return block.strip()
 
+def generate_prompt_section(section: str, *, for_llm: bool = False, debug: bool = False) -> str:
+    input_data = st.session_state.get("input_data", {})
+
+    # 🔁 Resolve alias to canonical section key
+    canonical_section = SECTION_ALIASES.get(section, section)
+    section_data = input_data.get(section, []) or input_data.get(canonical_section, [])
+    template = template_map.get(canonical_section, {})
+
+    if not section_data:
+        return f"### ⚠️ No data provided for {canonical_section.title()} section."
+
+    question_order = template.get("question_order", [])
+    title = template.get("title", canonical_section.title())
+    instructions = template.get("instructions", "")
+
+    # Build answer lookup
+    answers = {item["question"]: item["answer"] for item in section_data}
+
+    def safe_line(label):
+        value = answers.get(label, "").strip()
+        if value and value.lower() not in ["no", "⚠️ not provided", ""]:
+            return f"- **{label}**: {value}"
+        return None
+
+    lines = [safe_line(q) for q in question_order]
+    bullet_block = "\n".join(filter(None, lines))
+
+    # Check for matching schedule DataFrame
+    schedule_key = f"{canonical_section}_schedule_df"
+    schedule_block = ""
+    if schedule_key in st.session_state and not st.session_state[schedule_key].empty:
+        schedule_block = f"\n\n### 📆 {title} Schedule\n\n<<{canonical_section.upper()}_SCHEDULE_PLACEHOLDER>>"
+
+    full_content = f"{bullet_block}{schedule_block}".strip()
+
+    return wrap_prompt_block(
+        content=full_content,
+        title=title,
+        instructions=instructions,
+        for_llm=for_llm,
+        debug=debug
+    )
+
+def is_content_meaningful(content: str) -> bool:
+    """
+    Returns True if the block has meaningful content (not empty or all ⚠️ lines).
+    """
+    if not content.strip():
+        return False
+    lines = [line.strip() for line in content.strip().splitlines()]
+    # Filter out lines that are just placeholders or warnings
+    non_placeholder_lines = [
+        line for line in lines
+        if "⚠️ Not provided" not in line and line not in {"---", "", "N/A"}
+    ]
+    return bool(non_placeholder_lines)
+
+
 def generate_all_prompt_blocks(section: str) -> List[str]:
     """
     Collects and wraps prompt content blocks based on the current section.
-    Returns a list of structured prompt strings.
+    Returns a list of structured prompt strings, excluding empty or placeholder-only blocks.
     """
     blocks = []
 
-    if section == "home":
-        blocks.append(build_prompt_block("Utilities and Emergency Services", utilities_emergency_runbook_prompt()))
-    
-    elif section == "mail_trash_handling":
-        blocks.append(build_prompt_block("Utilities and Emergency Services", utilities_emergency_runbook_prompt()))
-        #blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
-        blocks.append(build_prompt_block("Mail Instructions", mail_runbook_prompt()))
-        blocks.append(build_prompt_block("Trash Instructions", trash_runbook_prompt()))
-    
-    elif section == "home_security":
-        blocks.append(build_prompt_block("Utilities and Emergency Services", utilities_emergency_runbook_prompt()))
-        #blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
-        blocks.append(build_prompt_block("Mail Instructions", mail_runbook_prompt()))
-        blocks.append(build_prompt_block("Trash Instructions", trash_runbook_prompt()))
-        blocks.append(build_prompt_block("Home Caretaker & Guest Instructions", home_caretaker_runbook_prompt()))
-    
-    elif section == "emergency_kit":
-        blocks.append(build_prompt_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt()))
-    
-    elif section == "emergency_kit_critical_documents":
-        blocks.append(build_prompt_block("Important Documents Checklist", emergency_kit_document_prompt()))
-    
-    elif section == "bonus_level":
-        blocks.append(build_prompt_block("Additional Home Instructions", bonus_level_runbook_prompt()))
+    def maybe_add_block(title: str, content: str):
+        if is_content_meaningful(content):
+            blocks.append(build_prompt_block(title, content))
 
-    else:
+    # LLM blocks — always included
+    if section in ["home"]:
+        maybe_add_block("Utilities and Emergency Services", utilities_emergency_runbook_prompt())
+
+    if section in ["emergency_kit"]:
+        maybe_add_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt())
+
+    # Deterministic blocks from structured data
+    if section in ["mail_trash_handling"]:
+        maybe_add_block("Mail Instructions", generate_prompt_section("Mail & Packages", for_llm=False))
+        maybe_add_block("Trash Instructions", generate_prompt_section("Trash Handling", for_llm=False))
+
+    if section == "home_security":
+        maybe_add_block("Home Caretaker & Guest Instructions", home_caretaker_runbook_prompt())
+
+    if section == "emergency_kit_critical_documents":
+        maybe_add_block("Important Documents Checklist", emergency_kit_document_prompt())
+
+    if section == "bonus_level":
+        maybe_add_block("Additional Home Instructions", bonus_level_runbook_prompt())
+
+    if not blocks:
         blocks.append(build_prompt_block(f"⚠️ No prompt defined for section: {section}", ""))
 
     return blocks
@@ -287,8 +355,6 @@ def trash_runbook_prompt(debug: bool = False) -> list[str]:
     )
 
 def home_caretaker_runbook_prompt() -> str:
-    from prompts.templates import home_caretaker_prompt_template
-    from utils.answers import get_answer
 
     categories = [
         ("🔐 Home Security & Technology", [
