@@ -3,6 +3,12 @@ from utils.prompt_block_utils import generate_all_prompt_blocks
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download
 from datetime import datetime
 
+## Next Steps
+### need to add validation logic to ensure data is present to generate custom prompt
+### need to add pets to this
+### need to add support for valid dates
+### need to check if sections can be aliased
+
 st.title("📘 Runbook Builder")
 
 LLM_SECTIONS = {"home", "emergency_kit"}
