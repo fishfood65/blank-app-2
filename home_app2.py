@@ -46,8 +46,14 @@ from utils.task_schedule_utils_updated import (
     save_task_schedules_by_type,
     extract_unscheduled_tasks_from_inputs_with_category,
     load_label_map,
-    normalize_label
+    normalize_label,
+    display_enriched_task_preview
 )
+from utils.preview_helpers import (
+    display_enriched_task_preview, 
+    edit_button_redirect
+)
+
 import streamlit as st
 import re
 from mistralai import Mistral, UserMessage, SystemMessage
@@ -183,6 +189,10 @@ def main():
     # Save current section key
     st.session_state["section"] = LABEL_TO_KEY.get(selected, "home")
     section = st.session_state["section"]
+
+    if "current_page" in st.session_state:
+        nav_page = st.session_state.pop("current_page")
+        st.switch_page(f"{nav_page}.py")  # or use your page navigation logic
 
     # === your existing levels 1–4 ===
     if section == "home":
@@ -656,7 +666,7 @@ def trash_handling(section="trash_handling"):
 
     # ─── Outdoor Trash Disposal ────────────────────────────────
     with st.expander("Outdoor Trash Disposal Details", expanded=True):
-        register_task_input("How often and when is Outdoor Garbage and Recycling Collected?", st.text_area, task_type="Outdoor Trash", section=section, is_freq=True, disabled=disabled, placeholder="E.g., 'Trash and garbage is collected weekly on Tuesdays.'",
+        register_task_input("When are Outdoor Garbage and Recycling Collected?", st.text_area, task_type="Outdoor Trash", section=section, is_freq=True, disabled=disabled, placeholder="E.g., 'Trash and garbage is collected weekly on Tuesdays.'",
                             metadata={"task_type": "Outdoor Trash", "task_label": "Outdoor Trash Bins"})
         register_task_input("What the Outdoor Trash Bins Look Like", st.text_area, task_type="Outdoor Trash", section=section, disabled=disabled, placeholder="E.g., 'Black bin with green lid is for compost.  Black bin with black lid is for garbage.  Grey bin with blue lid is for plastic and glass container recycling. Grey bin with yellow lid is for paper recycling.'",
                             metadata={"task_type": "Outdoor Trash", "task_label": "Outdoor Trash Bins"})
@@ -714,8 +724,9 @@ def trash_handling(section="trash_handling"):
 
 def mail_trash_handling():
     # Optional reset
+    skip_rerun = st.checkbox("⚠️ Skip rerun (debug only)", value=False)
     if st.checkbox("🔪 Reset Mail and Trash Session State"):
-        for key in [
+        keys_to_clear = [
             "generated_prompt",
             "runbook_buffer",
             "runbook_text",
@@ -731,19 +742,26 @@ def mail_trash_handling():
             "trash_locked",
             "indoor_trash_schedule_df",
             "mail_handling_schedule_df",
-            "outdoor_trash_schedule_df"
-        ]:
-            st.session_state.pop(key, None)
+            "outdoor_trash_schedule_df",
+            "input_data",
+            "autosaved_json",
+            "interaction_log",
+            "grouped_mail_task",
+            "grouped_trash_schedule"
+        ]
+        for key in keys_to_clear:
+            if key in st.session_state:
+                del st.session_state[key]
 
-        st.success("🔄 Level 3 session state reset.")
-        st.stop()
+        st.success("🔄 Level 3 session state reset. Inputs and data cleared.")
+            # ⛔ Skip rerun if debugging
+        if not skip_rerun:
+            st.experimental_rerun()
 
-        # Reset edit locks
-        st.session_state.pop("mail_locked", None)
-        st.session_state.pop("trash_locked", None)
+    # 🔍 Debugging output
+    with st.expander("🧠 Session State (After Reset)"):
+        st.json({k: str(v) for k, v in st.session_state.items()})
 
-        st.success("🔄 Full session state reset. Inputs are now editable.")
-        st.stop()
 
     section = st.session_state.get("section", "home")
     switch_section("mail_trash_handling")
@@ -778,13 +796,24 @@ def mail_trash_handling():
             st.write("🧾 Extracted Raw Task DataFrame:", df)
 
             # 🆕 Universal scheduler
-            combined_df = extract_and_schedule_all_tasks(valid_dates, utils)
-            save_task_schedules_by_type(combined_df)
-            st.write("📆 Scheduled Tasks:", combined_df)
+            combined_df = None
+            refresh_preview = st.checkbox("🔄 Refresh Preview", value=True)
 
-            # Legacy breakdowns for Markdown placeholders
-            #mail_df = combined_df[combined_df["Category"] == "Mail"].copy()
-            #trash_df = combined_df[combined_df["Category"] == "Trash Handling"].copy()
+            if refresh_preview:
+                combined_df = extract_and_schedule_all_tasks(valid_dates, utils)
+
+                if combined_df is not None:
+                    dupes = combined_df[combined_df.duplicated(subset=["Date", "Day", "clean_task", "task_type"], keep=False)]
+                    st.write("🔁 Possible duplicate tasks scheduled:", dupes)
+
+                    preview_df = combined_df.drop_duplicates(subset=["Date", "Day", "clean_task", "task_type"])
+                    st.write("📆 Preview Scheduled Tasks:")
+                    display_enriched_task_preview(combined_df)
+
+                    save_task_schedules_by_type(combined_df)
+                    st.write("📆 Scheduled Tasks:", combined_df)
+
+                    st.session_state["combined_home_schedule_df"] = combined_df
 
             st.session_state.update({
             #    "mail_schedule_df": mail_df,

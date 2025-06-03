@@ -79,29 +79,33 @@ def schedule_tasks_from_templates(
         if not label or not answer:
             continue
 
-        enrichment = {
-            "question": task.get("question", ""),
-            "answer": task.get("answer", ""),
-            "clean_task": task.get("clean_task", ""),
-            "formatted_answer": task.get("formatted_answer", ""),
-            "inferred_days": task.get("inferred_days", []),
-        }
+        rows = []  # buffer for deduplication
+        seen_keys = set()
 
         # 1. One-time explicit dates
         for ds in extract_dates(answer):
-            parsed_date = normalize_date(ds)
-            if parsed_date and parsed_date in valid_dates:
-                all_rows.append({
-                    "Date": str(parsed_date),
-                    "Day": parsed_date.strftime("%A"),
-                    "Task": f"{label} – {answer}",
-                    "Tag": emoji_tags.get("[One-Time]", "🗓️ One-Time"),
-                    "Category": category,
-                    "Source": source,
-                    "Area": area,
-                    "task_type": task_type,
-                    **enrichment
-                })
+            d = normalize_date(ds)
+            if d and d in valid_dates:
+                row_key = (str(d), label)
+                if row_key not in seen_keys:
+                    seen_keys.add(row_key)
+                    rows.append({
+                        "Date": str(d),
+                        "Day": d.strftime("%A"),
+                        "Task": f"{label} – {answer}",
+                        "Tag": emoji_tags.get("[Explicit]", "📅 One-time"),
+                        "Category": category,
+                        "Source": source,
+                        "Area": area,
+                        "task_type": task_type,
+                        "question": label,
+                        "answer": answer,
+                        "clean_task": task.get("clean_task", ""),
+                        "formatted_answer": task.get("formatted_answer", ""),
+                        "inferred_days": task.get("inferred_days", []),
+                    })
+                    if debug:
+                        st.write(f"📅 [Explicit Date] {label} → {d}")
 
         # 2. Repeating intervals
         interval = extract_week_interval(answer)
@@ -109,26 +113,10 @@ def schedule_tasks_from_templates(
             base_date = valid_dates[0]
             for d in valid_dates:
                 if (d - base_date).days % (interval * 7) == 0:
-                    all_rows.append({
-                        "Date": str(d),
-                        "Day": d.strftime("%A"),
-                        "Task": f"{label} – {answer}",
-                        "Tag": f"↔️ Every {interval} Weeks",
-                        "Category": category,
-                        "Source": source,
-                        "Area": area,
-                        "task_type": task_type,
-                        **enrichment
-                    })
-
-        # 3. Weekly mentions
-        weekday_mentions = extract_weekday_mentions(answer)
-        if weekday_mentions and not interval:
-            for wd in weekday_mentions:
-                weekday_idx = weekday_to_int.get(wd)
-                for d in valid_dates:
-                    if d.weekday() == weekday_idx:
-                        all_rows.append({
+                    row_key = (str(d), label)
+                    if row_key not in seen_keys:
+                        seen_keys.add(row_key)
+                        rows.append({
                             "Date": str(d),
                             "Day": d.strftime("%A"),
                             "Task": f"{label} – {answer}",
@@ -137,30 +125,72 @@ def schedule_tasks_from_templates(
                             "Source": source,
                             "Area": area,
                             "task_type": task_type,
-                            **enrichment
+                            "question": label,
+                            "answer": answer,
+                            "clean_task": task.get("clean_task", ""),
+                            "formatted_answer": task.get("formatted_answer", ""),
+                            "inferred_days": task.get("inferred_days", []),
                         })
+                        if debug:
+                            st.write(f"🔁 [Interval] {label} → {d}")
+
+        # 3. Weekday mentions
+        weekday_mentions = extract_weekday_mentions(answer)
+        if weekday_mentions and not interval:
+            for wd in weekday_mentions:
+                weekday_idx = weekday_to_int.get(wd)
+                for d in valid_dates:
+                    if d.weekday() == weekday_idx:
+                        row_key = (str(d), label)
+                        if row_key not in seen_keys:
+                            seen_keys.add(row_key)
+                            rows.append({
+                                "Date": str(d),
+                                "Day": d.strftime("%A"),
+                                "Task": f"{label} – {answer}",
+                                "Tag": emoji_tags.get("[Weekly]", "🔁 Weekly"),
+                                "Category": category,
+                                "Source": source,
+                                "Area": area,
+                                "task_type": task_type,
+                                "question": label,
+                                "answer": answer,
+                                "clean_task": task.get("clean_task", ""),
+                                "formatted_answer": task.get("formatted_answer", ""),
+                                "inferred_days": task.get("inferred_days", []),
+                            })
+                            if debug:
+                                st.write(f"📆 [Weekday Mention] {label} → {d}")
 
         # 4. Monthly fallback
         if "monthly" in answer.lower():
             current_date = pd.to_datetime(valid_dates[0])
             while current_date.date() <= valid_dates[-1]:
-                if current_date.date() in valid_dates:
-                    all_rows.append({
-                        "Date": str(current_date.date()),
-                        "Day": current_date.strftime("%A"),
+                d = current_date.date()
+                row_key = (str(d), label)
+                if d in valid_dates and row_key not in seen_keys:
+                    seen_keys.add(row_key)
+                    rows.append({
+                        "Date": str(d),
+                        "Day": d.strftime("%A"),
                         "Task": f"{label} – {answer}",
-                        "Tag": emoji_tags.get("[Monthly]", "📆 Monthly"),
+                        "Tag": emoji_tags.get("[Monthly]", "📅 Monthly"),
                         "Category": category,
                         "Source": source,
                         "Area": area,
                         "task_type": task_type,
-                        **enrichment
+                        "question": label,
+                        "answer": answer,
+                        "clean_task": task.get("clean_task", ""),
+                        "formatted_answer": task.get("formatted_answer", ""),
+                        "inferred_days": task.get("inferred_days", []),
                     })
+                    if debug:
+                        st.write(f"📆 [Monthly] {label} → {d}")
                 current_date += pd.DateOffset(months=1)
 
-        # Debug note
-        if debug and not any([extract_dates(answer), interval, weekday_mentions]):
-            print(f"⚠️ No schedule matched: {label} – {answer[:40]}")
+        # Push deduplicated task rows
+        all_rows.extend(rows)
 
     return pd.DataFrame(all_rows)
 
@@ -387,6 +417,89 @@ def generate_flat_home_schedule_markdown(schedule_df):
 
     return "\n".join(sections).strip()
 
+def infer_relevant_days_from_text(text: str) -> list:
+    """
+    Extracts relevant weekdays from a text string, handling both explicit weekdays and common aliases.
+
+    Args:
+        text (str): The input text to analyze.
+
+    Returns:
+        list: Sorted list of weekday names found in the text.
+    """
+    if not isinstance(text, str):
+        return []
+
+    text = text.lower()
+    days_found = set()
+
+    WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    WEEKDAY_ALIASES = {
+        "daily": WEEKDAYS,
+        "every day": WEEKDAYS,
+        "each day": WEEKDAYS,
+        "weekdays": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        "weekends": ["Saturday", "Sunday"],
+        "mon": ["Monday"],
+        "tue": ["Tuesday"],
+        "wed": ["Wednesday"],
+        "thu": ["Thursday"],
+        "fri": ["Friday"],
+        "sat": ["Saturday"],
+        "sun": ["Sunday"],
+    }
+
+    # Match full weekday names
+    for day in WEEKDAYS:
+        if re.search(rf"\b{day.lower()}\b", text):
+            days_found.add(day)
+
+    # Match aliases
+    for alias, mapped_days in WEEKDAY_ALIASES.items():
+        if alias in text:
+            days_found.update(mapped_days)
+
+    return sorted(days_found)
+
+import re
+
+def extract_time_mentions(text):
+    if not isinstance(text, str):
+        return None
+
+    time_phrases = []
+
+    patterns = [
+        r"\bby\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b",                  # by 8am / by 7:30 pm
+        r"\bafter\s+(?:breakfast|lunch|dinner|sunset)\b",            # after dinner
+        r"\bbefore\s+(?:breakfast|lunch|dinner|sunset)\b",           # before lunch
+        r"\b(?:at|around)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b",       # at 9 / around 10:30 am
+        r"\b(?:noon|midnight|morning|evening|night)\b",              # morning, noon
+    ]
+
+    for pattern in patterns:
+        matches = re.findall(pattern, text, flags=re.IGNORECASE)
+        for match in matches:
+            cleaned = match.strip()
+            if cleaned.lower() not in [p.lower() for p in time_phrases]:
+                time_phrases.append(cleaned)
+
+    return ", ".join(time_phrases) if time_phrases else None
+
+
+def format_answer_as_bullets(answer: str) -> str:
+    """
+    Converts multiline answer text into Markdown-style bullet points.
+    """
+    if not isinstance(answer, str) or not answer.strip():
+        return ""
+
+    lines = [line.strip() for line in answer.strip().splitlines() if line.strip()]
+    if len(lines) <= 1:
+        return answer.strip()
+
+    return "\n".join([f"- {line}" for line in lines])
+
 def load_label_map():
     json_path = os.path.join(os.path.dirname(__file__), "task_label_map.json")
     print(f"📂 Trying to load label map from: {json_path}")
@@ -397,65 +510,107 @@ def load_label_map():
     with open(json_path, "r") as f:
         return json.load(f)
 
-LABEL_MAP = load_label_map()
+#LABEL_MAP = load_label_map()
 
 def normalize_label(label: str) -> str:
     """Remove leading emojis/symbols and normalize spacing."""
     return re.sub(r"^[^\w]*(.*)", r"\1", label).strip()
 
-def humanize_task(row: dict, include_days: bool = False) -> str:
-    label_raw = str(row.get("question", "")).strip()
-    label = re.sub(r"^[^a-zA-Z0-9]+", "", label_raw)  # Remove emoji/prefix
+def extract_key_phrase(answer: str, key: str) -> str:
+    """
+    Extracts a key phrase from the answer based on the specified key.
+    Supports 'days', 'timing', and fallback keyword spotting.
+    """
+    if not isinstance(answer, str):
+        return ""
+
+    answer = answer.strip()
+
+    if key == "days":
+        # Use your improved day inference function
+        inferred_days = infer_relevant_days_from_text(answer)
+        return ", ".join(inferred_days) if inferred_days else ""
+
+    elif key == "timing":
+        # Use the time extractor
+        timing = extract_time_mentions(answer)
+        return timing if timing else ""
+
+    # 🔁 Optional: fallback for arbitrary keywords
+    # e.g., If key == "location", extract simple location-style phrase
+    # You can expand this with NLP later
+    fallback_patterns = {
+        "location": r"(?:in|at|inside)\s+([a-zA-Z\s]+)",
+    }
+
+    pattern = fallback_patterns.get(key)
+    if pattern:
+        match = re.search(pattern, answer, flags=re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+
+    return ""
+
+def humanize_task(row: dict, label_map: dict, include_days: bool = False) -> str:
+    if label_map is None:
+        label_map = load_label_map()
+    
+    label = str(row.get("question", "")).strip()
     answer = str(row.get("answer", "")).strip()
+    inferred_days = row.get("inferred_days", [])
+    if not isinstance(inferred_days, list):
+        inferred_days = []
 
-    # Attempt lookup
-    base = LABEL_MAP.get(label, None)
-    if not base:
-        return ""
+    normalized = normalize_label(label)
+    config = label_map.get(normalized)
 
-    if include_days and row.get("inferred_days"):
-        days = ", ".join(row["inferred_days"])
-        return f"{base} on {days}"
+    if not config:
+        return f"{normalized} on {', '.join(inferred_days)}" if inferred_days else normalized
 
-    return f"{base}"
+    if isinstance(config, str):
+        return f"{config} on {', '.join(inferred_days)}" if inferred_days else config
 
-def format_answer_as_bullets(answer: str) -> str:
+    template = config.get("template")
+    keys = config.get("keys", [])
+    values = {}
+
+    for key in keys:
+        val = extract_key_phrase(answer, key)
+        if not val and key == "days" and inferred_days:
+            val = ", ".join(inferred_days)
+        values[key] = val
+
+    # Replace only known keys, skip others
+    try:
+        # Replace any missing keys with blank
+        def safe_format(template_str, values_dict):
+            return re.sub(r"\{(\w+)\}", lambda m: values_dict.get(m.group(1), ""), template_str)
+
+        return safe_format(template, values).strip()
+    except Exception as e:
+        return f"{normalized} (⚠️ Template error)"
+    
+def enrich_task_dataframe(df: pd.DataFrame, label_map: Optional[dict] = None) -> pd.DataFrame:
     """
-    Converts multiline answer or semi-colon/comma separated values into bullet points.
+    Applies enrichment to a raw task DataFrame.
+    Adds: clean_task, inferred_days, formatted_answer, and exploded inferred_day (if available).
     """
-    if not answer:
-        return ""
+    label_map = load_label_map()
+    enriched_rows = []
 
-    # Split by common delimiters
-    parts = [p.strip() for p in re.split(r"[\n;\,•]", answer) if p.strip()]
+    for _, row in df.iterrows():
+        row = row.to_dict()
+        row["inferred_days"] = infer_relevant_days_from_text(row.get("answer", ""))
+        row["formatted_answer"] = row.get("answer", "")
+        row["clean_task"] = humanize_task(row, label_map=label_map)
 
-    # Return bullet list if multiple parts
-    if len(parts) > 1:
-        return "\n".join(f"• {p}" for p in parts)
+        if row["inferred_days"]:
+            for day in row["inferred_days"]:
+                enriched_rows.append({**row, "inferred_day": day})
+        else:
+            enriched_rows.append(row)
 
-    return parts[0] if parts else ""
-
-def infer_relevant_days_from_text(text: str) -> list:
-    """
-    Returns a list of weekdays mentioned in the text.
-    Handles phrases like "alternate Mondays" and "every other Thursday".
-    """
-    text = text.lower()
-    weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-    inferred = []
-
-    for day in weekdays:
-        patterns = [
-            rf"\b{day}s?\b",                     # "Monday", "Mondays"
-            rf"every other {day}",               # "every other Monday"
-            rf"alternate {day}",                 # "alternate Monday"
-            rf"on {day}s?\b",                    # "on Mondays"
-            rf"{day}s before",                   # "Mondays before..."
-        ]
-        if any(re.search(p, text) for p in patterns):
-            inferred.append(day.capitalize())
-
-    return inferred
+    return pd.DataFrame(enriched_rows)
 
 def extract_and_schedule_all_tasks(valid_dates: List, utils: Dict = None) -> pd.DataFrame:
     """
@@ -468,16 +623,13 @@ def extract_and_schedule_all_tasks(valid_dates: List, utils: Dict = None) -> pd.
     if utils is None:
         utils = get_schedule_utils()
 
+    label_map = load_label_map()  # 🆕 dynamically reload label map
+
     raw_df = extract_unscheduled_tasks_from_inputs_with_category()
     enriched_rows = []
 
     for row in raw_df.to_dict(orient="records"):
         question = row.get("question", "")
-        answer = row.get("answer", "")
-
-        # Enrichment
-    for row in raw_df.to_dict(orient="records"):
-        question = str(row.get("question", "")).strip()
         answer = row.get("answer", "")
 
         # Coerce boolean to Yes/No early
@@ -489,19 +641,12 @@ def extract_and_schedule_all_tasks(valid_dates: List, utils: Dict = None) -> pd.
         # Safe enrichments
         row["inferred_days"] = infer_relevant_days_from_text(answer)
         row["formatted_answer"] = format_answer_as_bullets(answer)
-        row["clean_task"] = humanize_task(row, include_days=False)
+        row["clean_task"] = humanize_task(row, include_days=False, label_map=label_map)
 
-        enriched = row
-
-        # Explode if inferred_days exist
-        if row["inferred_days"]:
-            for day in row["inferred_days"]:
-                enriched_rows.append({**enriched, "inferred_day": day})
-        else:
-            enriched_rows.append(enriched)
+        enriched_rows.append(row)  # ✅ Don't explode here
 
     enriched_df = pd.DataFrame(enriched_rows)
-
+    
     # 🆕 Use schedule_tasks_from_templates but preserve enriched metadata
     final_rows = []
     base_schedule = schedule_tasks_from_templates(
@@ -595,3 +740,61 @@ def validate_inferred_day_columns(df: pd.DataFrame) -> pd.DataFrame:
             })
 
     return pd.DataFrame(problems)
+
+def display_enriched_task_preview(df, page_map=None):
+    """
+    Groups and displays scheduled tasks by (question, answer, clean_task),
+    showing associated scheduled rows and edit buttons.
+    """
+    if df.empty:
+        st.info("No enriched tasks to preview.")
+        return
+
+    grouped = df.groupby(["question", "answer", "clean_task"])
+
+    for i, ((q, a, clean), group_df) in enumerate(grouped):
+        with st.expander(f"📝 {clean}"):
+            st.markdown(f"**Original Question:** {q}")
+            st.markdown(f"**Answer:** {a}")
+            st.markdown(f"**Generated Task:** {clean}")
+
+            # 🗓️ Show scheduled dates tied to this task
+            st.dataframe(group_df[["Date", "Day", "task_type"]], use_container_width=True)
+
+            # ✏️ Edit button, using index to ensure key uniqueness
+            # ✏️ Edit button
+            section = group_df["section"].iloc[0] if "section" in group_df else ""
+            edit_button_redirect(row=group_df.iloc[0], i=i, page_map=page_map)
+
+def sanitize_key(text: str) -> str:
+    """Removes emojis/special chars and spaces for use as a Streamlit key."""
+    return re.sub(r'[^a-zA-Z0-9_]', '', text.replace(" ", "_"))
+
+def edit_button_redirect(row, key_prefix="edit", i=None, page_map=None):
+    """
+    Displays a row-level edit button. Sets session_state['current_page'] on click.
+
+    Args:
+        row (dict or pd.Series): A row from enriched_df.
+        key_prefix (str): Streamlit key prefix to avoid duplicate keys.
+        i (int): Optional unique row index fallback.
+        page_map (dict): Optional mapping from section/task_type to filename.
+    """
+    label = str(row.get("question", "Edit"))
+    task_type = str(row.get("task_type", "")).lower()
+    section = str(row.get("section", "")).lower()
+
+    destination = section or task_type or "home"
+
+    if page_map and destination in page_map:
+        destination = page_map[destination]
+
+    # Ensure unique and clean Streamlit key
+    safe_label = sanitize_key(label)
+    safe_date = str(row.get("Date", ""))
+    suffix = f"_{i}" if i is not None else ""
+    button_key = f"{key_prefix}_{safe_label}_{safe_date}{suffix}"
+
+    if st.button(f"✏️ Edit '{label}'", key=button_key):
+        st.session_state["current_page"] = destination
+        st.experimental_rerun()

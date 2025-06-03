@@ -1,14 +1,39 @@
 
 {
-  "Mail Pick-Up Schedule": "Pick up the mail",
-  "Kitchen Garbage Bin": "Empty kitchen trash",
-  "Indoor Recycling Bin(s)": "Empty recycling bin",
-  "Indoor Compost or Green Waste": "Empty compost bin",
-  "Bathroom Trash Bin": "Empty bathroom trash",
-  "Other Room Trash Bins": "Empty trash bins in other rooms",
-  "How often and when is Outdoor Garbage and Recycling Collected": "Put out garbage bins and recycling",
-  "Empty the trash": "Empty trash before pickup",
-  "Take out the bins": "Put bins at curb",
-  "Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags": "Empty bathroom trash",
-  "Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags": "Empty kitchen trash"
+  "Mail Pick-Up Schedule": {
+    "template": "Pick up the mail {timing} on {days}",
+    "keys": ["timing", "days"]
+  },
+  "Kitchen Garbage Bin": {
+    "template": "Empty kitchen trash {timing} on {days}",
+    "keys": ["timing", "days"]
+  },  
+  "Indoor Recycling Bin(s)": {
+    "template": "Empty recycling bin {timing} on {days}",
+    "keys": ["timing", "days"]
+  },
+  "Indoor Compost or Green Waste": {
+    "template": "Empty compost bin {timing} on {days}",
+    "keys": ["timing", "days"]
+  },
+  "Bathroom Trash Bin":{
+    "template": "Empty bathroom trash {timing} on {days}",
+    "keys": ["timing", "days"]
+  },
+  "Other Room Trash Bins":{
+    "template": "Empty trash bins in other rooms {timing} on {days}",
+    "keys": ["timing", "days"]
+  },
+  "When are Outdoor Garbage and Recycling Collected?":{
+    "template": "Put out garbage and recycling bins for collection on {timing} on {days}",
+    "keys": ["timing", "days"]
+  },
+  "Empty the trash":{
+    "template": "Empty trash before pickup {timing} on {days}",
+    "keys": ["timing", "days"]
+  },
+  "Take out the bins":{
+    "template":"Put bins at curb {timing} on {days}", 
+    "keys": ["timing", "days"]
+  }
 }
