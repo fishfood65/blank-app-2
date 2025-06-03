@@ -260,7 +260,6 @@ You are an expert assistant describing outdoor trash and bin logistics.
 
         f"""
 ### Common Disposal Area
-
 {common_disposal_block}
 """.strip(),
 

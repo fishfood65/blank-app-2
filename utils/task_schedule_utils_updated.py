@@ -3,8 +3,10 @@
 from collections import defaultdict
 import pandas as pd
 import re
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 import streamlit as st
+import json
+import os
 
 def generate_category_keywords_from_labels(input_data):
     keyword_freq = defaultdict(int)
@@ -45,9 +47,7 @@ def schedule_tasks_from_templates(
 ) -> pd.DataFrame:
     """
     Given a list of task dicts and valid_dates, produce a scheduled DataFrame using known frequency/dates.
-
-    Returns:
-        pd.DataFrame with: Date, Day, Task, Tag, Category, Area, Source, task_type
+    Returns a DataFrame with full enrichment metadata.
     """
     if not isinstance(tasks, list):
         raise ValueError("Expected list of task dicts for 'tasks'")
@@ -79,33 +79,37 @@ def schedule_tasks_from_templates(
         if not label or not answer:
             continue
 
-        if debug:
-            print(f"🔍 Scheduling: {label} – {answer[:60]}")
-
-        rows = []
+        enrichment = {
+            "question": task.get("question", ""),
+            "answer": task.get("answer", ""),
+            "clean_task": task.get("clean_task", ""),
+            "formatted_answer": task.get("formatted_answer", ""),
+            "inferred_days": task.get("inferred_days", []),
+        }
 
         # 1. One-time explicit dates
         for ds in extract_dates(answer):
             parsed_date = normalize_date(ds)
             if parsed_date and parsed_date in valid_dates:
-                rows.append({
+                all_rows.append({
                     "Date": str(parsed_date),
                     "Day": parsed_date.strftime("%A"),
                     "Task": f"{label} – {answer}",
-                    "Tag": emoji_tags.get("[One-Time]", "📅 One-Time"),
+                    "Tag": emoji_tags.get("[One-Time]", "🗓️ One-Time"),
                     "Category": category,
                     "Source": source,
                     "Area": area,
-                    "task_type": task_type
+                    "task_type": task_type,
+                    **enrichment
                 })
 
-        # 2. Repeating intervals (e.g. every 2 weeks)
+        # 2. Repeating intervals
         interval = extract_week_interval(answer)
         if interval:
             base_date = valid_dates[0]
             for d in valid_dates:
                 if (d - base_date).days % (interval * 7) == 0:
-                    rows.append({
+                    all_rows.append({
                         "Date": str(d),
                         "Day": d.strftime("%A"),
                         "Task": f"{label} – {answer}",
@@ -113,17 +117,18 @@ def schedule_tasks_from_templates(
                         "Category": category,
                         "Source": source,
                         "Area": area,
-                        "task_type": task_type
+                        "task_type": task_type,
+                        **enrichment
                     })
 
-        # 3. Weekly days mentioned (e.g. "Tuesdays")
+        # 3. Weekly mentions
         weekday_mentions = extract_weekday_mentions(answer)
         if weekday_mentions and not interval:
             for wd in weekday_mentions:
                 weekday_idx = weekday_to_int.get(wd)
                 for d in valid_dates:
                     if d.weekday() == weekday_idx:
-                        rows.append({
+                        all_rows.append({
                             "Date": str(d),
                             "Day": d.strftime("%A"),
                             "Task": f"{label} – {answer}",
@@ -131,15 +136,16 @@ def schedule_tasks_from_templates(
                             "Category": category,
                             "Source": source,
                             "Area": area,
-                            "task_type": task_type
+                            "task_type": task_type,
+                            **enrichment
                         })
 
-        # 4. Monthly catch-all
+        # 4. Monthly fallback
         if "monthly" in answer.lower():
             current_date = pd.to_datetime(valid_dates[0])
             while current_date.date() <= valid_dates[-1]:
                 if current_date.date() in valid_dates:
-                    rows.append({
+                    all_rows.append({
                         "Date": str(current_date.date()),
                         "Day": current_date.strftime("%A"),
                         "Task": f"{label} – {answer}",
@@ -147,15 +153,14 @@ def schedule_tasks_from_templates(
                         "Category": category,
                         "Source": source,
                         "Area": area,
-                        "task_type": task_type
+                        "task_type": task_type,
+                        **enrichment
                     })
                 current_date += pd.DateOffset(months=1)
 
-        # ✅ Skip fallback if no scheduling pattern matched
-        if not rows and debug:
-            print(f"⚠️ No schedule pattern matched for: {label}")
-
-        all_rows.extend(rows)
+        # Debug note
+        if debug and not any([extract_dates(answer), interval, weekday_mentions]):
+            print(f"⚠️ No schedule matched: {label} – {answer[:40]}")
 
     return pd.DataFrame(all_rows)
 
@@ -382,36 +387,37 @@ def generate_flat_home_schedule_markdown(schedule_df):
 
     return "\n".join(sections).strip()
 
-def humanize_task(row: dict, include_days: bool = True) -> str:
-    """
-    Create a clean, readable task label from a structured row.
-    Optionally appends inferred days if available.
-    """
-    label = row.get("question", "").strip().rstrip(":")
+def load_label_map():
+    json_path = os.path.join(os.path.dirname(__file__), "task_label_map.json")
+    print(f"📂 Trying to load label map from: {json_path}")
+
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"❌ File not found: {json_path}")
+
+    with open(json_path, "r") as f:
+        return json.load(f)
+
+LABEL_MAP = load_label_map()
+
+def normalize_label(label: str) -> str:
+    """Remove leading emojis/symbols and normalize spacing."""
+    return re.sub(r"^[^\w]*(.*)", r"\1", label).strip()
+
+def humanize_task(row: dict, include_days: bool = False) -> str:
+    label_raw = str(row.get("question", "")).strip()
+    label = re.sub(r"^[^a-zA-Z0-9]+", "", label_raw)  # Remove emoji/prefix
     answer = str(row.get("answer", "")).strip()
 
-    if not label and not answer:
+    # Attempt lookup
+    base = LABEL_MAP.get(label, None)
+    if not base:
         return ""
 
-    # Try to convert answer to readable summary
-    details = format_answer_as_bullets(answer)
+    if include_days and row.get("inferred_days"):
+        days = ", ".join(row["inferred_days"])
+        return f"{base} on {days}"
 
-    # Base task phrasing
-    base = label
-
-    # Add brief detail if it's a short answer
-    if details and len(details) < 80 and "\n" not in details:
-        base = f"{label}: {details}"
-    elif details:
-        base = f"{label}\n{details}"
-
-    # Optionally add inferred days
-    inferred = row.get("inferred_days", [])
-    if include_days and inferred:
-        day_str = ", ".join(inferred)
-        base += f"\n📅 Days: {day_str}"
-
-    return base.strip()
+    return f"{base}"
 
 def format_answer_as_bullets(answer: str) -> str:
     """
@@ -451,7 +457,7 @@ def infer_relevant_days_from_text(text: str) -> list:
 
     return inferred
 
-def extract_and_schedule_all_tasks(valid_dates: list, utils: dict = None) -> pd.DataFrame:
+def extract_and_schedule_all_tasks(valid_dates: List, utils: Dict = None) -> pd.DataFrame:
     """
     Extracts and schedules tasks using enrichment and inference:
     - Applies human-readable labels
@@ -469,43 +475,54 @@ def extract_and_schedule_all_tasks(valid_dates: list, utils: dict = None) -> pd.
         question = row.get("question", "")
         answer = row.get("answer", "")
 
-        # 🧼 Coerce boolean or non-string answers to strings
+        # Enrichment
+    for row in raw_df.to_dict(orient="records"):
+        question = str(row.get("question", "")).strip()
+        answer = row.get("answer", "")
+
+        # Coerce boolean to Yes/No early
         if isinstance(answer, bool):
             answer = "Yes" if answer else "No"
         elif answer is None:
             answer = ""
-        else:
-            answer = str(answer).strip()
 
-        row["answer"] = answer  # Update in-place
+        # Safe enrichments
+        row["inferred_days"] = infer_relevant_days_from_text(answer)
+        row["formatted_answer"] = format_answer_as_bullets(answer)
+        row["clean_task"] = humanize_task(row, include_days=False)
 
-        # 🧠 Enrichment
-        clean = humanize_task(row, include_days=False)
-        inferred_days = infer_relevant_days_from_text(answer)
-        formatted = format_answer_as_bullets(answer)
+        enriched = row
 
-        enriched = {
-            **row,
-            "clean_task": clean,
-            "formatted_answer": formatted,
-            "inferred_days": inferred_days,
-        }
-
-        # 📆 Explode if inferred_days exist
-        if inferred_days:
-            for day in inferred_days:
+        # Explode if inferred_days exist
+        if row["inferred_days"]:
+            for day in row["inferred_days"]:
                 enriched_rows.append({**enriched, "inferred_day": day})
         else:
             enriched_rows.append(enriched)
 
     enriched_df = pd.DataFrame(enriched_rows)
 
-    # ✅ Schedule using enriched + exploded rows
-    return schedule_tasks_from_templates(
+    # 🆕 Use schedule_tasks_from_templates but preserve enriched metadata
+    final_rows = []
+    base_schedule = schedule_tasks_from_templates(
         tasks=enriched_df.to_dict(orient="records"),
         valid_dates=valid_dates,
         utils=utils
     )
+
+    for scheduled_row in base_schedule.to_dict(orient="records"):
+        matched = next(
+            (e for e in enriched_rows
+             if e["question"] == scheduled_row.get("question")
+             and e["answer"] == scheduled_row.get("answer")), None
+        )
+        if matched:
+            combined = {**scheduled_row, **matched}
+            final_rows.append(combined)
+        else:
+            final_rows.append(scheduled_row)
+
+    return pd.DataFrame(final_rows)
 
 def save_task_schedules_by_type(combined_df: pd.DataFrame):
     """
@@ -533,3 +550,48 @@ def save_task_schedules_by_type(combined_df: pd.DataFrame):
 
         if st.session_state.get("enable_debug_mode"):
             st.write(f"✅ Saved {len(group_df)} tasks to `{docx_key}` for placeholder `{placeholder}`")
+
+def validate_inferred_day_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Validates the presence and consistency of 'inferred_day' and 'inferred_days' columns.
+
+    Returns a DataFrame of problematic rows, or an empty DataFrame if all pass.
+    """
+    problems = []
+
+    for idx, row in df.iterrows():
+        inferred_days = row.get("inferred_days", [])
+        inferred_day = row.get("inferred_day", None)
+
+        # Case 1: inferred_day exists but not in inferred_days
+        if inferred_day and isinstance(inferred_days, list) and inferred_day not in inferred_days:
+            problems.append({
+                "index": idx,
+                "issue": "inferred_day not in inferred_days",
+                "inferred_day": inferred_day,
+                "inferred_days": inferred_days,
+                "question": row.get("question"),
+                "task": row.get("Task", "")
+            })
+
+        # Case 2: inferred_days exists but is not a list
+        if inferred_days and not isinstance(inferred_days, list):
+            problems.append({
+                "index": idx,
+                "issue": "inferred_days is not a list",
+                "inferred_days": inferred_days,
+                "question": row.get("question"),
+                "task": row.get("Task", "")
+            })
+
+        # Case 3: inferred_day exists but is not a string
+        if inferred_day and not isinstance(inferred_day, str):
+            problems.append({
+                "index": idx,
+                "issue": "inferred_day is not a string",
+                "inferred_day": inferred_day,
+                "question": row.get("question"),
+                "task": row.get("Task", "")
+            })
+
+    return pd.DataFrame(problems)

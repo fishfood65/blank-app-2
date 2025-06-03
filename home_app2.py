@@ -44,7 +44,9 @@ from utils.task_schedule_utils_updated import (
     get_schedule_utils,
     generate_flat_home_schedule_markdown,
     save_task_schedules_by_type,
-    extract_unscheduled_tasks_from_inputs_with_category
+    extract_unscheduled_tasks_from_inputs_with_category,
+    load_label_map,
+    normalize_label
 )
 import streamlit as st
 import re
@@ -714,14 +716,27 @@ def mail_trash_handling():
     # Optional reset
     if st.checkbox("🔪 Reset Mail and Trash Session State"):
         for key in [
-            "generated_prompt", "runbook_buffer", "runbook_text", "user_confirmation",
-            "combined_home_schedule_df",  # 🧹 Clear old combined schedule
-            "task_inputs",                # 🧼 Clear all captured task inputs
-            "input_data",                # Optional: clear processed input data
-            "trash_images",              # Optional: clear uploaded images
-            "mail_locked", "trash_locked",  # Optional: reset lock toggles
+            "generated_prompt",
+            "runbook_buffer",
+            "runbook_text",
+            "user_confirmation",
+            "task_inputs",
+            "combined_home_schedule_df",
+            "mail_schedule_df",
+            "trash_schedule_df",
+            "mail_schedule_markdown",
+            "trash_flat_schedule_md",
+            "home_schedule_markdown",
+            "mail_locked",
+            "trash_locked",
+            "indoor_trash_schedule_df",
+            "mail_handling_schedule_df",
+            "outdoor_trash_schedule_df"
         ]:
             st.session_state.pop(key, None)
+
+        st.success("🔄 Level 3 session state reset.")
+        st.stop()
 
         # Reset edit locks
         st.session_state.pop("mail_locked", None)
@@ -759,8 +774,8 @@ def mail_trash_handling():
             utils = get_schedule_utils()
 
             df = extract_unscheduled_tasks_from_inputs_with_category()
-            st.write("✅ Raw Task Inputs:", df)
-
+            st.write("📦 Session task inputs:", st.session_state.get("task_inputs", []))
+            st.write("🧾 Extracted Raw Task DataFrame:", df)
 
             # 🆕 Universal scheduler
             combined_df = extract_and_schedule_all_tasks(valid_dates, utils)
@@ -781,14 +796,59 @@ def mail_trash_handling():
             })
 
             if st.session_state.get("enable_debug_mode"):
-                if st.session_state.get("enable_debug_mode"):
-                    st.markdown("### 🔍 Task Preview (Before vs After Enrichment)")
+                st.markdown("## 🔍 Task Preview: Raw vs Enriched")
 
-                    if not df.empty:
-                        preview_raw = df.iloc[[0]].copy()
-                        preview_enriched = combined_df[combined_df["question"] == preview_raw.iloc[0]["question"]]
-                        st.write("📝 Raw Task:", preview_raw)
-                        st.write("✨ Enriched & Scheduled:", preview_enriched)
+                raw_df = extract_unscheduled_tasks_from_inputs_with_category()
+                combined_df = st.session_state.get("combined_home_schedule_df")
+
+                LABEL_MAP = load_label_map()
+                if not df.empty:
+                    st.markdown("### 🔍 Label → Clean Task Mappings")
+                    for label in df["question"].dropna().unique():
+                        norm_label = normalize_label(label)
+                        cleaned = LABEL_MAP.get(norm_label, "⚠️ No match in LABEL_MAP")
+                        st.text(f"Label: '{label}' → Normalized: '{norm_label}' → Cleaned: '{cleaned}'")
+
+                else:
+                    st.warning("⚠️ No raw tasks available to preview.")
+
+                if isinstance(raw_df, pd.DataFrame) and not raw_df.empty:
+                    st.markdown("### 📝 Raw Task Inputs")
+                    st.dataframe(raw_df)
+
+                    if isinstance(combined_df, pd.DataFrame) and not combined_df.empty:
+                        st.markdown("### ✨ Enriched & Scheduled Tasks")
+                        st.dataframe(combined_df)
+
+                        st.markdown("### 🔁 Matched Task Diffs")
+                        for i, row in raw_df.iterrows():
+                            raw_q = str(row.get("question", "")).strip()
+                            raw_a = str(row.get("answer", "")).strip()
+
+                            matches = combined_df[
+                                combined_df["question"].astype(str).str.strip() == raw_q
+                            ]
+
+                            if not matches.empty:
+                                enriched_sample = matches.iloc[0]
+
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    st.markdown(f"**Raw Task {i+1}:**")
+                                    st.write(f"**Question:** {raw_q}")
+                                    st.write(f"**Answer:** {raw_a}")
+
+                                with col2:
+                                    st.markdown("**🪄 Enriched View**")
+                                    st.write(f"**Clean Task:** {enriched_sample.get('clean_task', '')}")
+                                    st.write(f"**Formatted Answer:** {enriched_sample.get('formatted_answer', '')}")
+                                    st.write(f"**Inferred Days:** {enriched_sample.get('inferred_days', '')}")
+                            else:
+                                st.warning(f"⚠️ No enriched match for: `{raw_q}`")
+                    else:
+                        st.warning("⚠️ No enriched schedule found.")
+                else:
+                    st.warning("⚠️ No raw task inputs available.")
 
             # Step 7: Confirm and maybe generate prompt
             st.subheader("👍 Review and Approve")
