@@ -242,26 +242,22 @@ def generate_docx_from_split_prompts( ### depreciate
     return buffer, full_text
 
 def generate_docx_from_prompt_blocks(
-    blocks: Union[List[str], Tuple[str, str]],
+    blocks: List[str],
     use_llm: bool = False,
     api_key: Optional[str] = None,
     doc_heading: str = "Runbook",
     model: str = "mistral-small-latest",
     debug: bool = False,
-    split_mode: bool = False
 ) -> Tuple[io.BytesIO, str]:
     from docx import Document
-    from docx.shared import Inches, Pt
-    import tempfile
+    from docx.shared import Pt
 
     doc = Document()
     doc.add_heading(doc_heading, 0)
     markdown_output = []
+    debug_warnings = []
 
     schedule_sources = get_schedule_placeholder_mapping()
-
-    if split_mode and isinstance(blocks, tuple):
-        blocks = list(blocks)
 
     for i, block in enumerate(blocks):
         if not block.strip():
@@ -273,6 +269,7 @@ def generate_docx_from_prompt_blocks(
 
         if use_llm:
             try:
+                st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
                 client = Mistral(api_key=api_key)
                 completion = client.chat.complete(
                     model=model,
@@ -300,8 +297,11 @@ def generate_docx_from_prompt_blocks(
                     add_table_from_schedule(doc, schedule_df)
                 else:
                     if debug:
-                        st.warning(f"⚠️ Missing schedule for: {df_key}")
-                    doc.add_paragraph("_No schedule available._" if debug else "")
+                        section_hint = df_key.replace("_schedule_df", "").replace("_", " ").title()
+                        debug_warnings.append(
+                            f"⚠️ Skipping **{section_hint}** schedule placeholder `{line}` — no data found in [`st.session_state['{df_key}']`](#debug-{df_key})."
+                        )
+                    continue
                 doc.add_paragraph("")
                 continue
 
@@ -334,11 +334,10 @@ def generate_docx_from_prompt_blocks(
 
         markdown_output.append(response_text.strip())
 
-    # 📆 Final Schedule Section
     doc.add_page_break()
-    doc.add_heading("📆 Complete Schedule Summary", level=1)
     combined_schedule = st.session_state.get("combined_home_schedule_df")
     if isinstance(combined_schedule, pd.DataFrame) and not combined_schedule.empty:
+        doc.add_heading("📆 Complete Schedule Summary", level=1)
         combined_schedule["Date"] = pd.to_datetime(combined_schedule["Date"], errors="coerce")
         combined_schedule = combined_schedule.sort_values(by=["Date", "Category", "Tag", "Task"])
 
@@ -348,50 +347,42 @@ def generate_docx_from_prompt_blocks(
 
             for category, cat_group in group.groupby("Category"):
                 doc.add_heading(category, level=3)
-                table = doc.add_table(rows=1, cols=2)
+                table = doc.add_table(rows=1, cols=1)
                 table.style = 'Light List'
                 table.autofit = True
 
                 hdr_cells = table.rows[0].cells
                 hdr_cells[0].text = 'Task'
-                hdr_cells[1].text = 'Image'
 
                 for _, row in cat_group.iterrows():
                     task = row["Task"]
-                    image_path = ""
-
-                    for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
-                        if label.lower().replace(" image", "") in task.lower():
-                            uploaded = st.session_state.trash_images.get(label)
-                            if uploaded:
-                                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                                    tmp.write(uploaded.read())
-                                    image_path = tmp.name
-                            break
-
                     row_cells = table.add_row().cells
                     row_cells[0].text = task
-
-                    if image_path:
-                        try:
-                            run = row_cells[1].paragraphs[0].add_run()
-                            run.add_picture(image_path, width=Inches(1.5))
-                        except Exception:
-                            row_cells[1].text = "⚠️ Image load failed"
-                    else:
-                        row_cells[1].text = ""
 
                 doc.add_paragraph("")
 
         markdown_output.append("## 📆 Complete Schedule Summary")
         markdown_output.append(add_table_from_schedule_to_markdown(combined_schedule))
-    elif debug:
-        markdown_output.append("## 📆 Complete Schedule Summary")
-        markdown_output.append("_No schedule data available._")
+    else:
+        if debug:
+            debug_warnings.append(
+                "⚠️ No schedule data found in [`combined_home_schedule_df`](#debug-combined_home_schedule_df). Skipping 📆 Complete Schedule Summary."
+            )
 
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
+
+    if debug and debug_warnings:
+        with st.expander("⚠️ Missing Schedules (Debug)", expanded=True):
+            for msg in debug_warnings:
+                st.markdown(f"- {msg}", unsafe_allow_html=True)
+
+        for key in ["combined_home_schedule_df", "trash_schedule_df", "mail_schedule_df"]:
+            if key in st.session_state:
+                st.markdown(f"<a name='debug-{key}'></a>", unsafe_allow_html=True)
+                st.markdown(f"### 🔎 Debug: `{key}`", unsafe_allow_html=True)
+                st.dataframe(st.session_state[key])
 
     return buffer, "\n\n---\n\n".join(markdown_output).strip()
 
