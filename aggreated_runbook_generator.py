@@ -1,61 +1,77 @@
 import streamlit as st
 from utils.prompt_block_utils import generate_all_prompt_blocks
-from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download
 from datetime import datetime
-
+from typing import List
+from config.sections import SECTION_METADATA, LLM_SECTIONS
+from utils.runbook_generator_helpers import (
+    generate_docx_from_prompt_blocks,
+    maybe_render_download,
+)
+import os
 ## Next Steps
 ### need to add validation logic to ensure data is present to generate custom prompt
 ### need to add pets to this
 ### need to add support for valid dates
 ### need to check if sections can be aliased
 
-st.title("📘 Runbook Builder")
+def multi_section_runbook():
+    st.header("📘 Multi-Section Emergency Runbook Generator")
 
-LLM_SECTIONS = {"home", "emergency_kit"}
+    # Step 1: Section Selection from metadata
+    section_options = [k for k, v in SECTION_METADATA.items() if v.get("enabled", True)]
+    section_labels = [SECTION_METADATA[k]["label"] for k in section_options]
+    label_to_key = {SECTION_METADATA[k]["label"]: k for k in section_options}
 
-# Step 1: Section Selection
-selected_sections = st.multiselect(
-    "Select sections to include in the runbook",
-    [
-        "home",
-        "mail_trash_handling",
-        "home_security",
-        "emergency_kit",
-        "emergency_kit_critical_documents",
-        "bonus_level"
-    ]
-)
+    selected_labels = st.multiselect("Select sections to include:", section_labels)
+    selected_sections = [label_to_key[label] for label in selected_labels]
 
-if selected_sections:
-    # Step 2: Split into LLM and non-LLM blocks
-    llm_blocks = []
-    non_llm_blocks = []
-    for section in selected_sections:
-        blocks = generate_all_prompt_blocks(section)
-        if section in LLM_SECTIONS:
-            llm_blocks.extend(blocks)
-        else:
-            non_llm_blocks.extend(blocks)
+    # Step 2: Collect Prompt Blocks
+    if selected_sections:
+        llm_blocks = []
+        non_llm_blocks = []
 
-    all_blocks = llm_blocks + non_llm_blocks
+        for section in selected_sections:
+            blocks = generate_all_prompt_blocks(section)
+            if section in LLM_SECTIONS:
+                llm_blocks.extend(blocks)
+            else:
+                non_llm_blocks.extend(blocks)
 
-    # Step 3: Generate the DOCX and Markdown
-    if st.button("📥 Generate Runbook"):
-        buffer, markdown_text = generate_docx_from_prompt_blocks(
-            blocks=all_blocks,
-            use_llm=bool(llm_blocks),
-            api_key=st.secrets.get("MISTRAL_TOKEN"),
-            doc_heading="🏠 Household Runbook",
-            debug=False
-        )
+        all_blocks = llm_blocks + non_llm_blocks
 
-        # Cache results in session state
-        st.session_state["runbook_text"] = markdown_text
-        st.session_state["runbook_buffer"] = buffer
+        # Step 3: Preview blocks if debug mode
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown("### 🧾 Prompt Preview")
+            for i, block in enumerate(all_blocks):
+                st.code(f"[{i + 1}] {block}", language="markdown")
 
-    # Step 4: Render preview/download UI
-    if "runbook_text" in st.session_state and "runbook_buffer" in st.session_state:
-        maybe_render_download(section="runbook", filename="household_runbook.docx")
+        # Step 4: Generate Runbook
+        generate_key = "generate_runbook"
+        if st.button("📥 Generate Runbook"):
+            st.session_state[generate_key] = True
 
-else:
-    st.info("Select at least one section to generate your runbook.")
+        if st.session_state.get(generate_key):
+            st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
+            buffer, markdown_text = generate_docx_from_prompt_blocks(
+                blocks=all_blocks,
+                use_llm=True,
+                api_key=os.getenv("MISTRAL_TOKEN"),
+                doc_heading="🏠 Multi-Section Emergency Runbook",
+                debug=st.session_state.get("enable_debug_mode", False),
+            )
+
+            # Cache output in session state
+            st.session_state["runbook_text"] = markdown_text
+            st.session_state["runbook_buffer"] = buffer
+            st.session_state["runbook_ready"] = True
+
+    # Step 5: Show preview and download link
+    if st.session_state.get("runbook_ready"):
+        st.success("✅ Runbook Ready!")
+        if maybe_render_download(section="runbook", filename="multi_section_runbook.docx"):
+            # Optional level tracking
+            if "level_progress" not in st.session_state:
+                st.session_state["level_progress"] = {}
+            st.session_state["level_progress"]["runbook"] = True
+    else:
+        st.info("ℹ️ Click the button above to generate your runbook.")

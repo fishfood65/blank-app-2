@@ -485,7 +485,8 @@ def homeowner_kit_stock():
         "Battery-powered or hand-crank radio",
         "Whistle (for signaling)",
         "Dust masks (for air filtration)",
-        "Local maps and contact lists"
+        "Local maps and contact lists",
+        "Fire extinguisher"
     ]
 
     selected = []
@@ -577,7 +578,8 @@ def emergency_kit():
         "Battery-powered or hand-crank radio",
         "Whistle (for signaling)",
         "Dust masks (for air filtration)",
-        "Local maps and contact lists"
+        "Local maps and contact lists",
+        "Fire extinguisher"
     ]
     not_selected_items = [item for item in kit_items if item not in selected_items]
 
@@ -603,7 +605,6 @@ def emergency_kit_utilities():
     
     # Step 2: Confirm and maybe generate prompt
     st.subheader("👍 Validation")
-
 
     blocks = generate_all_prompt_blocks("emergency_kit")
     if st.session_state.get("enable_debug_mode"):
@@ -632,7 +633,7 @@ def emergency_kit_utilities():
             blocks=blocks,
             use_llm=bool(True),
             api_key=os.getenv("MISTRAL_TOKEN"),
-            doc_heading="🏠 Utilities Emergency Runbook ",
+            doc_heading="🧰 Utilities & Emergency Kit Runbook ",
             debug=False
         )
 
@@ -650,7 +651,7 @@ def emergency_kit_utilities():
     # Step 4: Show download if ready
     if st.session_state.get(f"{section}_runbook_ready"):
         st.success("✅ Runbook Ready!")
-        maybe_render_download(section="home", filename="utilities_emergency.docx")
+        maybe_render_download(section="home", filename="utilities_emergency_kit.docx")
         st.session_state["level_progress"]["home"] = True
     else:
         st.info("ℹ️ Click the button above to generate your runbook.")
