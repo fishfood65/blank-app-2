@@ -1,6 +1,14 @@
 import streamlit as st
 import re
 import pandas as pd
+from config.sections import SECTION_METADATA
+
+def get_active_section_label(section_key: str) -> str:
+    """
+    Returns the human-friendly label for a given section key.
+    Falls back to the section key itself if label is missing.
+    """
+    return SECTION_METADATA.get(section_key, {}).get("label", section_key)
 
 def display_enriched_task_preview(combined_df: pd.DataFrame):
     """

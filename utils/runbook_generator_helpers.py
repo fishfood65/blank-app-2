@@ -597,40 +597,66 @@ def render_prompt_preview(missing: list, section: str = "home"):
             st.markdown(st.session_state.get("home_schedule_markdown", "_No schedule available._"))
         st.success("✅ Prompt ready! This is what will be sent to the LLM.")
 
-def maybe_render_download(section: str = "home", filename: Optional[str] = None):
+def maybe_render_download(section: str = "home", filename: Optional[str] = None) -> bool:
     """
-    Renders download button and preview for generated runbook.
+    Renders download buttons and preview for a generated runbook, with fallback HTML export.
 
-    Parameters:
-    - section: str — used to generate default filename
-    - filename: Optional[str] — custom file name for the DOCX download
+    Returns:
+        bool: True if a download buffer was presented, else False.
     """
     buffer = st.session_state.get(f"{section}_runbook_buffer")
     runbook_text = st.session_state.get(f"{section}_runbook_text")
+    doc_heading = f"{section.replace('_', ' ').title()} Emergency Runbook"
 
     if not filename:
         filename = f"{section}_emergency_runbook.docx"
 
-    # 🔍 Show preview text if available
+    st.subheader(f"📤 Export Options: {doc_heading}")
+
+    shown = False  # Will be returned to signal whether a buffer/download was available
+
+    # 🔍 Markdown/Prompt Preview (always shown if available)
     if runbook_text:
         st.markdown("### 📝 Prompt Output Preview")
         preview_runbook_output(runbook_text)
         st.write("🧪 Runbook Text Length:", len(runbook_text))
 
-    # 📥 Download button with diagnostics
+        # 🖥️ Export HTML file from markdown
+        html_filename = filename.replace(".docx", ".html")
+        html_output = f"<html><body><h1>{doc_heading}</h1>\n" + st.markdown(runbook_text).body + "\n</body></html>"
+
+        st.download_button(
+            label="🌐 Download as HTML",
+            data=html_output.encode("utf-8"),
+            file_name=html_filename,
+            mime="text/html"
+        )
+        shown = True
+
+    # 📥 DOCX Export
     if buffer:
         st.write("🧪 Buffer Type:", type(buffer))
         st.write("🧪 Buffer Size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "❌ Invalid")
 
         st.download_button(
-            label="📥 Download DOCX",
+            label="📄 Download DOCX",
             data=buffer,
             file_name=filename,
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
-        st.success("✅ Runbook ready for download!")
+        st.success("✅ DOCX runbook ready for download!")
+        shown = True
     else:
-        st.warning("⚠️ Runbook buffer not found or empty. Nothing to download.")
+        st.warning(f"⚠️ DOCX runbook buffer not found for `{section}`. Markdown/HTML export still available.")
+
+    # 🔁 Reset Button
+    if st.button(f"♻️ Reset {section.title()} Runbook Cache"):
+        for key in [f"{section}_runbook_buffer", f"{section}_runbook_text", f"{section}_runbook_ready"]:
+            st.session_state.pop(key, None)
+        st.success(f"🔄 Cleared session state for {section} runbook.")
+        st.stop()
+
+    return shown
 
 def render_schedule_grouped_by_date_then_type_markdown(schedule_df: pd.DataFrame) -> str:
     """

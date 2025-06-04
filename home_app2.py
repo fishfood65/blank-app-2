@@ -49,8 +49,10 @@ from utils.task_schedule_utils_updated import (
 )
 from utils.preview_helpers import (
     display_enriched_task_preview, 
-    edit_button_redirect
+    edit_button_redirect,
+    get_active_section_label
 )
+from config.sections import (SECTION_METADATA, LLM_SECTIONS)
 from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
 import re
@@ -71,17 +73,20 @@ from docx.shared import Inches
 
 #from bs4 import BeautifulSoup
 
-# --- Level name mappings for display ---
+# Only include sections that have a numeric level
 LEVEL_LABELS = {
-    "home": "Level 1 - 🏠 Home Basics",
-    "emergency_kit": "Level 2 - 🧰 Emergency Preparedness",
-    "mail_trash_handling": "Level 3 - 📬 Mail & Trash Setup",
-    "home_security": "Level 4 - 🔐 Home Security and Services",
-    "emergency_kit_critical_documents": "Level 5 - 🚨 Vital Records Kit",
-    "bonus_level": "✨ Bonus Level",
+    key: meta["label"]
+    for key, meta in SECTION_METADATA.items()
+    if isinstance(meta.get("level"), int)
 }
-LABEL_TO_KEY = {v: k for k, v in LEVEL_LABELS.items()}
-levels = tuple(LEVEL_LABELS.values())
+
+# Reverse lookup: label → key
+LABEL_TO_KEY = {label: key for key, label in LEVEL_LABELS.items()}
+
+# Tuple of labels in level order (for UI display)
+levels = tuple(
+    LEVEL_LABELS[k] for k in sorted(LEVEL_LABELS, key=lambda x: SECTION_METADATA[x]["level"])
+)
 
 st.write("# Welcome to Home Hero Academy! 👋")
 
@@ -242,6 +247,11 @@ def main():
 
 def home():
     section = st.session_state.get("section", "home")
+    # Optionally validate against SECTION_METADATA
+    if section not in SECTION_METADATA:
+        section = "home"  # or raise a warning/log it
+
+    st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")
     switch_section("home")
 
     st.subheader("Let's gather some information. Please enter your details:")
@@ -410,15 +420,6 @@ def home():
     # Step 4: Confirm and maybe generate prompt
     st.subheader("👍 Validate")
 
-    # Set and track confirmation state
-    #confirm_key = f"confirm_ai_prompt_{section}"
-    #user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
-    #st.session_state[f"{section}_user_confirmation"] = user_confirmation
-
-    # Generate prompts if confirmed
-    #if user_confirmation:
-    #    combined_prompt, prompt_blocks = maybe_generate_prompt(section=section)
-#
     blocks = generate_all_prompt_blocks("home")
     if st.session_state.get("enable_debug_mode"):
         st.markdown("### 🧾 Prompt Preview")
@@ -426,15 +427,16 @@ def home():
             st.code(blocks or "", language="markdown")
 
     # Step 5: Prompt preview + runbook
-    #missing = check_missing_utility_inputs()
-    #render_prompt_preview(missing, section=section)
+
     missing = check_missing_utility_inputs()
     if missing:
         st.warning(f"⚠️ Missing required fields: {', '.join(missing)}")
     else:
         st.success("✅ All required utility inputs are complete.")
 
-   # Step 3: Generate the DOCX and Markdown
+    st.subheader("🎉 Reward")
+
+   # Step 6: Generate the DOCX and Markdown
     generate_key= "generate_runbook_home"
     if st.button("📥 Generate Runbook"):
         st.session_state[generate_key] = True
@@ -449,11 +451,11 @@ def home():
             debug=False
         )
 
-        st.write("📋 Blocks sent to generator:", blocks)
-        st.write("📝 Markdown Text:", markdown_text)
-        st.write("📁 DOCX Buffer:", buffer)
-        st.write("🧪 Buffer type:", type(buffer))
-        st.write("🧪 Buffer size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "Invalid")
+        #st.write("📋 Blocks sent to generator:", blocks)
+        #st.write("📝 Markdown Text:", markdown_text)
+        #st.write("📁 DOCX Buffer:", buffer)
+        #st.write("🧪 Buffer type:", type(buffer))
+        #st.write("🧪 Buffer size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "Invalid")
 
         # Cache results in session state
         st.session_state[f"{section}_runbook_text"] = markdown_text
@@ -468,12 +470,6 @@ def home():
     else:
         st.info("ℹ️ Click the button above to generate your runbook.")
 
-    # Step 6: Optionally generate runbook if inputs are valid and confirmed
-    #st.subheader("🎉 Reward")
-   # if not missing and st.session_state.get("generated_prompt"):
-     #   maybe_generate_runbook(section=section)
-        # Level 1 Complete - for Progress
-     #   st.session_state["level_progress"]["home"] = True
 
 ### Level 2 - Emergency Kit Details
 
@@ -595,7 +591,11 @@ def emergency_kit_utilities():
         st.stop()  # 🔁 prevent rest of UI from running this frame
     
     section = st.session_state.get("section", "home")
+    # Optionally validate against SECTION_METADATA
+    if section not in SECTION_METADATA:
+        section = "home"  # or raise a warning/log it
 
+    st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")
     switch_section("emergency_kit")
 
     # Step 1: Input collection
@@ -604,32 +604,56 @@ def emergency_kit_utilities():
     # Step 2: Confirm and maybe generate prompt
     st.subheader("👍 Validation")
 
-    # Set and track confirmation state
-    confirm_key = f"confirm_ai_prompt_{section}"
-    user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
-    st.session_state[f"{section}_user_confirmation"] = user_confirmation
 
-    # Generate prompts if confirmed
-    if user_confirmation:
-        combined_prompt, prompt_blocks = maybe_generate_prompt(section=section)
-        if st.session_state.get("enable_debug_mode"):
-            st.markdown("### 🧾 Prompt Preview")
-            st.code(combined_prompt or "", language="markdown")
+    blocks = generate_all_prompt_blocks("emergency_kit")
+    if st.session_state.get("enable_debug_mode"):
+        st.markdown("### 🧾 Prompt Preview")
+        for block in blocks:
+            st.code(blocks or "", language="markdown")
 
-    # Step 3: Prompt preview + runbook
+    # Step 5: Prompt preview + runbook
+
     missing = check_missing_utility_inputs()
-    #if missing:
-    #    st.warning(f"⚠️ Missing required fields: {', '.join(missing)}")
-   # else:
-    #    st.success("✅ All required utility inputs are complete.")
-    render_prompt_preview(missing, section=section)
+    if missing:
+        st.warning(f"⚠️ Missing required fields: {', '.join(missing)}")
+    else:
+        st.success("✅ All required utility inputs are complete.")
 
-    # Step 4: Optionally generate runbook if inputs are valid and confirmed
     st.subheader("🎉 Reward")
-    if not missing and st.session_state.get("generated_prompt"):
-        maybe_generate_runbook(section=section)
-        # Level 2 Complete - for Progress
-        st.session_state["level_progress"]["emergency_kit"] = True
+
+   # Step 6: Generate the DOCX and Markdown
+    generate_key= "generate_runbook_home"
+    if st.button("📥 Generate Runbook"):
+        st.session_state[generate_key] = True
+
+    if st.session_state.get(generate_key):
+        st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
+        buffer, markdown_text = generate_docx_from_prompt_blocks(
+            blocks=blocks,
+            use_llm=bool(True),
+            api_key=os.getenv("MISTRAL_TOKEN"),
+            doc_heading="🏠 Utilities Emergency Runbook ",
+            debug=False
+        )
+
+        #st.write("📋 Blocks sent to generator:", blocks)
+        #st.write("📝 Markdown Text:", markdown_text)
+        #st.write("📁 DOCX Buffer:", buffer)
+        #st.write("🧪 Buffer type:", type(buffer))
+        #st.write("🧪 Buffer size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "Invalid")
+
+        # Cache results in session state
+        st.session_state[f"{section}_runbook_text"] = markdown_text
+        st.session_state[f"{section}_runbook_buffer"] = buffer
+        st.session_state[f"{section}_runbook_ready"] = True
+
+    # Step 4: Show download if ready
+    if st.session_state.get(f"{section}_runbook_ready"):
+        st.success("✅ Runbook Ready!")
+        maybe_render_download(section="home", filename="utilities_emergency.docx")
+        st.session_state["level_progress"]["home"] = True
+    else:
+        st.info("ℹ️ Click the button above to generate your runbook.")
     
 ##### Level 3 - Mail Handling and Trash
 
@@ -877,11 +901,20 @@ def mail_trash_handling():
     with st.expander("🧠 Session State (After Reset)"):
         st.json({k: str(v) for k, v in st.session_state.items()})
 
-
     section = st.session_state.get("section", "home")
+    # Optionally validate against SECTION_METADATA
+    if section not in SECTION_METADATA:
+        section = "home"  # or raise a warning/log it
+
+    st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")
     switch_section("mail_trash_handling")
 
-    tab1, tab2, tab3 = st.tabs(["📬 Mail", "🗑️ Trash", "🧐 Review & Reward"])
+# --- Use subsection labels ---
+    subsections = SECTION_METADATA[section].get("subsections", {})
+    mail_label = subsections.get("mail", "📬 Mail")
+    trash_label = subsections.get("trash_handling", "🗑️ Trash")
+
+    tab1, tab2, tab3 = st.tabs([mail_label, trash_label, "🧐 Review & Reward"])
 
     with tab1:
         mail(section="mail")
