@@ -18,6 +18,7 @@ from .common_helpers import get_schedule_placeholder_mapping
 from .prompt_block_utils import generate_all_prompt_blocks
 from .task_schedule_utils_updated import export_schedule_to_markdown
 import base64
+import markdown
 
 def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
     if schedule_df.empty:
@@ -256,21 +257,30 @@ def generate_docx_from_prompt_blocks(
     doc.add_heading(doc_heading, 0)
     markdown_output = []
     debug_warnings = []
+    final_output = ""
 
     schedule_sources = get_schedule_placeholder_mapping()
 
-    for i, block in enumerate(blocks):
-        if not block.strip():
-            continue
+    #for i, block in enumerate(blocks):
+    #    if not block.strip():
+    #       continue
 
-        if debug:
-            st.markdown(f"### 🧱 Prompt Block {i+1}")
-            st.code(block, language="markdown")
+    #    if debug:
+    #        st.markdown(f"### 🧱 Prompt Block {i+1}")
+    #        st.code(block, language="markdown")
 
-        if use_llm:
+    if use_llm:
+        client = Mistral(api_key=api_key) if use_llm else None
+        for i, block in enumerate(blocks):
+            if not block.strip():
+                continue
+
+            if debug:
+                st.markdown(f"### 🧱 Prompt Block {i+1}")
+                st.code(block, language="markdown")
+        
             try:
                 st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
-                client = Mistral(api_key=api_key)
                 completion = client.chat.complete(
                     model=model,
                     messages=[SystemMessage(content=block)],
@@ -280,59 +290,64 @@ def generate_docx_from_prompt_blocks(
                 response_text = completion.choices[0].message.content.strip()
             except Exception as e:
                 response_text = f"❌ LLM error: {e}"
-        else:
-            response_text = block
+            markdown_output.append(response_text)
+        final_output = "\n\n".join(markdown_output)  
 
-        lines = response_text.splitlines()
-        for line in lines:
-            line = line.strip()
-            if not line:
+    else:
+        for block in blocks:
+            if not block.strip():
                 continue
+            markdown_output.append(block)
+        final_output= "\n\n".join(markdown_output)      
 
-            if line in schedule_sources:
-                df_key = schedule_sources[line]
-                schedule_df = st.session_state.get(df_key)
-                doc.add_paragraph("")
-                if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
-                    add_table_from_schedule(doc, schedule_df)
-                else:
-                    if debug:
-                        section_hint = df_key.replace("_schedule_df", "").replace("_", " ").title()
-                        debug_warnings.append(
-                            f"⚠️ Skipping **{section_hint}** schedule placeholder `{line}` — no data found in [`st.session_state['{df_key}']`](#debug-{df_key})."
-                        )
-                    continue
-                doc.add_paragraph("")
-                continue
+    lines = final_output.splitlines()
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
 
-            if line.startswith("##### "):
-                doc.add_heading(line[6:].strip(), level=4)
-            elif line.startswith("#### "):
-                doc.add_heading(line[5:].strip(), level=3)
-            elif line.startswith("### "):
-                doc.add_heading(line[4:].strip(), level=2)
-            elif line.startswith("## "):
-                doc.add_heading(line[3:].strip(), level=1)
-            elif line.startswith("# "):
-                doc.add_heading(line[2:].strip(), level=0)
-            elif line.startswith("- ") or line.startswith("* "):
-                doc.add_paragraph(line[2:].strip(), style="List Bullet")
-            elif re.match(r"^\d+\.\s", line):
-                doc.add_paragraph(re.sub(r"^\d+\.\s+", "", line), style="List Number")
+        if line in schedule_sources:
+            df_key = schedule_sources[line]
+            schedule_df = st.session_state.get(df_key)
+            doc.add_paragraph("")
+            if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
+                add_table_from_schedule(doc, schedule_df)
             else:
-                para = doc.add_paragraph()
-                cursor = 0
-                for match in re.finditer(r"(\*\*.*?\*\*)", line):
-                    start, end = match.span()
-                    if start > cursor:
-                        para.add_run(line[cursor:start])
-                    para.add_run(match.group(1)[2:-2]).bold = True
-                    cursor = end
-                if cursor < len(line):
-                    para.add_run(line[cursor:])
-                para.style.font.size = Pt(11)
+                if debug:
+                    section_hint = df_key.replace("_schedule_df", "").replace("_", " ").title()
+                    debug_warnings.append(
+                        f"⚠️ Skipping **{section_hint}** schedule placeholder `{line}` — no data found in [`st.session_state['{df_key}']`](#debug-{df_key})."
+                        )
+                continue
+            doc.add_paragraph("")
+            continue
 
-        markdown_output.append(response_text.strip())
+        if line.startswith("##### "):
+            doc.add_heading(line[6:].strip(), level=4)
+        elif line.startswith("#### "):
+            doc.add_heading(line[5:].strip(), level=3)
+        elif line.startswith("### "):
+            doc.add_heading(line[4:].strip(), level=2)
+        elif line.startswith("## "):
+            doc.add_heading(line[3:].strip(), level=1)
+        elif line.startswith("# "):
+            doc.add_heading(line[2:].strip(), level=0)
+        elif line.startswith("- ") or line.startswith("* "):
+            doc.add_paragraph(line[2:].strip(), style="List Bullet")
+        elif re.match(r"^\d+\.\s", line):
+            doc.add_paragraph(re.sub(r"^\d+\.\s+", "", line), style="List Number")
+        else:
+            para = doc.add_paragraph()
+            cursor = 0
+            for match in re.finditer(r"(\*\*.*?\*\*)", line):
+                start, end = match.span()
+                if start > cursor:
+                    para.add_run(line[cursor:start])
+                para.add_run(match.group(1)[2:-2]).bold = True
+                cursor = end
+            if cursor < len(line):
+                para.add_run(line[cursor:])
+            para.style.font.size = Pt(11)
 
     doc.add_page_break()
     combined_schedule = st.session_state.get("combined_home_schedule_df")
@@ -410,7 +425,7 @@ def generate_docx_from_text(text: str, doc_heading: str = "Runbook") -> BytesIO:
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
-    return buffer
+    return buffer,
 
 def maybe_generate_prompt(section: str = "home") -> Tuple[Optional[str], List[str]]:
     """
@@ -617,13 +632,13 @@ def maybe_render_download(section: str = "home", filename: Optional[str] = None)
 
     # 🔍 Markdown/Prompt Preview (always shown if available)
     if runbook_text:
-        st.markdown("### 📝 Prompt Output Preview")
+        #st.markdown("### 📝 Prompt Output Preview")
         preview_runbook_output(runbook_text)
-        st.write("🧪 Runbook Text Length:", len(runbook_text))
+        #st.write("🧪 Runbook Text Length:", len(runbook_text))
 
         # 🖥️ Export HTML file from markdown
         html_filename = filename.replace(".docx", ".html")
-        html_output = f"<html><body><h1>{doc_heading}</h1>\n" + st.markdown(runbook_text).body + "\n</body></html>"
+        html_output = f"<html><body><h1>{doc_heading}</h1>\n{markdown.markdown(runbook_text)}\n</body></html>"
 
         st.download_button(
             label="🌐 Download as HTML",
@@ -635,17 +650,18 @@ def maybe_render_download(section: str = "home", filename: Optional[str] = None)
 
     # 📥 DOCX Export
     if buffer:
-        st.write("🧪 Buffer Type:", type(buffer))
-        st.write("🧪 Buffer Size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "❌ Invalid")
-
+        #st.write("🧪 Buffer Type:", type(buffer))
+        #st.write("🧪 Buffer Size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "❌ Invalid")
+        
+        #st.success("✅ DOCX runbook ready for download!")
+        shown = False
+        
         st.download_button(
             label="📄 Download DOCX",
             data=buffer,
             file_name=filename,
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
-        st.success("✅ DOCX runbook ready for download!")
-        shown = True
     else:
         st.warning(f"⚠️ DOCX runbook buffer not found for `{section}`. Markdown/HTML export still available.")
 

@@ -57,3 +57,5 @@ tabulate
 plotly.express
 pytest
 pytest-cov
+spacy
+markdown

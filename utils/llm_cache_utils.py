@@ -3,6 +3,8 @@ import json
 import hashlib
 from pathlib import Path
 from typing import Callable
+import streamlit as st
+import requests
 
 ### How to Use It In your app
 # ---
@@ -60,4 +62,35 @@ def get_or_generate_llm_output(prompt: str, generate_fn: Callable[[], str], cach
 
     result = generate_fn()
     save_llm_output(prompt, result, cache_dir=cache_dir)
-    return result
+    return 
+
+def get_cached_llm_output(section: str, prompt_fn: Callable[[], str], generate_fn: Callable[[str], str]) -> str:
+    """
+    Uses both session and disk cache to retrieve or generate LLM output.
+    - `section`: used as session_state key
+    - `prompt_fn`: returns the prompt string
+    """
+    if section in st.session_state:
+        return st.session_state[section]
+
+    prompt = prompt_fn()
+    key = generate_prompt_hash(prompt)
+    output = get_or_generate_llm_output(prompt, lambda: generate_fn(prompt))
+    st.session_state[section] = output
+
+    if st.session_state.get("enable_debug_mode"):
+        st.caption(f"🔁 Prompt hash key: `{key}`")
+        st.expander("🧠 Prompt Preview").code(prompt)
+
+    return output
+
+def mistral_generate_fn(prompt: str) -> str:
+    headers = {"Authorization": f"Bearer {os.getenv('MISTRAL_TOKEN')}"}
+    payload = {
+        "model": "mistral-medium",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.7,
+    }
+    response = requests.post("https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload)
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()

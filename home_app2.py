@@ -419,8 +419,20 @@ def home():
 
     # Step 4: Confirm and maybe generate prompt
     st.subheader("👍 Validate")
+    if st.button("✅ Confirm Utility Info and Generate Prompt"):
+        st.session_state["confirm_ai_prompt_home"] = True
+    
+    blocks = []
+    if st.session_state.get("confirm_ai_prompt_home"):
+        blocks = generate_all_prompt_blocks("home")
 
-    blocks = generate_all_prompt_blocks("home")
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown("### 🧾 Prompt Preview")
+            for block in blocks:
+                st.code(block, language="markdown")
+    else:
+        st.info("Please review and confirm before generating the prompt.")
+    
     if st.session_state.get("enable_debug_mode"):
         st.markdown("### 🧾 Prompt Preview")
         for block in blocks:
@@ -442,7 +454,7 @@ def home():
         st.session_state[generate_key] = True
 
     if st.session_state.get(generate_key):
-        st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
+        #st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
         buffer, markdown_text = generate_docx_from_prompt_blocks(
             blocks=blocks,
             use_llm=bool(True),
@@ -464,7 +476,7 @@ def home():
 
     # Step 4: Show download if ready
     if st.session_state.get(f"{section}_runbook_ready"):
-        st.success("✅ Runbook Ready!")
+        #st.success("✅ Runbook Ready!")
         maybe_render_download(section="home", filename="utilities_emergency.docx")
         st.session_state["level_progress"]["home"] = True
     else:
@@ -582,6 +594,7 @@ def emergency_kit():
         "Fire extinguisher"
     ]
     not_selected_items = [item for item in kit_items if item not in selected_items]
+    st.session_state["not_selected_items"] = not_selected_items
 
 def emergency_kit_utilities():
 
@@ -624,11 +637,19 @@ def emergency_kit_utilities():
 
    # Step 6: Generate the DOCX and Markdown
     generate_key= "generate_runbook_home"
+    cached_blocks_key = f"{generate_key}_blocks"
     if st.button("📥 Generate Runbook"):
-        st.session_state[generate_key] = True
 
+        st.session_state[generate_key] = True
+        blocks = generate_all_prompt_blocks(section)  # or your selected section
+        st.session_state[cached_blocks_key] = blocks
+        st.session_state[generate_key] = True
     if st.session_state.get(generate_key):
-        st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
+        blocks = st.session_state.get(cached_blocks_key)
+
+    if not blocks:
+        st.warning("⚠️ No prompt blocks found. Please generate them first.")
+    else:    
         buffer, markdown_text = generate_docx_from_prompt_blocks(
             blocks=blocks,
             use_llm=bool(True),
@@ -637,7 +658,7 @@ def emergency_kit_utilities():
             debug=False
         )
 
-        #st.write("📋 Blocks sent to generator:", blocks)
+        st.write("📋 Blocks sent to generator:", blocks)
         #st.write("📝 Markdown Text:", markdown_text)
         #st.write("📁 DOCX Buffer:", buffer)
         #st.write("🧪 Buffer type:", type(buffer))
@@ -650,9 +671,9 @@ def emergency_kit_utilities():
 
     # Step 4: Show download if ready
     if st.session_state.get(f"{section}_runbook_ready"):
-        st.success("✅ Runbook Ready!")
-        maybe_render_download(section="home", filename="utilities_emergency_kit.docx")
-        st.session_state["level_progress"]["home"] = True
+        #st.success("✅ Runbook Ready!")
+        maybe_render_download(section=section, filename="utilities_emergency_kit.docx")
+        st.session_state["level_progress"][section] = True
     else:
         st.info("ℹ️ Click the button above to generate your runbook.")
     

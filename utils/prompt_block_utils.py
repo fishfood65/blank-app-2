@@ -5,14 +5,14 @@ from prompts.templates import (
     utility_prompt, 
     utilities_emergency_prompt_template, 
     emergency_kit_utilities_prompt_template,
-    mail_prompt_template,
-    trash_prompt_template,
     home_caretaker_prompt_template,
     TEMPLATE_MAP
 )    
 from .input_tracker import get_answer  
 import streamlit as st 
 from typing import List, Optional
+from utils.llm_cache_utils import get_or_generate_llm_output, get_cached_llm_output, mistral_generate_fn
+from prompts.templates import mail_runbook_prompt, trash_runbook_prompt
 
 SECTION_ALIASES = {
     "Mail & Packages": "mail",
@@ -67,48 +67,53 @@ def build_prompt_block(
 
     return block.strip()
 
-def generate_prompt_section(section: str, *, for_llm: bool = False, debug: bool = False) -> str:
-    input_data = st.session_state.get("input_data", {})
+def generate_all_prompt_blocks(section: str) -> List[str]:
+    """
+    Collects and wraps prompt content blocks based on the current section.
+    Returns a list of structured prompt strings, excluding empty or placeholder-only blocks.
+    """
+    blocks = []
 
-    # 🔁 Resolve alias to canonical section key
-    canonical_section = SECTION_ALIASES.get(section, section)
-    section_data = input_data.get(section, []) or input_data.get(canonical_section, [])
-    template = TEMPLATE_MAP.get(canonical_section, {})
+    def maybe_add_block(title: str, content: str):
+        if is_content_meaningful(content):
+            blocks.append(build_prompt_block(title, content))
 
-    if not section_data:
-        return f"### ⚠️ No data provided for {canonical_section.title()} section."
+    # Section → (title, content_function) mappings
+    prompt_registry = {
+        "home": [
+            ("Utilities and Emergency Services", lambda: utilities_emergency_runbook_prompt(
+                debug=st.session_state.get("enable_debug_mode", False)))
+        ],
+        "emergency_kit": [
+            (
+                "Utilities Emergency Services with Kit",lambda: emergency_kit_utilities_runbook_prompt(
+                debug=st.session_state.get("enable_debug_mode", False)))
+        ],
+        "mail_trash_handling": [
+            ("Mail Instructions", lambda: mail_runbook_prompt(debug=st.session_state.get("enable_debug_mode", False))),
+            ("Trash Instructions", lambda: trash_runbook_prompt(debug=st.session_state.get("enable_debug_mode", False))),
+        ],
+        "home_security": [
+            ("Home Caretaker & Guest Instructions", home_caretaker_runbook_prompt),
+        ],
+        # "emergency_kit_critical_documents": [
+        #     ("Important Documents Checklist", emergency_kit_document_prompt),
+        # ],
+        # "bonus_level": [
+        #     ("Additional Home Instructions", bonus_level_runbook_prompt),
+        # ],
+    }
 
-    question_order = template.get("question_order", [])
-    title = template.get("title", canonical_section.title())
-    instructions = template.get("instructions", "")
+    if section in prompt_registry:
+        for title, fn in prompt_registry[section]:
+            maybe_add_block(title, fn())
+    else:
+        blocks.append(build_prompt_block(
+            title=f"⚠️ No prompt defined for section: {section}",
+            content="This section currently has no associated prompt logic."
+        ))
 
-    # Build answer lookup
-    answers = {item["question"]: item["answer"] for item in section_data}
-
-    def safe_line(label):
-        value = answers.get(label, "").strip()
-        if value and value.lower() not in ["no", "⚠️ not provided", ""]:
-            return f"- **{label}**: {value}"
-        return None
-
-    lines = [safe_line(q) for q in question_order]
-    bullet_block = "\n".join(filter(None, lines))
-
-    # Check for matching schedule DataFrame
-    schedule_key = f"{canonical_section}_schedule_df"
-    schedule_block = ""
-    if schedule_key in st.session_state and not st.session_state[schedule_key].empty:
-        schedule_block = f"\n\n### 📆 {title} Schedule\n\n<<{canonical_section.upper()}_SCHEDULE_PLACEHOLDER>>"
-
-    full_content = f"{bullet_block}{schedule_block}".strip()
-
-    return wrap_prompt_block(
-        content=full_content,
-        title=title,
-        instructions=instructions,
-        for_llm=for_llm,
-        debug=debug
-    )
+    return blocks
 
 def is_content_meaningful(content: str) -> bool:
     """
@@ -123,54 +128,6 @@ def is_content_meaningful(content: str) -> bool:
         if "⚠️ Not provided" not in line and line not in {"---", "", "N/A"}
     ]
     return bool(non_placeholder_lines)
-
-
-def generate_all_prompt_blocks(section: str) -> List[str]:
-    """
-    Collects and wraps prompt content blocks based on the current section.
-    Returns a list of structured prompt strings, excluding empty or placeholder-only blocks.
-    """
-    blocks = []
-
-    def maybe_add_block(title: str, content: str):
-        if is_content_meaningful(content):
-            blocks.append(build_prompt_block(title, content))
-
-    # Define section → (title, content_function) mappings
-    prompt_registry = {
-        "home": [
-            ("Utilities and Emergency Services", utilities_emergency_runbook_prompt),
-        ],
-        "emergency_kit": [
-            ("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt),
-        ],
-        "mail_trash_handling": [
-            ("Mail Instructions", lambda: generate_prompt_section("Mail & Packages", for_llm=False)),
-            ("Trash Instructions", lambda: generate_prompt_section("Trash Handling", for_llm=False)),
-        ],
-        "home_security": [
-            ("Home Caretaker & Guest Instructions", home_caretaker_runbook_prompt),
-        ],
-        # "emergency_kit_critical_documents": [
-        #     ("Important Documents Checklist", emergency_kit_document_prompt),
-        # ],
-        # "bonus_level": [
-        #     ("Additional Home Instructions", bonus_level_runbook_prompt),
-        # ],
-    }
-
-    # Lookup and build blocks
-    if section in prompt_registry:
-        for title, fn in prompt_registry[section]:
-            maybe_add_block(title, fn())
-    else:
-        blocks.append(build_prompt_block(
-            title=f"⚠️ No prompt defined for section: {section}",
-            content="This section currently has no associated prompt logic."
-        ))
-
-    return blocks
-
 
 def utilities_emergency_runbook_prompt(debug: bool = False) -> str:
     city = get_answer("City", "Home Basics") or ""
@@ -215,15 +172,32 @@ def emergency_kit_utilities_runbook_prompt(debug: bool = False) -> str:
     mask_info = st.session_state.get("mask_info", "")
     maps_contacts_info = st.session_state.get("maps_contacts_info", "")
     
-    selected_md = "".join(f"- {item}\n" for item in selected_items)
-    missing_md = "".join(f"- {item}\n" for item in not_selected_items)
+    # Build Markdown sections only if there's content
+    selected_md = "".join(f"- {item}\n" for item in selected_items) if selected_items else ""
+    missing_md = "".join(f"- {item}\n" for item in not_selected_items) if not_selected_items else ""
     additional_list = [itm.strip() for itm in additional_items.split(",") if itm.strip()]
-    additional_md = "".join(f"- {itm}\n" for itm in additional_list)
-    kit_summary_line = (
-        f"Kit is available at {emergency_kit_location}"
-        if emergency_kit_status == "Yes"
-        else f"Kit is a work in progress and will be located at {emergency_kit_location}"
-    )
+    additional_md = "".join(f"- {itm}\n" for itm in additional_list) if additional_list else ""
+
+    # Kit Summary
+    if emergency_kit_location:
+        kit_summary_line = (
+            f"Kit is available at {emergency_kit_location}"
+            if emergency_kit_status == "Yes"
+            else f"Kit is a work in progress and will be located at {emergency_kit_location}"
+        )
+    else:
+        kit_summary_line = ""
+
+    # Don't generate if all are empty
+    if not any([
+        kit_summary_line, selected_md, missing_md, additional_md,
+        electricity, gas, water, internet,
+        flashlights_info, radio_info, food_water_info, important_docs_info,
+        whistle_info, medications_info, mask_info, maps_contacts_info
+    ]):
+        return "⚠️ No emergency or utility data provided."
+
+    # Compose final prompt
 
     raw = emergency_kit_utilities_prompt_template(
         city, zip_code, internet, electricity, gas, water,
@@ -235,109 +209,6 @@ def emergency_kit_utilities_runbook_prompt(debug: bool = False) -> str:
         raw,
         title="🧰 Emergency Utilities and Preparedness",
         instructions="List out the Emergency Kit Summary details before summarize utility and emergency kit setup using bullet points.",
-        debug=debug
-    )
-
-def mail_runbook_prompt(debug: bool = False) -> str:
-    """
-    Builds mail handling prompt from structured mail inputs.
-    """
-    section = "mail"
-    input_data = st.session_state.get("input_data", {})
-    mail_entries = input_data.get(section, []) or input_data.get("Mail & Packages", [])
-
-    mail_info = {entry["question"]: entry["answer"] for entry in mail_entries}
-
-    def safe_line(label, value):
-        if value and str(value).strip().lower() != "no":
-            return f"- **{label}**: {value}"
-        return None
-
-    mail_block = "\n".join(filter(None, [
-        safe_line("Where to collect mail and small packages", mail_info.get("📍 Mailbox Location")),
-        safe_line("Mailbox key location", mail_info.get("🔑 Mailbox Key (Optional)")),
-        safe_line("Mail pick-up schedule", mail_info.get("📆 Mail Pick-Up Schedule")),
-        safe_line("After mail pickup, what to do with it", mail_info.get("📥 What to Do with the Mail")),
-        safe_line("Where to pick up and store all packages", mail_info.get("📦 Packages")),
-    ]))
-
-    raw = mail_prompt_template(mail_block)
-
-    return wrap_prompt_block(
-        content=raw,
-        title="📬 Mail Handling Instructions",
-        instructions="Use the provided instructions for where, when, and how to collect and store mail and packages. DO NOT invent details, add advice, or insert a schedule table. Leave all placeholders untouched",
-        debug=debug
-    )
-
-def trash_runbook_prompt(debug: bool = False) -> list[str]:
-    """
-    Builds trash handling prompts as structured blocks with image embedding.
-    The actual schedule table is inserted later via <<INSERT_TRASH_SCHEDULE_TABLE>>.
-    """
-    section = "trash_handling"
-    input_data = st.session_state.get("input_data", {})
-    trash_entries = input_data.get(section, [])
-
-    trash_info = {entry["question"]: entry["answer"] for entry in trash_entries}
-
-    def safe_line(label, value):
-        return f"- **{label}**: {value}" if value and str(value).strip().lower() != "no" else None
-
-    def safe_yes_no(label, flag, detail_label, detail_value):
-        if flag:
-            return f"- **{label}**: Yes\n  - **{detail_label}**: {detail_value or 'N/A'}"
-        return ""
-
-    # Indoor Trash Instructions
-    indoor_block = "\n".join(filter(None, [
-        safe_line("Kitchen Trash", trash_info.get("🧴 Kitchen Garbage Bin")),
-        safe_line("Indoor Recycling", trash_info.get("♻️ Indoor Recycling Bin(s)")),
-        safe_line("Compost / Green Waste", trash_info.get("🧃 Indoor Compost or Green Waste")),
-        safe_line("Bathroom Trash", trash_info.get("🧼 Bathroom Trash Bin")),
-        safe_line("Other Room Trash", trash_info.get("🪑 Other Room Trash Bins")),
-    ]))
-
-    # Outdoor Trash Instructions
-    outdoor_block = "\n".join(filter(None, [
-        safe_line("Location of outside trash, recycling, and compost bins:", trash_info.get("Where are the trash, recycling, and compost bins stored outside?")),
-        safe_line("Outdoor bins are marked as follows:", trash_info.get("How are the outdoor bins marked?")),
-        safe_line("Important steps to follow before putting recycling or compost in the bins:", trash_info.get("Stuff to know before putting recycling or compost in the bins?")),
-    ]))
-
-    # Single Family Disposal Instruction
-    single_family_disposal = trash_info.get("Is a Single-family home?", False)
-    single_family_block = ""
-    if single_family_disposal:
-        single_family_instr = "\n".join(filter(None, [
-            safe_line("When and where to place bins for pickup", trash_info.get("When and where should garbage, recycling, and compost bins be placed for pickup?")),
-            safe_line("When and where to bring bins back in", trash_info.get("When and where should garbage, recycling, and compost bins be brought back in after pickup?")),
-        ]))
-        single_family_block = safe_yes_no(
-            label="Is a Single-family home.",
-            flag=True,
-            detail_label="Singe-family home instructions",
-            detail_value=single_family_instr
-        )
-
-    # Waste Management Contact
-    wm_block = "\n".join(filter(None, [
-        safe_line("Company", trash_info.get("Waste Management Company Name")),
-        safe_line("Phone", trash_info.get("Contact Phone Number")),
-        safe_line("When to Contact", trash_info.get("When to Contact")),
-    ]))
-
-    raw = trash_prompt_template(
-        indoor_block=indoor_block,
-        outdoor_block=outdoor_block,
-        common_disposal_block=single_family_block,
-        wm_block=wm_block,
-    )
-
-    return wrap_prompt_block(
-        content=raw,
-        title="🗑️ Trash and Recycling Instructions",
-        instructions="Use the provided information and images for clarity.",
         debug=debug
     )
 
