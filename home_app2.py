@@ -7,13 +7,8 @@ from utils.common_helpers import (
     get_schedule_placeholder_mapping,
     debug_saved_schedule_dfs
 )
-from prompts.llm_queries import(
-    fetch_utility_providers
-)
-from utils.utils_home_helpers import (
-    get_corrected_providers,
-    update_session_state_with_providers,
-    get_home_inputs
+from prompts.templates import(
+    utility_provider_lookup_prompt
 )
 from utils.input_tracker import (
     capture_input, 
@@ -29,7 +24,9 @@ from utils.input_tracker import (
     daterange,
     get_filtered_dates,
     select_runbook_date_range,
-    register_task_input
+    register_task_input,
+    extract_providers_from_text,
+    build_metadata
 )
 from utils.runbook_generator_helpers import (
     generate_docx_from_split_prompts, 
@@ -37,7 +34,8 @@ from utils.runbook_generator_helpers import (
     maybe_generate_prompt,
     maybe_render_download,
     maybe_generate_runbook,
-    render_prompt_preview
+    render_prompt_preview,
+    generate_docx_from_prompt_blocks
 )
 from utils.task_schedule_utils_updated import (
     extract_and_schedule_all_tasks,
@@ -53,7 +51,7 @@ from utils.preview_helpers import (
     display_enriched_task_preview, 
     edit_button_redirect
 )
-
+from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
 import re
 from mistralai import Mistral, UserMessage, SystemMessage
@@ -277,7 +275,8 @@ def home():
 
         return city, zip_code, internet_provider
 
-        get_home_inputs()
+# ✅ Call the function at runtime
+    city, zip_code, internet_provider = get_home_inputs()
 
 # Step 2: Fetch utility providers
 
@@ -310,22 +309,35 @@ def home():
 
 
     def register_provider_input(label, value, section="Utility Providers"):
-        """
-        Registers a utility provider entry using metadata for consistency with task systems.
-        """
         if not label or not isinstance(label, str):
             raise ValueError("Provider label must be a non-empty string.")
 
         if not isinstance(value, str) or value.strip().lower() in ["", "not found", "n/a"]:
             return
 
-        register_task_input(
-            label=f"{label} Provider",
-            answer=value,
-            section=section,
-            metadata=build_metadata(task_type="info", label=label)
-        )
+        # Register as structured input data
+        input_data = st.session_state.setdefault("input_data", {})
+        section_data = input_data.setdefault(section, [])
 
+        # Remove duplicates first
+        section_data = [entry for entry in section_data if entry["question"] != f"{label} Provider"]
+        section_data.append({
+            "question": f"{label} Provider",
+            "answer": value.strip()
+        })
+        input_data[section] = section_data
+
+        # Optionally: also track in task_inputs (if needed for scheduling)
+        task_row = {
+            "question": f"{label} Provider",
+            "answer": value.strip(),
+            "category": section,
+            "section": section,
+            "area": "home",
+            "task_type": "info",
+            "is_freq": False
+        }
+        st.session_state.setdefault("task_inputs", []).append(task_row)
 
     def extract_and_log_providers(content: str) -> dict:
         """
@@ -344,29 +356,29 @@ def home():
 
         return providers
 
-        def get_corrected_providers(results: dict) -> dict:
-            updated = {}
-            label_to_key = {
-                "Electricity": "electricity",
-                "Natural Gas": "natural_gas",
-                "Water": "water"
-            }
+    def get_corrected_providers(results: dict) -> dict:
+        updated = {}
+        label_to_key = {
+            "Electricity": "electricity",
+            "Natural Gas": "natural_gas",
+            "Water": "water"
+        }
 
-            for label in label_to_key:
-                key = label_to_key[label]
-                current_value = results.get(key, "")
-                correct_flag = st.checkbox(f"Correct {label} Provider", value=False)
-                corrected = st.text_input(
-                    f"{label} Provider",
-                    value=current_value,
-                    disabled=not correct_flag
-                )
-                if correct_flag and corrected != current_value:
-                    register_provider_input(label, corrected)
-                    st.session_state[f"{key}_provider"] = corrected
-                updated[key] = corrected if correct_flag else current_value
+        for label in label_to_key:
+            key = label_to_key[label]
+            current_value = results.get(key, "")
+            correct_flag = st.checkbox(f"Correct {label} Provider", value=False)
+            corrected = st.text_input(
+                f"{label} Provider",
+                value=current_value,
+                disabled=not correct_flag
+            )
+            if correct_flag and corrected != current_value:
+                register_provider_input(label, corrected)
+                st.session_state[f"{key}_provider"] = corrected
+            updated[key] = corrected if correct_flag else current_value
 
-            return updated
+        return updated
 
     def fetch_utility_providers():
         results = query_utility_providers()
@@ -386,7 +398,6 @@ def home():
     })
     updated = get_corrected_providers(current_results)
 
-
     def update_session_state_with_providers(updated):
         st.session_state["utility_providers"] = updated
         for key, value in updated.items():
@@ -397,31 +408,72 @@ def home():
         st.success("Utility providers updated!")
 
     # Step 4: Confirm and maybe generate prompt
-    st.subheader("👍 Review and Approve")
+    st.subheader("👍 Validate")
 
     # Set and track confirmation state
-    confirm_key = f"confirm_ai_prompt_{section}"
-    user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
-    st.session_state[f"{section}_user_confirmation"] = user_confirmation
+    #confirm_key = f"confirm_ai_prompt_{section}"
+    #user_confirmation = st.checkbox("✅ Confirm AI Prompt", key=confirm_key)
+    #st.session_state[f"{section}_user_confirmation"] = user_confirmation
 
     # Generate prompts if confirmed
-    if user_confirmation:
-        combined_prompt, prompt_blocks = maybe_generate_prompt(section=section)
-
-        if st.session_state.get("enable_debug_mode"):
-            st.markdown("### 🧾 Prompt Preview")
-            st.code(combined_prompt or "", language="markdown")
+    #if user_confirmation:
+    #    combined_prompt, prompt_blocks = maybe_generate_prompt(section=section)
+#
+    blocks = generate_all_prompt_blocks("home")
+    if st.session_state.get("enable_debug_mode"):
+        st.markdown("### 🧾 Prompt Preview")
+        for block in blocks:
+            st.code(blocks or "", language="markdown")
 
     # Step 5: Prompt preview + runbook
+    #missing = check_missing_utility_inputs()
+    #render_prompt_preview(missing, section=section)
     missing = check_missing_utility_inputs()
-    render_prompt_preview(missing, section=section)
+    if missing:
+        st.warning(f"⚠️ Missing required fields: {', '.join(missing)}")
+    else:
+        st.success("✅ All required utility inputs are complete.")
+
+   # Step 3: Generate the DOCX and Markdown
+    generate_key= "generate_runbook_home"
+    if st.button("📥 Generate Runbook"):
+        st.session_state[generate_key] = True
+
+    if st.session_state.get(generate_key):
+        st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
+        buffer, markdown_text = generate_docx_from_prompt_blocks(
+            blocks=blocks,
+            use_llm=bool(True),
+            api_key=os.getenv("MISTRAL_TOKEN"),
+            doc_heading="🏠 Utilities Emergency Runbook",
+            debug=False
+        )
+
+        st.write("📋 Blocks sent to generator:", blocks)
+        st.write("📝 Markdown Text:", markdown_text)
+        st.write("📁 DOCX Buffer:", buffer)
+        st.write("🧪 Buffer type:", type(buffer))
+        st.write("🧪 Buffer size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "Invalid")
+
+        # Cache results in session state
+        st.session_state[f"{section}_runbook_text"] = markdown_text
+        st.session_state[f"{section}_runbook_buffer"] = buffer
+        st.session_state[f"{section}_runbook_ready"] = True
+
+    # Step 4: Show download if ready
+    if st.session_state.get(f"{section}_runbook_ready"):
+        st.success("✅ Runbook Ready!")
+        maybe_render_download(section="home", filename="utilities_emergency.docx")
+        st.session_state["level_progress"]["home"] = True
+    else:
+        st.info("ℹ️ Click the button above to generate your runbook.")
 
     # Step 6: Optionally generate runbook if inputs are valid and confirmed
-    st.subheader("🎉 Reward")
-    if not missing and st.session_state.get("generated_prompt"):
-        maybe_generate_runbook(section=section)
+    #st.subheader("🎉 Reward")
+   # if not missing and st.session_state.get("generated_prompt"):
+     #   maybe_generate_runbook(section=section)
         # Level 1 Complete - for Progress
-        st.session_state["level_progress"]["home"] = True
+     #   st.session_state["level_progress"]["home"] = True
 
 ### Level 2 - Emergency Kit Details
 
@@ -550,7 +602,7 @@ def emergency_kit_utilities():
     emergency_kit()
     
     # Step 2: Confirm and maybe generate prompt
-    st.subheader("👍 Review and Approve")
+    st.subheader("👍 Validation")
 
     # Set and track confirmation state
     confirm_key = f"confirm_ai_prompt_{section}"
@@ -560,13 +612,16 @@ def emergency_kit_utilities():
     # Generate prompts if confirmed
     if user_confirmation:
         combined_prompt, prompt_blocks = maybe_generate_prompt(section=section)
-
         if st.session_state.get("enable_debug_mode"):
             st.markdown("### 🧾 Prompt Preview")
             st.code(combined_prompt or "", language="markdown")
 
     # Step 3: Prompt preview + runbook
     missing = check_missing_utility_inputs()
+    #if missing:
+    #    st.warning(f"⚠️ Missing required fields: {', '.join(missing)}")
+   # else:
+    #    st.success("✅ All required utility inputs are complete.")
     render_prompt_preview(missing, section=section)
 
     # Step 4: Optionally generate runbook if inputs are valid and confirmed
@@ -589,33 +644,57 @@ def mail(section="mail"):
 
     with st.expander("📋 Details", expanded=True):
         register_task_input(
-            "📍 Mailbox Location", st.text_area,
-            task_type="Mail Handling", section=section,
-            placeholder="E.g., 'At the end of the driveway...'", disabled=disabled
+            label= "📍 Mailbox Location", 
+            input_fn = st.text_area,
+            section=section,
+            task_type="Mail Handling",
+            placeholder="E.g., 'At the end of the driveway...'", 
+            disabled=disabled
         )
 
         register_task_input(
-            "🔑 Mailbox Key (Optional)", st.text_area,
-            task_type="Mail Handling", section=section,
-            placeholder="E.g., 'On key hook...'", disabled=disabled
+            label= "🔑 Mailbox Key (Optional)", 
+            input_fn= st.text_area,
+            section=section,
+            task_type="Mail Handling",
+            placeholder="E.g., 'On key hook...'", 
+            disabled=disabled
         )
 
         register_task_input(
-            "📆 Mail Pick-Up Schedule", st.text_area,
-            task_type="Mail Handling", section=section, is_freq=True,
-            placeholder="E.g., 'Mondays and Thursdays'", disabled=disabled
+            label= "📆 Mail Pick-Up Schedule", 
+            input_fn= st.text_area,
+            section=section,
+            task_type="Mail Handling",
+            is_freq=True,
+            placeholder="E.g., 'Mondays and Thursdays'", 
+            disabled=disabled
         )
 
         register_task_input(
-            "📥 What to Do with the Mail", st.text_area,
-            task_type="Mail Handling", section=section,
-            placeholder="E.g., 'Place in kitchen tray'", disabled=disabled
+            label="📥 What to Do with the Mail after pickup?", 
+            input_fn= st.text_area,
+            section=section,
+            task_type="Mail Handling", 
+            placeholder="E.g., 'Place in kitchen tray'", 
+            disabled=disabled
         )
 
         register_task_input(
-            "📦 Packages", st.text_area,
-            task_type="Mail Handling", section=section,
-            placeholder="E.g., 'Put packages inside entryway closet'", disabled=disabled
+            label= "🚚 Pick up oversized packages at", 
+            input_fn=st.text_area,
+            section=section,
+            task_type="Mail Handling", 
+            placeholder="E.g., 'Put packages inside entryway closet'", 
+            disabled=disabled
+        )
+        register_task_input(
+            label="📦 Place packages after pickup", 
+            input_fn=st.text_area,
+            section=section,
+            task_type="Mail Handling",
+            placeholder="E.g., 'Put packages inside entryway closet'", 
+            disabled=disabled
         )
 
 def trash_handling(section="trash_handling"):
@@ -630,97 +709,133 @@ def trash_handling(section="trash_handling"):
     # ─── Indoor Trash Disposal ────────────────────────────────
     with st.expander("Indoor Garbage Disposal (Kitchen, Recycling, Compost, Bath, Other)", expanded=True):
         register_task_input(
-            "🧴 Kitchen Garbage Bin", st.text_area,
-            task_type="Indoor Trash", section=section, is_freq=True,
+            label="🧴 Kitchen Garbage Bin", 
+            input_fn=st.text_area,
+            section=section,
+            task_type="Indoor Trash", 
+            is_freq=True,
             placeholder="E.g. Bin is under sink. Empty when full and on Monday nights before trash pickup day. Replacement bags under sink.",
             disabled=disabled
         )
 
         register_task_input(
-            "♻️ Indoor Recycling Bin(s)", st.text_area,
-            task_type="Indoor Trash", section=section, is_freq=True,
+            label="♻️ Indoor Recycling Bin(s)", 
+            input_fn=st.text_area,
+            section=section,
+            task_type="Indoor Trash", 
+            is_freq=True,
             placeholder="E.g. Bins are under sink. The one labeled Paper is for paper products.  The one labled contaniers is for plastic and glass containers. Empty when full and on Monday nights before trash pickup day. Don't forget to rinse containers.",
             disabled=disabled
         )
 
         register_task_input(
-            "🧃 Indoor Compost or Green Waste", st.text_area,
-            task_type="Indoor Trash", section=section, is_freq=True,
+            label="🧃 Indoor Compost or Green Waste", 
+            input_fn=st.text_area,
+            section=section,
+            task_type="Indoor Trash", 
+            is_freq=True,
             placeholder="E.g. Bin is under sink and yellow in color. Empty when full and on Monday nights before trash pickup day. No plastic bags.",
             disabled=disabled
         )
 
         register_task_input(
-            "🧼 Bathroom Trash Bin", st.text_area,
-            task_type="Indoor Trash", section=section, is_freq=True,
+            label="🧼 Bathroom Trash Bin", 
+            input_fn=st.text_area,
+            section=section,
+            task_type="Indoor Trash", 
+            is_freq=True,
             placeholder="E.g. Empty on Mondays before trash day. Replacment bags are under bathroom sink.",
             disabled=disabled
         )
 
         register_task_input(
-            "🪑 Other Room Trash Bins", st.text_area,
-            task_type="Indoor Trash", section=section, is_freq=True,
+            label="🪑 Other Room Trash Bins", 
+            input_fn=st.text_area,
+            section=section,
+            task_type="Indoor Trash",
+            is_freq=True,
             placeholder="E.g. Empty bedroom and office bins weekly on Mondays before trash day. Replacment bags are under bathroom sink.",
             disabled=disabled
         )
 
     # ─── Outdoor Trash Disposal ────────────────────────────────
-    with st.expander("Outdoor Trash Disposal Details", expanded=True):
-        register_task_input("When are Outdoor Garbage and Recycling Collected?", st.text_area, task_type="Outdoor Trash", section=section, is_freq=True, disabled=disabled, placeholder="E.g., 'Trash and garbage is collected weekly on Tuesdays.'",
-                            metadata={"task_type": "Outdoor Trash", "task_label": "Outdoor Trash Bins"})
-        register_task_input("What the Outdoor Trash Bins Look Like", st.text_area, task_type="Outdoor Trash", section=section, disabled=disabled, placeholder="E.g., 'Black bin with green lid is for compost.  Black bin with black lid is for garbage.  Grey bin with blue lid is for plastic and glass container recycling. Grey bin with yellow lid is for paper recycling.'",
-                            metadata={"task_type": "Outdoor Trash", "task_label": "Outdoor Trash Bins"})
-        register_task_input("Specific Location or Instructions for Emptying Outdoor Bins", st.text_area, task_type="Outdoor Trash", section=section, disabled=disabled, placeholder="E.g., 'Bins are kept in the garage when it's not garbage day.  Please wheel out all the bins from the garage to the end of the driveway on Monday night before Garbage day.  Tuesday night please pick up the bins from the driveway and return them to the garage.'",
-                            metadata={"task_type": "Outdoor Trash", "task_label": "Outdoor Trash Bins"})
+    with st.expander("Garbage & Recycling Pickup Details", expanded=True):
+        register_task_input(
+            label="Where are the trash, recycling, and compost bins stored outside?", 
+            input_fn=st.text_area,
+            section=section, 
+            task_type="Outdoor Trash",
+            placeholder="E.g., 'Bins are kept in the side yard.' or 'Bins are located at the left corner of the complex'",
+            disabled=disabled
+        )
+        register_task_input(
+            label="How are the outdoor bins marked?", 
+            input_fn=st.text_area, 
+            section=section, 
+            task_type="Outdoor Trash",  
+            placeholder="E.g., 'Black bin with green lid is for compost.  Black bin with black lid is for garbage.  Grey bin with blue lid is for plastic and glass container recycling. Grey bin with yellow lid is for paper recycling.'",
+            disabled=disabled 
+            )
+        register_task_input(
+            label="Stuff to know before putting recycling or compost in the bins?", 
+            input_fn=st.text_area,
+            section=section,  
+            task_type="Outdoor Trash", 
+            placeholder="E.g., 'Separate the recycling into paper, containers (plastic, glass). Compost goes into the compost bin.'",
+            disabled=disabled
+            )
 
-        def handle_image(label, display_name):
-            image_key = f"{label} Image"
-            if "trash_images" not in st.session_state:
-                st.session_state.trash_images = {}
-            if image_key not in st.session_state.trash_images:
-                st.session_state.trash_images[image_key] = None
-
-            if st.session_state.trash_images[image_key]:
-                st.image(Image.open(io.BytesIO(st.session_state.trash_images[image_key])), caption=display_name)
-                if not disabled and st.button(f"Delete {display_name}", key=f"delete_{label}"):
-                    st.session_state.trash_images[image_key] = None
-                    st.rerun()
-            elif not disabled:
-                uploaded = st.file_uploader(f"Upload a photo of the {display_name}", type=["jpg", "jpeg", "png"], key=f"{label}_upload")
-                if uploaded:
-                    st.session_state.trash_images[image_key] = uploaded.read()
-                    st.success(f"{display_name} image uploaded.")
-                    st.rerun()
-            else:
-                st.info(f"📷 Unlock Trash Info to upload or delete {display_name} image.")
-
-        handle_image("Outdoor Bin", "Outdoor Trash Bin")
-        handle_image("Recycling Bin", "Recycling Bin")
-
-    # ─── Common Disposal Area ─────────────────────────────────
-    with st.expander("Common Disposal Area (if applicable)", expanded=True):
-        uses_common_disposal = register_task_input("Is there a common disposal area?", st.checkbox, task_type="Outdoor Trash", section=section, disabled=disabled,
-                                                   metadata={"task_type": "boolean", "task_label": "Common Area?"})
-        if uses_common_disposal and not disabled:
-            register_task_input("Instructions for Common Disposal Area", st.text_area, task_type="Outdoor Trash", section=section, disabled=disabled,
-                                metadata={"task_type": "instruction", "task_label": "Use Common Area"})
-            handle_image("Common Area", "Common Disposal Area")
-
+    # ─── Single-Family Disposal Area ─────────────────────────────────
+    with st.expander("Single-family homes only", expanded=True):
+        single_family_disposal = register_task_input(
+            label="Is a Single-family home?",
+            input_fn=st.checkbox,
+            section=section,
+            task_type="Outdoor Trash",
+            disabled=disabled
+        )
+        if single_family_disposal and not disabled:
+            register_task_input(
+                label="When and where should garbage, recycling, and compost bins be placed for pickup?", 
+                input_fn=st.text_area,
+                section=section,  
+                task_type="Outdoor Trash", 
+                is_freq=True, 
+                placeholder="E.g., 'Please wheel out all the bins from the garage to the end of the driveway on Monday night before garbage day.'",
+                disabled=disabled, 
+                )
+            register_task_input(
+                label="When and where should garbage, recycling, and compost bins be brought back in after pickup?", 
+                input_fn=st.text_area,
+                section=section, 
+                task_type="Outdoor Trash", 
+                is_freq=True, 
+                placeholder="E.g.,'Please please pick up the bins from the driveway and return them to the garage on Tuesday night after garbage day.'",
+                disabled=disabled, 
+                )
     # ─── Waste Management Contact ─────────────────────────────
     with st.expander("Waste Management Contact Info", expanded=True):
-        register_task_input("Waste Management Company Name", st.text_input, task_type="Outdoor Trash", section=section, disabled=disabled,
-                            metadata={"task_type": "contact", "task_label": "Waste Management Co"})
-        register_task_input("Contact Phone Number", st.text_input, task_type="Outdoor Trash", section=section, disabled=disabled,
-                            metadata={"task_type": "contact"})
-        register_task_input("When to Contact", st.text_area, task_type="Outdoor Trash", section=section, disabled=disabled,
-                            metadata={"task_type": "contact"})
-
-    # ─── Display Images ───────────────────────────────────────
-    if "trash_images" in st.session_state:
-        st.markdown("### 🖼️ Uploaded Trash & Recycling Photos")
-        for label, img in st.session_state.trash_images.items():
-            if img:
-                st.image(Image.open(io.BytesIO(img)), caption=label)
+        register_task_input(
+            label="Waste Management Company Name", 
+            input_fn=st.text_input, 
+            section=section,
+            task_type="Outdoor Trash", 
+            disabled=disabled,
+            )
+        register_task_input(
+            label="Contact Phone Number", 
+            input_fn=st.text_input, 
+            section=section,
+            task_type="Outdoor Trash", 
+            disabled=disabled,
+            )
+        register_task_input(
+            label="When to Contact", 
+            input_fn=st.text_area, 
+            section=section,
+            task_type="Outdoor Trash", 
+            disabled=disabled,
+            )
 
 def mail_trash_handling():
     # Optional reset
@@ -916,7 +1031,7 @@ def home_security():
     render_lock_toggle(session_key="home_security_locked", label="Home Security Info")
     disabled = st.session_state.get("home_security_locked", False)
 
-    with st.expander("Home Security System (if applicable)", expanded=True):
+    with st.expander("Home Security System and Privacy Info", expanded=True):
         st.markdown("##### Home Security and Privacy Info")
 
         security_used = st.checkbox(
@@ -925,150 +1040,133 @@ def home_security():
         )
 
         if not security_used:
-            st.info("✅ No security system info needed.")
+            st.info("✅ No privacy or security info needed.")
             return  # Skip the rest if unchecked
 
         # Only shown if security_used is True
         register_task_input(
-            "Where is Wi-Fi network name/password stored?", st.text_input,
-            section=section, disabled=disabled,
-            task_type="Internet Wifi"
+            label="Where is the Wi-Fi name and password kept?", 
+            input_fn=st.text_input,
+            section=section,
+            task_type="Internet Wifi", 
+            disabled=disabled,
         )
         register_task_input(
-            "Guest network details & password sharing method", st.text_input,
-            section=section, disabled=disabled,
-            task_type="Internet Wifi"
+            label="How is Wi-Fi info shared with guests?", 
+            input_fn=st.text_input,
+            section=section, 
+            task_type="Internet Wifi",
+            disabled=disabled
         )
         register_task_input(
-            "Security Company Name", st.text_input,
-            section=section, disabled=disabled,
-            task_type="Security System"
+            label="Security Company Name", 
+            input_fn=st.text_input,
+            section=section, 
+            task_type="Security System",
+            disabled=disabled,
         )
         register_task_input(
-            "Security Company Phone Number", st.text_input,
-            section=section, disabled=disabled,
-            task_type="Security System"
+            label="Security Company Phone Number", 
+            input_fn=st.text_input,
+            section=section, 
+            task_type="Security System",
+            disabled=disabled
         )
         register_task_input(
-            "Instructions to arm/disarm system", st.text_area,
-            section=section, disabled=disabled,
-            task_type="Security System"
+            label="How is the alarm system turned on and off?", 
+            input_fn=st.text_area,
+            section=section, 
+            task_type="Security System",
+            disabled=disabled,
         )
         register_task_input(
-            "Steps if a security alert is triggered", st.text_area,
-            section=section, disabled=disabled,
-            task_type="Security System"
+            label="What should be done if the alarm goes off or triggers a security alert?", 
+            input_fn=st.text_area,
+            section=section, 
+            task_type="Security System",
+            disabled=disabled,
         )
         register_task_input(
-            "Indoor cameras/monitoring details and activation", st.text_area,
-            section=section, disabled=disabled,
-            task_type="Security System"
+            label="Where are indoor security cameras or motion sensors, if any?", 
+            input_fn=st.text_area,
+            section=section, 
+            task_type="Security System",
+            disabled=disabled,
         )
         register_task_input(
-            "Emergency access instructions & storage location", st.text_area,
-            section=section, disabled=disabled,
-            task_type="Security System"
+            label="What's the emergency entry method for the home (spare key, lockbox, or smart lock)? Where is it located, and how is it used?", 
+            input_fn=st.text_area,
+            section=section, 
+            task_type="Security System",
+            disabled=disabled,
         )
         register_task_input(
-            "Home phone setup & call-handling instructions", st.text_area,
-            section=section, disabled=disabled,
-            task_type="Home Phone"
+            label="Is there a home phone? If so, what should be done if it stops working?", 
+            input_fn=st.text_area,
+            section=section, 
+            task_type="Home Phone",
+            disabled=disabled,
         )
 
 def convenience_seeker():
-    section = "Quality-Oriented Household Services"
-    st.write("🧼 Quality-Oriented Household Services")
+    section = "Regular Help Around the House (Contacts + Instructions)"
+    st.write("🧼 Regular Help Around the House (Contacts + Instructions)")
 
     render_lock_toggle(session_key="convenience_seeker_locked", label="Household Services")
     disabled = st.session_state.get("convenience_seeker_locked", False)
 
-    with st.expander("Home Quality-Oriented (if applicable)", expanded=True):
-        st.markdown("##### Services You Invest In")
+    with st.expander("Regular Help Around the House (Contacts + Instructions)", expanded=True):
+        st.markdown("##### Home Services")
         services = ["Cleaning", "Gardening/Landscape", "Pool Maintenance"]
 
         # Track selected services as a task
         selected_services = register_task_input(
-            "What services do you pay for?", st.multiselect,
+            label="Which of these regular services do you use?",
+            input_fn=st.multiselect,
             section=section,
+            task_type="Service",
             options=services,
             default=[],
-            key="convenience_seeker_options",
-            metadata={"is_task": True, "task_type": "Service", "area": "home"}
+            key="selected_services",
+            disabled=disabled
         )
-
+    
         for service in selected_services:
             nested_section = f"{section}.{service}"
             st.subheader(f"🔧 {service} Service Info")
 
-            register_task_input(
-                "Company Name", st.text_input,
-                section=nested_section,
-                disabled=disabled,
-                task_type="Service"
-            )
-            register_task_input(
-                "Company Phone Number", st.text_input,
-                section=nested_section,
-                disabled=disabled,
-                task_type="Service"
-            )
-            register_task_input(
-                "Access Method", st.text_input,
-                section=nested_section,
-                disabled=disabled,
-                task_type="Service"
-            )
-            register_task_input(
-                "Post-Service Procedures", st.text_area,
-                section=nested_section,
-                disabled=disabled,
-                task_type="Service"
-            )
-            register_task_input(
-                "Crew Identity Verification", st.text_area,
-                section=nested_section,
-                disabled=disabled,
-                task_type="Service"
-            )
+            questions = [
+                ("Company Name", st.text_input),
+                ("Company Phone Number", st.text_input),
+                ("How do home service providers access the home?", st.text_input),
+                ("How should service providers be let in, and what should be done after they finish?", st.text_area),
+                ("How can approved service providers be identified or confirmed?", st.text_area),
+            ]
+
+            for label, input_fn in questions:
+                register_task_input(
+                    label=label,
+                    input_fn=input_fn,
+                    section=nested_section,
+                    task_type="Service",
+                    disabled=disabled
+                )
 
             if service in ["Cleaning", "Gardening/Landscape", "Pool Maintenance"]:
                 register_task_input(
-                    "Frequency", st.selectbox,
+                    label="What’s the usual timing for home service visits?",
+                    input_fn=st.text_area,
                     section=nested_section,
-                    options=["Monthly", "Bi-Weekly", "Weekly"],
-                    disabled=disabled,
+                    task_type="Service",
                     is_freq=True,
-                    task_type="Service"
+                    disabled=disabled
                 )
-                register_task_input(
-                    "Day of the Week", st.selectbox,
-                    section=nested_section,
-                    options=[
-                        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
-                        "Saturday", "Sunday", "Not Specified"
-                    ],
-                    disabled=disabled,
-                    is_freq=True,
-                    task_type="Service"
-                )
-
-        if "Pool Maintenance" in selected_services:
-            months = [
-                "January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"
-            ]
-            st.multiselect(
-                "Seasonal Months:",
-                options=months,
-                default=[],
-                key="pool_seasonal_months"
-            )
 
 def rent_own():
     section = "Rent or Own"
     st.write("🏠 Home Ownership Status")
 
-    # Capture housing status via radio (wrap in lambda for compatibility)
+    # Radio input: Rent or Own
     housing_status = st.radio(
         "Do you rent or own your home?",
         options=["Rent", "Own"],
@@ -1080,10 +1178,10 @@ def rent_own():
     if housing_status == "Rent":
         st.subheader("🏢 Property Management Info")
         rent_section = f"{section}.Property Management"
-        capture_input("Company Name", st.text_input, section=rent_section)
-        capture_input("Company Phone Number", st.text_input, section=rent_section)
-        capture_input("Company Email", st.text_input, section=rent_section)
-        capture_input("When to Contact", st.text_area, section=rent_section)
+        register_task_input("Company Name", st.text_input, section=rent_section, task_type="Property Management")
+        register_task_input("Company Phone Number", st.text_input, section=rent_section, task_type="Property Management")
+        register_task_input("Company Email", st.text_input, section=rent_section, task_type="Property Management")
+        register_task_input("When to Contact", st.text_area, section=rent_section, task_type="Property Management")
 
     elif housing_status == "Own":
         st.subheader("🧰 Homeowner Contacts")
@@ -1098,17 +1196,17 @@ def rent_own():
         for role in selected_services:
             role_section = f"{section}.{role}"
             st.subheader(f"🔧 {role}")
-            capture_input("Name", st.text_input, section=role_section)
-            capture_input("Phone Number", st.text_input, section=role_section)
-            capture_input("When to Contact", st.text_area, section=role_section)
+            register_task_input("Name", st.text_input, section=role_section, task_type=role)
+            register_task_input("Phone Number", st.text_input, section=role_section, task_type=role)
+            register_task_input("When to Contact", st.text_area, section=role_section, task_type=role)
 
         if "HOA" in selected_services:
             st.subheader("🏘️ HOA / Property Management")
             hoa_section = f"{section}.HOA"
-            capture_input("Company Name", st.text_input, section=hoa_section)
-            capture_input("Phone Number", st.text_input, section=hoa_section)
-            capture_input("Email", st.text_input, section=hoa_section)
-            capture_input("When to Contact", st.text_area, section=hoa_section)
+            register_task_input("Company Name", st.text_input, section=hoa_section, task_type="HOA")
+            register_task_input("Phone Number", st.text_input, section=hoa_section, task_type="HOA")
+            register_task_input("Email", st.text_input, section=hoa_section, task_type="HOA")
+            register_task_input("When to Contact", st.text_area, section=hoa_section, task_type="HOA")
 
 def security_convenience_ownership():
     # 🔪 Optional: Reset controls for testing

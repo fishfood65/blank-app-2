@@ -73,7 +73,7 @@ def generate_prompt_section(section: str, *, for_llm: bool = False, debug: bool 
     # 🔁 Resolve alias to canonical section key
     canonical_section = SECTION_ALIASES.get(section, section)
     section_data = input_data.get(section, []) or input_data.get(canonical_section, [])
-    template = template_map.get(canonical_section, {})
+    template = TEMPLATE_MAP.get(canonical_section, {})
 
     if not section_data:
         return f"### ⚠️ No data provided for {canonical_section.title()} section."
@@ -136,50 +136,40 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
         if is_content_meaningful(content):
             blocks.append(build_prompt_block(title, content))
 
-    # LLM blocks — always included
-    if section in ["home"]:
-        maybe_add_block("Utilities and Emergency Services", utilities_emergency_runbook_prompt())
+    # Define section → (title, content_function) mappings
+    prompt_registry = {
+        "home": [
+            ("Utilities and Emergency Services", utilities_emergency_runbook_prompt),
+        ],
+        "emergency_kit": [
+            ("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt),
+        ],
+        "mail_trash_handling": [
+            ("Mail Instructions", lambda: generate_prompt_section("Mail & Packages", for_llm=False)),
+            ("Trash Instructions", lambda: generate_prompt_section("Trash Handling", for_llm=False)),
+        ],
+        "home_security": [
+            ("Home Caretaker & Guest Instructions", home_caretaker_runbook_prompt),
+        ],
+        # "emergency_kit_critical_documents": [
+        #     ("Important Documents Checklist", emergency_kit_document_prompt),
+        # ],
+        # "bonus_level": [
+        #     ("Additional Home Instructions", bonus_level_runbook_prompt),
+        # ],
+    }
 
-    if section in ["emergency_kit"]:
-        maybe_add_block("Utilities Emergency Services with Kit", emergency_kit_utilities_runbook_prompt())
-
-    # Deterministic blocks from structured data
-    if section in ["mail_trash_handling"]:
-        maybe_add_block("Mail Instructions", generate_prompt_section("Mail & Packages", for_llm=False))
-        maybe_add_block("Trash Instructions", generate_prompt_section("Trash Handling", for_llm=False))
-
-    if section == "home_security":
-        maybe_add_block("Home Caretaker & Guest Instructions", home_caretaker_runbook_prompt())
-
-    if section == "emergency_kit_critical_documents":
-        maybe_add_block("Important Documents Checklist", emergency_kit_document_prompt())
-
-    if section == "bonus_level":
-        maybe_add_block("Additional Home Instructions", bonus_level_runbook_prompt())
-
-    if not blocks:
-        blocks.append(build_prompt_block(f"⚠️ No prompt defined for section: {section}", ""))
+    # Lookup and build blocks
+    if section in prompt_registry:
+        for title, fn in prompt_registry[section]:
+            maybe_add_block(title, fn())
+    else:
+        blocks.append(build_prompt_block(
+            title=f"⚠️ No prompt defined for section: {section}",
+            content="This section currently has no associated prompt logic."
+        ))
 
     return blocks
-
-#OR def generate_all_prompt_blocks(section: str) -> List[str]: ###Combine Sections at Prompt-Building Time
-# Use a synthetic or virtual section name like "home_security_overview" or "mail_trash_handling" that aggregates blocks from multiple existing sub-sections (e.g. "mail", "trash_handling").
-#   if section == "mail_trash_handling":
-#        return (
-#            emergency_kit_utilities_runbook_prompt() +
-#            mail_trash_runbook_prompt(debug_key="trash_info_debug_preview")
- #       )
- #   elif section == "home_security":
- #       return (
- #           emergency_kit_utilities_runbook_prompt() +
-#            mail_trash_runbook_prompt() +
- #           home_caretaker_runbook_prompt()
-#        )
-#    # fallback
- #   elif section == "home":
- ##       return utilities_emergency_runbook_prompt()
-#    else:
-#        return [f"# ⚠️ No prompt available for section: {section}"]
 
 
 def utilities_emergency_runbook_prompt(debug: bool = False) -> str:
@@ -310,28 +300,25 @@ def trash_runbook_prompt(debug: bool = False) -> list[str]:
 
     # Outdoor Trash Instructions
     outdoor_block = "\n".join(filter(None, [
-        safe_line("Outdoor Collection Schedule", trash_info.get("How often and when is Outdoor Garbage and Recycling Collected?")),
-        safe_line("Bin Appearance", trash_info.get("What the Outdoor Trash Bins Look Like")),
-        safe_line("Placement Instructions", trash_info.get("Specific Location or Instructions for Emptying Outdoor Bins")),
+        safe_line("Location of outside trash, recycling, and compost bins:", trash_info.get("Where are the trash, recycling, and compost bins stored outside?")),
+        safe_line("Outdoor bins are marked as follows:", trash_info.get("How are the outdoor bins marked?")),
+        safe_line("Important steps to follow before putting recycling or compost in the bins:", trash_info.get("Stuff to know before putting recycling or compost in the bins?")),
     ]))
 
-    outdoor_image_tags = []
-    if "trash_images" in st.session_state:
-        for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
-            img_bytes = st.session_state.trash_images.get(label)
-            if img_bytes:
-                b64_img = base64.b64encode(img_bytes).decode("utf-8")
-                mime = "image/png"
-                outdoor_image_tags.append(f'<img src="data:{mime};base64,{b64_img}" alt="{label}" width="300"/>')
-
-    outdoor_block += "\n" + "\n".join(outdoor_image_tags)
-
-    # Common Disposal Area
-    common_used = trash_info.get("Is there a common disposal area?", False)
-    common_block = ""
-    if common_used:
-        common_instr = trash_info.get("Instructions for Common Disposal Area", "")
-        common_block = safe_yes_no("Common Disposal Area", True, "Instructions", common_instr)
+    # Single Family Disposal Instruction
+    single_family_disposal = trash_info.get("Is a Single-family home?", False)
+    single_family_block = ""
+    if single_family_disposal:
+        single_family_instr = "\n".join(filter(None, [
+            safe_line("When and where to place bins for pickup", trash_info.get("When and where should garbage, recycling, and compost bins be placed for pickup?")),
+            safe_line("When and where to bring bins back in", trash_info.get("When and where should garbage, recycling, and compost bins be brought back in after pickup?")),
+        ]))
+        single_family_block = safe_yes_no(
+            label="Is a Single-family home.",
+            flag=True,
+            detail_label="Singe-family home instructions",
+            detail_value=single_family_instr
+        )
 
     # Waste Management Contact
     wm_block = "\n".join(filter(None, [
@@ -343,7 +330,7 @@ def trash_runbook_prompt(debug: bool = False) -> list[str]:
     raw = trash_prompt_template(
         indoor_block=indoor_block,
         outdoor_block=outdoor_block,
-        common_disposal_block=common_block,
+        common_disposal_block=single_family_block,
         wm_block=wm_block,
     )
 

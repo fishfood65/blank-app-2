@@ -24,7 +24,7 @@
     "template": "Empty trash bins in other rooms {timing} on {days}",
     "keys": ["timing", "days"]
   },
-  "When are Outdoor Garbage and Recycling Collected?":{
+  "When and where should garbage, recycling, and compost bins be placed for pickup?":{
     "template": "Put out garbage and recycling bins for collection on {timing} on {days}",
     "keys": ["timing", "days"]
   },

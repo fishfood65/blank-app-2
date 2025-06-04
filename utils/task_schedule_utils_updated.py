@@ -7,6 +7,7 @@ from typing import List, Tuple, Optional, Dict
 import streamlit as st
 import json
 import os
+import spacy
 
 def generate_category_keywords_from_labels(input_data):
     keyword_freq = defaultdict(int)
@@ -516,40 +517,81 @@ def normalize_label(label: str) -> str:
     """Remove leading emojis/symbols and normalize spacing."""
     return re.sub(r"^[^\w]*(.*)", r"\1", label).strip()
 
-def extract_key_phrase(answer: str, key: str) -> str:
+nlp = spacy.load("en_core_web_sm")
+
+def extract_key_phrase(answer: str, key: str, return_confidence: bool = False, multi_key: bool = False):
     """
-    Extracts a key phrase from the answer based on the specified key.
-    Supports 'days', 'timing', and fallback keyword spotting.
+    Extracts key phrases (days, timing, location, frequency, duration) from a string.
+    Supports optional confidence scoring and multi-key extraction mode.
     """
+
+    def conf(value, score=1.0):
+        return (value, score) if return_confidence else value
+
     if not isinstance(answer, str):
-        return ""
+        return {} if multi_key else conf("")
 
     answer = answer.strip()
+    doc = nlp(answer)
 
-    if key == "days":
-        # Use your improved day inference function
-        inferred_days = infer_relevant_days_from_text(answer)
-        return ", ".join(inferred_days) if inferred_days else ""
+    results = {}
 
-    elif key == "timing":
-        # Use the time extractor
-        timing = extract_time_mentions(answer)
-        return timing if timing else ""
+    # Handle 'days'
+    def extract_days():
+        days = infer_relevant_days_from_text(answer)
+        return conf(", ".join(days), 0.95 if days else 0.0)
 
-    # 🔁 Optional: fallback for arbitrary keywords
-    # e.g., If key == "location", extract simple location-style phrase
-    # You can expand this with NLP later
-    fallback_patterns = {
-        "location": r"(?:in|at|inside)\s+([a-zA-Z\s]+)",
+    # Handle 'timing'
+    def extract_timing():
+        time = extract_time_mentions(answer)
+        return conf(time, 0.9 if time else 0.0)
+
+    # Handle 'location'
+    def extract_location():
+        for prep in ["in", "at", "on", "inside", "outside", "next to", "near", "behind", "beside", "by"]:
+            match = re.search(rf"{prep}\s+([a-zA-Z\s,]+?)([.,;]|$)", answer, re.IGNORECASE)
+            if match:
+                return conf(match.group(0).strip(), 0.85)
+        noun_chunks = [chunk.text for chunk in doc.noun_chunks]
+        return conf(noun_chunks[0], 0.6) if noun_chunks else conf("", 0.0)
+
+    # Handle 'frequency'
+    def extract_frequency():
+        freq_terms = ["daily", "weekly", "biweekly", "monthly", "every", "each"]
+        for token in doc:
+            if token.text.lower() in freq_terms:
+                return conf(token.sent.text.strip(), 0.9)
+        match = re.search(r"every\s+\w+", answer, re.IGNORECASE)
+        if match:
+            return conf(match.group(0), 0.7)
+        return conf("", 0.0)
+
+    # Handle 'duration'
+    def extract_duration():
+        for ent in doc.ents:
+            if ent.label_ == "DURATION":
+                return conf(ent.text.strip(), 0.95)
+        match = re.search(r"\b\d+\s+(minutes?|hours?|days?)\b", answer)
+        if match:
+            return conf(match.group(0), 0.7)
+        return conf("", 0.0)
+
+    # Key-to-function map
+    extractors = {
+        "days": extract_days,
+        "timing": extract_timing,
+        "location": extract_location,
+        "frequency": extract_frequency,
+        "duration": extract_duration,
     }
 
-    pattern = fallback_patterns.get(key)
-    if pattern:
-        match = re.search(pattern, answer, flags=re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
+    if multi_key:
+        for k, func in extractors.items():
+            results[k] = func()
+        return results
 
-    return ""
+    # Single key mode
+    return extractors.get(key, lambda: conf("", 0.0))()
 
 def humanize_task(row: dict, label_map: dict, include_days: bool = False) -> str:
     if label_map is None:

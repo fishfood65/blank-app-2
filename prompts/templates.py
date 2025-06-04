@@ -1,4 +1,5 @@
 # prompts/templates.py
+import streamlit as st 
 
 def wrap_prompt_block(
     content: str,
@@ -396,3 +397,154 @@ def home_caretaker_prompt_template(data: dict) -> str:
                 blocks.append(block)
 
     return "\n\n---\n\n".join(blocks).strip()
+
+def mail_runbook_prompt(debug: bool = False) -> str:
+    """
+    Builds a structured mail handling prompt block without LLM.
+    """
+    section = "mail"
+    input_data = st.session_state.get("input_data", {})
+    mail_entries = input_data.get(section, []) or input_data.get("Mail & Packages", [])
+
+    mail_info = {entry["question"]: entry["answer"] for entry in mail_entries}
+
+    def safe_line(label, value):
+        if value and str(value).strip().lower() not in ["no", "⚠️ not provided", ""]:
+            return f"- **{label}**: {value}"
+        return None
+
+    mail_block = "\n".join(filter(None, [
+        safe_line("The mailbox for collecting mail and small packages", mail_info.get("📍 Mailbox Location")),
+        safe_line("Mailbox key location", mail_info.get("🔑 Mailbox Key (Optional)")),
+        safe_line("Pick up Mail", mail_info.get("📆 Mail Pick-Up Schedule")),
+        safe_line("After picking up the mail, please", mail_info.get("📥 What to Do with the Mail")),
+        safe_line("Where to pick up and store all packages", mail_info.get("📦 Packages")),
+    ]))
+
+    # 📬 Section header + instructions
+    instructions = "Use the provided instructions for where, when, and how to collect and store mail and packages. DO NOT invent details, add advice, or insert a schedule table. Leave all placeholders untouched."
+
+    # 🧱 Build markdown block
+    markdown = f"""
+## 📬 Mail Handling Instructions
+
+{mail_block}
+
+### 📆 Mail Pickup Schedule
+
+<<INSERT_MAIL_HANDLING_SCHEDULE_TABLE>>
+""".strip()
+
+    return wrap_prompt_block(
+        content=markdown,
+        title="📬 Mail Handling Instructions",
+        instructions=instructions,
+        debug=debug
+    )
+
+def trash_runbook_prompt(debug: bool = False) -> str:
+    """
+    Builds a structured trash handling prompt block without LLM.
+    """
+    section = "trash_handling"
+    input_data = st.session_state.get("input_data", {})
+    trash_entries = input_data.get(section, [])
+
+    trash_info = {entry["question"]: entry["answer"] for entry in trash_entries}
+
+    def safe_line(label, value):
+        return f"- **{label}**: {value}" if value and str(value).strip().lower() != "no" else None
+
+    def safe_yes_no(label, flag, detail_label, detail_value):
+        if flag:
+            return f"- **{label}**: Yes\n  - **{detail_label}**: {detail_value or 'N/A'}"
+        return ""
+
+    # Indoor Trash Instructions
+    indoor_block = "\n".join(filter(None, [
+        safe_line("Kitchen Trash", trash_info.get("🧴 Kitchen Garbage Bin")),
+        safe_line("Indoor Recycling", trash_info.get("♻️ Indoor Recycling Bin(s)")),
+        safe_line("Compost / Green Waste", trash_info.get("🧃 Indoor Compost or Green Waste")),
+        safe_line("Bathroom Trash", trash_info.get("🧼 Bathroom Trash Bin")),
+        safe_line("Other Room Trash", trash_info.get("🪑 Other Room Trash Bins")),
+    ]))
+
+    # Outdoor Trash Instructions
+    outdoor_block = "\n".join(filter(None, [
+        safe_line("Location of outside trash, recycling, and compost bins:", trash_info.get("Where are the trash, recycling, and compost bins stored outside?")),
+        safe_line("Outdoor bins are marked as follows:", trash_info.get("How are the outdoor bins marked?")),
+        safe_line("Important steps to follow before putting recycling or compost in the bins:", trash_info.get("Stuff to know before putting recycling or compost in the bins?")),
+    ]))
+
+    # Single Family Disposal Instruction
+    single_family_disposal = trash_info.get("Is a Single-family home?", False)
+    single_family_block = ""
+    if single_family_disposal:
+        single_family_instr = "\n".join(filter(None, [
+            safe_line("When and where to place bins for pickup", trash_info.get("When and where should garbage, recycling, and compost bins be placed for pickup?")),
+            safe_line("When and where to bring bins back in", trash_info.get("When and where should garbage, recycling, and compost bins be brought back in after pickup?")),
+        ]))
+        single_family_block = safe_yes_no(
+            label="Is a Single-family home.",
+            flag=True,
+            detail_label="Single-family home instructions",
+            detail_value=single_family_instr
+        )
+
+    # Waste Management Contact
+    wm_block = "\n".join(filter(None, [
+        safe_line("Company", trash_info.get("Waste Management Company Name")),
+        safe_line("Phone", trash_info.get("Contact Phone Number")),
+        safe_line("When to Contact", trash_info.get("When to Contact")),
+    ]))
+
+    ## 🗑️ Section header + instructions
+
+    sections = []
+
+    # Section title
+    sections.append("## 🗑️ Trash, Recycling, and Compost Instructions")
+
+    # Indoor Trash
+    if indoor_block:
+        sections.extend([
+            "### Indoor Trash",
+            indoor_block
+        ])
+
+    # Outdoor Bins
+    if outdoor_block:
+        sections.extend([
+            "### Outdoor Bins",
+            outdoor_block
+        ])
+
+    # Single Family Home Instructions
+    if single_family_block:
+        sections.extend([
+            "### Single Family Home Instructions",
+            single_family_block
+        ])
+
+    # Waste Management Contact
+    if wm_block:
+        sections.extend([
+            "### Waste Management Contact",
+            wm_block
+        ])
+
+    # Schedule table placeholder (always include)
+    sections.extend([
+        "### 📆 Trash and Recycling Pickup Schedule",
+        "<<INSERT_COMBINED_HOME_SCHEDULE_TABLE>>"
+    ])
+
+    # Combine into markdown
+    markdown = "\n\n".join(sections)
+
+    return wrap_prompt_block(
+        content=markdown,
+        title="🗑️ Trash, Recycling and Compost Instructions",
+        instructions="Use the provided information for clarity.",
+        debug=debug
+    )
