@@ -142,13 +142,23 @@ def is_content_meaningful(content: str) -> bool:
     return bool(non_placeholder_lines)
 
 def utilities_emergency_runbook_prompt(section: str = "home", debug: bool = False) -> str:
-    city = get_answer("City", section) or ""
-    zip_code = get_answer("ZIP Code", section) or ""
-    internet = get_answer("Internet Provider", section) or ""
+    city = get_answer("City", section) or "⚠️ Not provided"
+    zip_code = get_answer("ZIP Code", section) or "⚠️ Not provided"
+    internet = get_answer("Internet Provider", section) or "⚠️ Not provided"
+
     providers = st.session_state.get("utility_providers", {})
-    electricity = providers.get("electricity", "")
-    gas = providers.get("natural_gas", "")
-    water = providers.get("water", "")
+    electricity = providers.get("electricity", "⚠️ Not provided")
+    gas = providers.get("natural_gas", "⚠️ Not provided")
+    water = providers.get("water", "⚠️ Not provided")
+
+    if debug:
+        st.markdown("### 🐞 Debug: Emergency Utilities Prompt")
+        st.write("City:", city)
+        st.write("ZIP Code:", zip_code)
+        st.write("Internet:", internet)
+        st.write("Electricity:", electricity)
+        st.write("Gas:", gas)
+        st.write("Water:", water)
 
     raw = utilities_emergency_prompt_template(city, zip_code, internet, electricity, gas, water)
 

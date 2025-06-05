@@ -35,7 +35,6 @@ else:
 
 # --- Helper functions (top of the file) ---
 def get_home_inputs(section: str):
-
     """
     Collects home-related inputs and registers them with task metadata.
 
@@ -46,27 +45,36 @@ def get_home_inputs(section: str):
         Tuple[str, str, str]: city, zip_code, and internet_provider
     """
     city = register_task_input(
-        "City", st.text_input,
-        task_type="Location Info",
-        section=section
+        label="City",
+        input_fn=st.text_input,
+        section=section,
+        value=st.session_state.get("City", ""),
+        key="City",  # Ensures value stored in st.session_state["City"]
+        task_type="Location Info"
     )
 
     zip_code = register_task_input(
-        "ZIP Code", st.text_input,
-        task_type="Location Info",
-        section=section
+        label="ZIP Code",
+        input_fn=st.text_input,
+        section=section,
+        value=st.session_state.get("ZIP Code", ""),
+        key="ZIP Code",
+        task_type="Location Info"
     )
 
     internet_provider = register_task_input(
-        "Internet Provider", st.text_input,
-        task_type="Utilities",
-        section=section
+        label="Internet Provider",
+        input_fn=st.text_input,
+        section=section,
+        value=st.session_state.get("Internet Provider", ""),
+        key="Internet Provider",
+        task_type="Utilities"
     )
 
-    # Store to session state directly for external access
-    st.session_state.city = city
-    st.session_state.zip_code = zip_code
-    st.session_state.internet_provider = internet_provider
+    # Optional: mirror into top-level keys (but not required for get_answer)
+    st.session_state["city"] = city
+    st.session_state["zip_code"] = zip_code
+    st.session_state["internet_provider"] = internet_provider
 
     return city, zip_code, internet_provider
 

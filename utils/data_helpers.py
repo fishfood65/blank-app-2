@@ -139,15 +139,15 @@ def register_task_input(
     **kwargs
 ):
     """
-    Registers a user input as a potential scheduled task with metadata.
-    Saves a normalized task row to st.session_state["task_inputs"].
+    Registers a user input and stores it in session state for both tasks and non-tasks.
+    Compatible with get_answer() by storing question/answer metadata in input_data.
 
     Args:
-        label: The input label (also used as task descriptor).
+        label (str): The input label (used for question and task description).
         input_fn: Streamlit input function (e.g., st.text_area).
-        section: Section name (must be explicitly passed).
-        is_freq: Whether the task is frequency-based.
-        task_type: Logical type of task (e.g., 'mail', 'trash').
+        section (str): The section name (flat string, e.g., "emergency_kit").
+        is_freq (bool): Whether this task is frequency-based.
+        task_type (str): Optional logical type (e.g., 'mail', 'trash').
         *args, **kwargs: Passed through to capture_input().
     """
     metadata = {
@@ -163,57 +163,100 @@ def register_task_input(
     value = capture_input(label, input_fn, section=section, *args, **kwargs)
 
     if value not in (None, ""):
-        task_row = {
+        # Save to task_inputs if relevant
+        if metadata["is_task"]:
+            task_row = {
+                "question": label,
+                "answer": value,
+                "category": section,
+                "section": section,
+                "area": metadata["area"],
+                "task_type": metadata["task_type"],
+                "is_freq": metadata["is_freq"],
+                "key": kwargs.get("key"),
+            }
+            st.session_state.setdefault("task_inputs", []).append(task_row)
+
+        # ✅ Always save to input_data so get_answer() works
+        input_record = {
             "question": label,
             "answer": value,
-            "category": section,
             "section": section,
-            "area": metadata["area"],
-            "task_type": metadata["task_type"],
-            "is_freq": metadata["is_freq"],
+            "key": kwargs.get("key"),
         }
-        st.session_state.setdefault("task_inputs", []).append(task_row)
+        st.session_state.setdefault("input_data", {}).setdefault(section, []).append(input_record)
 
     return value
 
 def get_answer(
-    question_label: str,
     section: str,
+    key: str,
     *,
     nested_parent: str = None,
-    nested_child: str = None
-):
+    nested_child: str = None,
+    verbose: bool = False
+) -> str | None:
     """
-    Retrieves the most recent answer matching the question_label within a given section.
+    Retrieves the most recent answer for a given key in a section.
+    Supports flat lookup and nested dict fallback.
 
     Args:
-        question_label (str): The exact label used during capture_input.
-        section (str): The flat section name in input_data (required).
-        nested_parent (str): Optional nested dict parent key.
-        nested_child (str): Optional nested dict child key.
+        section (str): Section name used in 'task_inputs'.
+        key (str): The question label or widget key to retrieve.
+        nested_parent (str): Optional nested parent dict.
+        nested_child (str): Optional nested child key.
+        verbose (bool): If True, will print debug info via Streamlit.
 
     Returns:
-        str | None: The matched answer, or None if not found.
+        str | None: Matched value or None.
     """
-    # ✅ Check nested dict structure (optional)
+
+    def sanitize(text):
+        return (
+            text.lower().strip()
+            .replace(" ", "_")
+            .replace("?", "")
+            .replace(":", "")
+            .replace("-", "_")
+        )
+
+    norm_key = sanitize(key)
+
+    # 🔍 Optional nested dict check (e.g. input_data["home"]["city"])
     if nested_parent and nested_child:
         nested_value = (
             st.session_state.get(nested_parent, {})
             .get(nested_child, {})
-            .get(question_label)
+            .get(key)
         )
         if nested_value is not None:
+            if verbose:
+                st.write(f"✅ [Nested Fallback] Found in {nested_parent} → {nested_child} → {key}")
             return nested_value
 
-    # ✅ Flat lookup by section
-    data = st.session_state.get("input_data", {})
-    section_data = data.get(section, [])
+    entries = st.session_state.get("task_inputs", [])
+    if verbose:
+        st.write("🔍 Searching in task_inputs for section:", section)
+        st.write("🔑 Normalized key:", norm_key)
 
-    latest = None
-    for item in section_data:
-        if item["question"] == question_label:
-            latest = item["answer"]
-    return latest
+    for entry in entries:
+        if entry.get("section") != section:
+            continue
+
+        label_raw = entry.get("question", "")
+        key_raw = entry.get("key", "")
+
+        label_match = sanitize(label_raw) == norm_key
+        key_match = sanitize(key_raw) == norm_key
+
+        if label_match or key_match:
+            if verbose:
+                st.write(f"✅ Match found — label: '{label_raw}', key: '{key_raw}'")
+            return entry.get("answer")
+
+    if verbose:
+        st.warning(f"❌ No match found for key '{key}' in section '{section}'.")
+    return None
 
 def check_missing_utility_inputs(section="home"):
     """
@@ -222,11 +265,11 @@ def check_missing_utility_inputs(section="home"):
     """
     missing = []
 
-    if not get_answer("City", section):
+    if not get_answer(section, "City"):
         missing.append("City")
-    if not get_answer("ZIP Code", section):
+    if not get_answer(section, "ZIP Code"):
         missing.append("ZIP Code")
-    if not get_answer("Internet Provider", section):
+    if not get_answer(section, "Internet Provider"):
         missing.append("Internet Provider")
 
     return missing
@@ -265,8 +308,7 @@ def get_filtered_dates(start_date, end_date, refinement):
     else:  # All Days
         return list(daterange(start_date, end_date))
     
-def select_runbook_date_range():
-    section = "runbook_date_range"
+def select_runbook_date_range(section="runbook_date_range"):
     st.write("📅 First Select Date(s) or Timeframe for Your Runbook.")
 
     options = ["Pick Dates", "General"]
@@ -303,8 +345,9 @@ def select_runbook_date_range():
             st.error("⚠️ Start date must be before end date.")
             return None, None, None, []
 
-        if (end_date - start_date).days > 31:
-            st.error("⚠️ The selected period must be no longer than 1 month.")
+        days_apart = (end_date - start_date).days
+        if days_apart > 31:
+            st.error(f"⚠️ The selected period is too long ({days_apart} days). Limit: 31 days.")
             return None, None, None, []
 
         refinement = register_task_input(
@@ -317,13 +360,14 @@ def select_runbook_date_range():
             key="refinement_option"
         )
 
+        display_choice = f"Pick Dates ({refinement})"
         st.info(f"📅 Using dates from **{start_date}** to **{end_date}** ({refinement})")
         valid_dates = get_filtered_dates(start_date, end_date, refinement)
-        choice = f"Pick Dates ({refinement})"
 
     elif choice == "General":
         start_date = today
         end_date = today + timedelta(days=7)
+        display_choice = "General (Next 7 Days)"
         st.info(f"📅 1-week schedule starting {start_date}")
         valid_dates = get_filtered_dates(start_date, end_date, "All Days")
 
@@ -331,7 +375,7 @@ def select_runbook_date_range():
         st.warning("⚠️ Invalid choice selected.")
         return None, None, None, []
 
-    return choice, start_date, end_date, valid_dates
+    return display_choice, start_date, end_date, valid_dates
 
 def preview_interaction_log():
     """Display a log of all user interactions."""
@@ -604,6 +648,49 @@ def generate_category_keywords_from_labels(input_data):
 
     return sorted_keywords
 
+def sanitize_label(label: str) -> str:
+    return label.lower().strip().replace(" ", "_").replace("?", "").replace(":", "")
+
+def debug_get_answer(section: str, key: str):
+    st.markdown(f"### 🧪 Debug `get_answer(section='{section}', key='{key}')`")
+
+    task_inputs = st.session_state.get("task_inputs", [])
+    st.markdown(f"**🔍 Total `task_inputs`:** {len(task_inputs)}")
+
+    if not task_inputs:
+        st.error("❌ No task inputs found.")
+        return
+
+    sanitized_key = sanitize_label(key)
+    st.markdown(f"**🔑 Sanitized key:** `{sanitized_key}`")
+
+    # Step 1: Filter by section
+    matching_section = [entry for entry in task_inputs if entry.get("section") == section]
+    if not matching_section:
+        st.warning(f"⚠️ No entries found for section `{section}`.")
+        return
+
+    st.markdown(f"**📂 Entries in section `{section}`:**")
+    st.json(matching_section)
+
+    # Step 2: Try to find sanitized label match
+    for entry in matching_section:
+        label_raw = entry.get("label", "")
+        label_sanitized = sanitize_label(label_raw)
+        if label_sanitized == sanitized_key:
+            st.success("✅ Exact match found:")
+            st.write(f"🧾 Label: {label_raw}")
+            st.write(f"📦 Value returned: `{entry.get('value')}`")
+            return
+
+    # Step 3: Try partial match
+    partial_matches = [entry for entry in matching_section if sanitized_key in sanitize_label(entry.get("label", ""))]
+    if partial_matches:
+        st.warning("⚠️ No exact match, but found partial label matches:")
+        st.json(partial_matches)
+        return
+
+    st.error(f"❌ No label match for key `{sanitized_key}` in section `{section}`.")
 
 
 # Placeholder for future enhancement: Cloud saving logic

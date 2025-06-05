@@ -17,7 +17,7 @@ import uuid
 import json
 from docx.shared import Inches
 from utils.preview_helpers import get_active_section_label
-from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs
+from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs,debug_get_answer
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download
 from prompts.templates import utility_provider_lookup_prompt
 
@@ -86,27 +86,17 @@ def homeowner_kit_stock(section="emergency_kit"):
 def emergency_kit(section="emergency_kit"):
     st.subheader("🧰 Emergency Kit Setup")
 
-    options = ["Yes", "No"]
-    key = "radio_emergency_kit_status"
-
-    # Get previously saved value or fall back to default
-    prior_value = st.session_state.get(key, options[0]) #default to "Yes"
-
     # 1. Kit ownership status
     emergency_kit_status = register_task_input(
         label="Do you have an Emergency Kit?",
         input_fn=st.radio,
         section=section,
-        options=options,
-        value=prior_value,
+        options=["Yes","No"],
         index=0,
         metadata={"is_task": False, "frequency_field": False},
-        key="radio_emergency_kit_status"
+        key="emergency_kit_status",
         value=st.session_state.get("emergency_kit_status", "")
     )
-
-    # Store explicitly (if needed elsewhere, like in prompt)
-    emergency_kit_status = st.session_state.get("radio_emergency_kit_status", "⚠️ Not provided")
 
     if emergency_kit_status == 'Yes':
         st.success('Great—you already have a kit!', icon=":material/medical_services:")
@@ -120,11 +110,9 @@ def emergency_kit(section="emergency_kit"):
         section=section,
         value=st.session_state.get("emergency_kit_location", ""),
         placeholder="e.g., hall closet, garage bin",
-        key="emergency_kit_locaiton",
+        key="emergency_kit_location",
         metadata={"is_task": False, "frequency_field": False}
     )
-    if emergency_kit_location:
-        emergency_kit_location = st.session_state.get("emergency_kit_location", "⚠️ Not provided")
 
     # 3. Core stock selector (uses capture_input internally with task metadata)
     selected_items, not_selected_items = homeowner_kit_stock()
@@ -137,11 +125,9 @@ def emergency_kit(section="emergency_kit"):
         input_fn=st.text_input,
         section=section,
         value=st.session_state.get("additional_kit_items", ""),
-        key="additonal_kit_items"
+        key="additional_kit_items",
         metadata={"is_task": False, "frequency_field": False}
     )
-    if additional:
-        st.session_state['additional_kit_items'] = additional
 
 # --- Main Function Start ---
 
@@ -172,6 +158,12 @@ def emergency_kit_utilities():
         st.write("emergency_kit_status:", st.session_state.get("emergency_kit_status"))
         st.write("emergency_kit_location:", st.session_state.get("emergency_kit_location"))
         st.write("additional_kit_items:", st.session_state.get("additional_kit_items"))
+        st.markdown("### 🧪 Task Inputs")
+        st.json(st.session_state.get("task_inputs", []))
+        st.write(debug_get_answer("emergency_kit", "emergency_kit_status"))
+        st.write(debug_get_answer("emergency_kit", "emergency_kit_location"))
+        st.write(debug_get_answer("emergency_kit", "additional_kit_items"))
+
     
     missing = check_missing_utility_inputs()
     if missing:
@@ -191,6 +183,11 @@ def emergency_kit_utilities():
         st.markdown("### 🧾 Prompt Preview")
         for block in blocks:
             st.code(block, language="markdown")
+        st.markdown("### 🧪 get_answer() Results")
+        st.write("🔹 emergency_kit_status:", get_answer("emergency_kit", "emergency_kit_status"))
+        st.write("🔹 emergency_kit_location:", get_answer("emergency_kit", "emergency_kit_location"))
+        st.write("🔹 additional_kit_items:", get_answer("emergency_kit", "additional_kit_items"))
+
 
     #Step 2: Generate DOCX
     st.subheader("🎉 Reward")
