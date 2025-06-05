@@ -19,7 +19,7 @@ from docx.shared import Inches
 from utils.preview_helpers import get_active_section_label
 from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs 
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer
-from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download
+from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
 from prompts.templates import utility_provider_lookup_prompt
 
 # --- Generate the AI prompt ---
@@ -181,54 +181,37 @@ def emergency_kit_utilities():
 
     #Debug preview
     if st.session_state.get("enable_debug_mode"):
+        preview_blocks = generate_all_prompt_blocks(section)
         st.markdown("### 🧾 Prompt Preview")
-        for block in blocks:
+        for block in preview_blocks:
             st.code(block, language="markdown")
         st.markdown("### 🧪 get_answer() Results")
         st.write(debug_single_get_answer(key="emergency_kit_status", section="emergency_kit"))
         st.write(debug_single_get_answer(key="emergency_kit_location", section="emergency_kit"))
         st.write(debug_single_get_answer(key="additional_kit_items", section="emergency_kit"))
 
-
     #Step 2: Generate DOCX
-    st.subheader("🎉 Reward")
-    if st.button("📥 Generate Runbook"):
-        st.session_state[generate_key] = True
-        st.rerun() # Trigger rerun to ensure next block runs
 
-    if st.session_state.get(generate_key):
-        #st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
-        buffer, markdown_text = generate_docx_from_prompt_blocks(
+    def generate_kit_docx():
+        blocks = generate_all_prompt_blocks(section)
+        #st.success("✅ All required utility inputs are complete.")
+        #st.session_state["utility_providers_saved"] = True
+        return generate_docx_from_prompt_blocks(
             section=section,
-            blocks=blocks,
+            blocks=blocks,  
             insert_main_heading=True,
-            use_llm=bool(True),
+            use_llm=True,
             api_key=os.getenv("MISTRAL_TOKEN"),
             doc_heading="🧰 Utilities & Emergency Kit Runbook ",
-            debug=False
+            debug=st.session_state.get("enable_debug_mode", False)
         )
-        if st.session_state.get("enable_debug_mode"):
-            st.write("📋 Blocks sent to DOCX generator:", blocks)
-            #st.write("📝 Markdown Text:", markdown_text)
-            st.write("📁 DOCX Buffer:", buffer)
-            st.write("🧪 Buffer type:", type(buffer))
-            st.write("🧪 Buffer size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "Invalid")
-            with st.expander("🧪 Session Debug: Emergency Kit", expanded=True):
-                st.write("Status:", st.session_state.get("emergency_kit_status"))
-                st.write("Location:", st.session_state.get("emergency_kit_location"))
-                st.write("Additional Items:", st.session_state.get("additional_kit_items"))
-                st.json(st.session_state)  # Full dump if needed
 
+    maybe_generate_runbook(
+        section=section,
+        generator_fn=generate_kit_docx,
+        doc_heading="🧰 Utilities & Emergency Kit Runbook",
+        filename="utilities_emergency_kit.docx",
+        button_label="📥 Generate Runbook"
+    )
 
-        # Cache results in session state
-        st.session_state[f"{section}_runbook_text"] = markdown_text
-        st.session_state[f"{section}_runbook_buffer"] = buffer
-        st.session_state[f"{section}_runbook_ready"] = True
-
-    # Step 4: Show download if ready
-    if st.session_state.get(f"{section}_runbook_ready"):
-        #st.success("✅ Runbook Ready!")
-        maybe_render_download(section=section, filename="utilities_emergency_kit.docx")
-        st.session_state["level_progress"][section] = True
-    else:
-        st.info("ℹ️ Click the button above to generate your runbook.")
+    

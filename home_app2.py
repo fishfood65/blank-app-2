@@ -185,8 +185,10 @@ def main():
     #if "task_inputs" in st.session_state:
      #   st.session_state["task_inputs"] = []
 
-    st.sidebar.checkbox("🐞 Enable Debug Mode", key="enable_debug_mode")
-    st.write("Debug mode?", st.session_state.get("enable_debug_mode"))
+    with st.sidebar.expander("⚙️ Developer Options", expanded=False):
+        st.checkbox("🐞 Enable Debug Mode", key="enable_debug_mode", value=False)
+        st.checkbox("📆 Show Schedule Snapshot in Preview", key="show_schedule_snapshot", value=False)
+
 
     if st.session_state.get("enable_debug_mode"): # DEBUG
         st.markdown("### 🧪 Debug: Section Key")

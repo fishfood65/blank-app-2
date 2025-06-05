@@ -3,47 +3,9 @@ import json
 from typing import List
 from .data_helpers import sanitize, get_answer, sanitize_label
 from config.sections import SECTION_METADATA
+from .runbook_generator_helpers import runbook_preview_dispatcher
 
 DEFAULT_COMMON_SECTIONS = set(SECTION_METADATA.keys())
-
-def debug_task_input_capture_with_answers_tabs(section: str):
-    """
-    Renders a tabbed interface to debug inputs, lookups, and session state for a given section.
-    """
-    entries = st.session_state.get("task_inputs", [])
-    input_data = st.session_state.get("input_data", {}).get(section, [])
-
-    st.markdown(f"## 🔍 Debug for Section: `{section}`")
-    tabs = st.tabs(["🧾 Input Records", "📬 get_answer() Results", "🧠 Session State"])
-
-    with tabs[0]:
-        st.subheader("📌 task_inputs")
-        st.dataframe([e for e in entries if e.get("section") == section])
-
-        st.subheader("📎 input_data")
-        st.dataframe(input_data)
-
-    with tabs[1]:
-        st.subheader("🔍 get_answer() Lookup Results")
-
-        for record in input_data:
-            raw_label = record.get("question", "")
-            raw_key = record.get("key", "")
-            val = get_answer(key=raw_label, section=section, verbose=True)
-            sanitized_label = sanitize(raw_label)
-            sanitized_key = sanitize(raw_key)
-
-            st.markdown(f"""
-            - **Label**: `{raw_label}`
-            - **Key**: `{raw_key}`
-            - **Sanitized Label**: `{sanitized_label}`
-            - **Sanitized Key**: `{sanitized_key}`
-            - **get_answer() Result**: `{val}`
-            """)
-
-    with tabs[2]:
-        st.subheader("🧠 Raw `st.session_state`")
-        st.json(dict(st.session_state))
 
 def debug_all_sections_input_capture_with_summary(sections: List[str]):
     """
@@ -67,6 +29,51 @@ def debug_all_sections_input_capture_with_summary(sections: List[str]):
             file_name="debug_snapshot.json",
             mime="application/json"
         )
+
+def debug_task_input_capture_with_answers_tabs(section: str):
+    """
+    Renders a tabbed interface to debug inputs, lookups, and session state for a given section.
+    """
+    entries = st.session_state.get("task_inputs", [])
+    input_data = st.session_state.get("input_data", {}).get(section, [])
+    st.markdown(f"## 🔍 Debug for Section: `{section}`")
+    tabs = st.tabs(["🧾 Input Records", "📬 get_answer() Results", "📖 Runbook Preview", "🧠 Session State"])
+
+    with tabs[0]:
+        st.subheader("📌 task_inputs")
+        st.dataframe([e for e in entries if e.get("section") == section])
+
+        st.subheader("📎 input_data")
+        st.dataframe(input_data)
+
+    with tabs[1]:
+        st.subheader("🔍 get_answer() Lookup Results")
+        for record in input_data:
+            raw_label = record.get("question", "")
+            raw_key = record.get("key", "")
+            val = get_answer(key=raw_label, section=section, verbose=True)
+            sanitized_label = sanitize_label(raw_label)
+            sanitized_key = sanitize_label(raw_key)
+            st.markdown(f"""
+            - **Label**: `{raw_label}`
+            - **Key**: `{raw_key}`
+            - **Sanitized Label**: `{sanitized_label}`
+            - **Sanitized Key**: `{sanitized_key}`
+            - **get_answer() Result**: `{val}`
+            """)
+
+    with tabs[2]:
+        runbook_text = st.session_state.get(f"{section}_runbook_text", "")
+        runbook_preview_dispatcher(
+            section=section,
+            runbook_text=runbook_text,
+            mode="debug",
+            show_schedule_snapshot=True
+        )
+
+    with tabs[3]:
+        st.subheader("🧠 Raw `st.session_state`")
+        st.json(dict(st.session_state))
 
 def debug_single_get_answer(section: str, key: str):
     st.markdown(f"### 🧪 Debug `get_answer(section='{section}', key='{key}')`")

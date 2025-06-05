@@ -654,7 +654,7 @@ For Emergency Kit Summary:
 
 ---
 
-### 🧰 Emergency Kit Summary
+### ⛑️ Emergency Kit Summary
 
 **Kit Inventory:**  
 {selected_md or "_(none selected)_"}  
