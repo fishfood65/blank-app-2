@@ -331,11 +331,17 @@ def home_caretaker_prompt_template(data: dict) -> str:
 
     return "\n\n---\n\n".join(blocks).strip()
 
-def mail_runbook_prompt(debug: bool = False) -> str:
+def mail_runbook_prompt(section: str = "mail", debug: bool = False) -> str:
     """
     Builds a structured mail handling prompt block without LLM.
+
+    Args:
+        section (str): Section name used to retrieve input_data.
+        debug (bool): Whether to show debug output in Streamlit.
+
+    Returns:
+        str: A markdown-formatted prompt block.
     """
-    section = "mail"
     input_data = st.session_state.get("input_data", {})
     mail_entries = input_data.get(section, []) or input_data.get("Mail & Packages", [])
 
@@ -354,10 +360,11 @@ def mail_runbook_prompt(debug: bool = False) -> str:
         safe_line("Where to pick up and store all packages", mail_info.get("📦 Packages")),
     ]))
 
-    # 📬 Section header + instructions
-    instructions = "Use the provided instructions for where, when, and how to collect and store mail and packages. DO NOT invent details, add advice, or insert a schedule table. Leave all placeholders untouched."
+    instructions = (
+        "Use the provided instructions for where, when, and how to collect and store mail and packages. "
+        "DO NOT invent details, add advice, or insert a schedule table. Leave all placeholders untouched."
+    )
 
-    # 🧱 Build markdown block
     markdown = f"""
 ## 📬 Mail Handling Instructions
 
@@ -372,14 +379,21 @@ def mail_runbook_prompt(debug: bool = False) -> str:
         content=markdown,
         title="📬 Mail Handling Instructions",
         instructions=instructions,
-        debug=debug
+        debug=debug,
+        section=section  # Pass explicitly to wrap_prompt_block
     )
 
-def trash_runbook_prompt(debug: bool = False) -> str:
+def trash_runbook_prompt(section: str = "trash_handling", debug: bool = False) -> str:
     """
     Builds a structured trash handling prompt block without LLM.
+
+    Args:
+        section (str): Section name used to retrieve input_data.
+        debug (bool): Whether to show debug output in Streamlit.
+
+    Returns:
+        str: A markdown-formatted prompt block.
     """
-    section = "trash_handling"
     input_data = st.session_state.get("input_data", {})
     trash_entries = input_data.get(section, [])
 
@@ -431,53 +445,30 @@ def trash_runbook_prompt(debug: bool = False) -> str:
         safe_line("When to Contact", trash_info.get("When to Contact")),
     ]))
 
-    ## 🗑️ Section header + instructions
+    # Combine all sections
+    sections = ["## 🗑️ Trash, Recycling, and Compost Instructions"]
 
-    sections = []
-
-    # Section title
-    sections.append("## 🗑️ Trash, Recycling, and Compost Instructions")
-
-    # Indoor Trash
     if indoor_block:
-        sections.extend([
-            "### Indoor Trash",
-            indoor_block
-        ])
+        sections.extend(["### Indoor Trash", indoor_block])
 
-    # Outdoor Bins
     if outdoor_block:
-        sections.extend([
-            "### Outdoor Bins",
-            outdoor_block
-        ])
+        sections.extend(["### Outdoor Bins", outdoor_block])
 
-    # Single Family Home Instructions
     if single_family_block:
-        sections.extend([
-            "### Single Family Home Instructions",
-            single_family_block
-        ])
+        sections.extend(["### Single Family Home Instructions", single_family_block])
 
-    # Waste Management Contact
     if wm_block:
-        sections.extend([
-            "### Waste Management Contact",
-            wm_block
-        ])
+        sections.extend(["### Waste Management Contact", wm_block])
 
-    # Schedule table placeholder (always include)
-    sections.extend([
-        "### 📆 Trash and Recycling Pickup Schedule",
-        "<<INSERT_COMBINED_HOME_SCHEDULE_TABLE>>"
-    ])
+    sections.extend(["### 📆 Trash and Recycling Pickup Schedule", "<<INSERT_COMBINED_HOME_SCHEDULE_TABLE>>"])
 
-    # Combine into markdown
     markdown = "\n\n".join(sections)
 
     return wrap_prompt_block(
         content=markdown,
         title="🗑️ Trash, Recycling and Compost Instructions",
         instructions="Use the provided information for clarity.",
-        debug=debug
+        debug=debug,
+        section=section  # ✅ Explicitly passed to support tracing/debugging
     )
+

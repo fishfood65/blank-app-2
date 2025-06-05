@@ -1,3 +1,4 @@
+from typing import Optional
 import streamlit as st
 import json
 import csv
@@ -9,6 +10,7 @@ import plotly.express as px
 from uuid import uuid4
 import re
 from collections import defaultdict
+
 
 def get_or_create_session_id():
     """Assigns a persistent unique ID per session"""
@@ -39,79 +41,54 @@ def log_interaction(action_type, label, value, section_name):
         "section": section_name
     })
 
-def get_home_inputs():
-    city = capture_input("City", st.text_input, "Home Basics")
-    zip_code = capture_input("ZIP Code", st.text_input, "Home Basics")
-    internet_provider = capture_input("Internet Provider", st.text_input, "Home Basics")
-    st.session_state.city = city
-    st.session_state.zip_code = zip_code
-    st.session_state.internet_provider = internet_provider
-    return city, zip_code, internet_provider
-
-def get_corrected_providers(results):
-    updated = {}
-
-    label_to_key = {
-    "Electricity": "electricity",
-    "Natural Gas": "natural_gas",
-    "Water": "water"
-    }
-
-    for label in ["Electricity", "Natural Gas", "Water"]:
-        key = label_to_key[label]
-        current_value = results.get(key, "") # Use get() to avoid KeyError
-
-        correct_flag = st.checkbox(f"Correct {label} Provider", value=False)
-        corrected = st.text_input(
-            f"{label} Provider",
-            value=current_value,
-            disabled=not correct_flag
-        )
-        if correct_flag and corrected != current_value:
-            log_provider_result(label, corrected)
-            st.session_state[f"{key}_provider"] = corrected
-        updated[key] = corrected if correct_flag else current_value
-    return updated
-
-def update_session_state_with_providers(updated):
-    st.session_state["utility_providers"] = updated
-    for key, value in updated.items():
-        st.session_state[f"{key}_provider"] = value
-
 def capture_input(
-    label,
+    label: str,
     input_fn,
-    section=None,
+    section: str,
     *args,
     validate_fn=None,
     preprocess_fn=None,
-    required=False,
-    autofill=True,
-    metadata=None, 
+    required: bool = False,
+    autofill: bool = True,
+    metadata: dict = None, 
     **kwargs
 ):
-    if section is None:
-        section = st.session_state.get("section", "default")
+    """
+    Captures user input and records structured metadata in session state.
 
+    Args:
+        label: Display label for the input field.
+        input_fn: A Streamlit input function like st.text_input or st.selectbox.
+        section: The logical section key (must be passed explicitly).
+        *args: Positional args passed to input_fn.
+        validate_fn: Optional callable to validate the input.
+        preprocess_fn: Optional callable to transform the input before saving.
+        required: Whether this input is required.
+        autofill: If True, will attempt to auto-populate value from session.
+        metadata: Optional dictionary of metadata for tracking purposes.
+        **kwargs: Additional keyword arguments passed to input_fn.
+
+    Returns:
+        The final processed input value.
+    """
     unique_key = kwargs.get("key", f"{section}_{label.replace(' ', '_').lower()}")
     kwargs["key"] = unique_key
 
-    # Auto-fill value using get_answer()
-    default_value = None
+    # Auto-fill from get_answer()
     if autofill:
         default_value = get_answer(label, section)
         if default_value is not None and "value" not in kwargs:
             kwargs["value"] = default_value
 
-        # 🛡️ Defensive cleanup
+        # Remove value for incompatible input types
         if input_fn in [st.radio, st.selectbox] and "value" in kwargs:
             kwargs.pop("value")
         if input_fn == st.multiselect and "value" in kwargs:
             kwargs.pop("value")
 
-
     value = input_fn(label, *args, **kwargs)
 
+    # Apply optional preprocessing
     if preprocess_fn:
         try:
             value = preprocess_fn(value)
@@ -119,10 +96,10 @@ def capture_input(
             st.error(f"❌ Error processing input: {e}")
             return None
 
+    # Apply optional validation
     if validate_fn:
         try:
-            is_valid = validate_fn(value)
-            if not is_valid:
+            if not validate_fn(value):
                 st.warning(f"⚠️ Invalid value for '{label}'")
                 return None
         except Exception as e:
@@ -139,7 +116,7 @@ def capture_input(
         "section": section,
         "session_id": st.session_state.get("session_id"),
         "required": required,
-        "metadata":  metadata or {},
+        "metadata": metadata or {},
     }
 
     if "input_data" not in st.session_state:
@@ -151,25 +128,28 @@ def capture_input(
 
     return value
 
-# Utility to build task metadata
-def build_metadata(task_type, label, is_freq=False):
-    return {
-        "is_task": True,
-        "task_label": label,
-        "task_type": task_type,
-        "frequency_field": is_freq,
-        "area": "home"  # or infer from section
-    }
-
 # Wrapper for task-based inputs
-def register_task_input(label, input_fn, section=None, is_freq=False, task_type=None, *args, **kwargs):
+def register_task_input(
+    label,
+    input_fn,
+    section: str,
+    is_freq: bool = False,
+    task_type: str = None,
+    *args,
+    **kwargs
+):
     """
-    Registers an input as a potential scheduled task and attaches metadata.
-    Auto-generates a normalized task row saved into st.session_state["task_inputs"].
-    """
-    if section is None:
-        section = st.session_state.get("section", "default")
+    Registers a user input as a potential scheduled task with metadata.
+    Saves a normalized task row to st.session_state["task_inputs"].
 
+    Args:
+        label: The input label (also used as task descriptor).
+        input_fn: Streamlit input function (e.g., st.text_area).
+        section: Section name (must be explicitly passed).
+        is_freq: Whether the task is frequency-based.
+        task_type: Logical type of task (e.g., 'mail', 'trash').
+        *args, **kwargs: Passed through to capture_input().
+    """
     metadata = {
         "is_task": True,
         "task_label": label,
@@ -182,39 +162,40 @@ def register_task_input(label, input_fn, section=None, is_freq=False, task_type=
 
     value = capture_input(label, input_fn, section=section, *args, **kwargs)
 
-    # Store task candidate in a dedicated session list
     if value not in (None, ""):
         task_row = {
             "question": label,
             "answer": value,
             "category": section,
             "section": section,
-            "area": metadata.get("area", "home"),
-            "task_type": metadata.get("task_type", None),
-            "is_freq": metadata.get("is_freq", False)
+            "area": metadata["area"],
+            "task_type": metadata["task_type"],
+            "is_freq": metadata["is_freq"],
         }
         st.session_state.setdefault("task_inputs", []).append(task_row)
 
     return value
 
-def get_answer(question_label: str, section: str = None, *, nested_parent: str = None, nested_child: str = None):
+def get_answer(
+    question_label: str,
+    section: str,
+    *,
+    nested_parent: str = None,
+    nested_child: str = None
+):
     """
-    Retrieves the most recent answer matching the question_label.
-    
-    Lookup Order:
-    1. If nested_parent and nested_child are given, check nested structure.
-    2. Otherwise, check flat input_data log scoped by section.
+    Retrieves the most recent answer matching the question_label within a given section.
 
     Args:
         question_label (str): The exact label used during capture_input.
-        section (str): The flat section name in input_data (optional).
-        nested_parent (str): Top-level nested dict key (e.g. "quality_services").
-        nested_child (str): Second-level nested dict key (e.g. "Cleaning").
-    
+        section (str): The flat section name in input_data (required).
+        nested_parent (str): Optional nested dict parent key.
+        nested_child (str): Optional nested dict child key.
+
     Returns:
         str | None: The matched answer, or None if not found.
     """
-    # ✅ Check nested dict structure
+    # ✅ Check nested dict structure (optional)
     if nested_parent and nested_child:
         nested_value = (
             st.session_state.get(nested_parent, {})
@@ -224,16 +205,31 @@ def get_answer(question_label: str, section: str = None, *, nested_parent: str =
         if nested_value is not None:
             return nested_value
 
-    # ✅ Fallback to flat legacy input_data
+    # ✅ Flat lookup by section
     data = st.session_state.get("input_data", {})
-    sections = [section] if section else data.keys()
+    section_data = data.get(section, [])
 
     latest = None
-    for sec in sections:
-        for item in data.get(sec, []):
-            if item["question"] == question_label:
-                latest = item["answer"]  # override to keep the most recent
+    for item in section_data:
+        if item["question"] == question_label:
+            latest = item["answer"]
     return latest
+
+def check_missing_utility_inputs(section="home"):
+    """
+    Checks for missing required fields for utility runbook generation.
+    Returns a list of missing field labels.
+    """
+    missing = []
+
+    if not get_answer("City", section):
+        missing.append("City")
+    if not get_answer("ZIP Code", section):
+        missing.append("ZIP Code")
+    if not get_answer("Internet Provider", section):
+        missing.append("Internet Provider")
+
+    return missing
 
 def flatten_answers_to_dict(questions, answers):
     """
@@ -245,43 +241,6 @@ def flatten_answers_to_dict(questions, answers):
         for question, answer in zip(questions, answers)
         if str(answer).strip()
     }
-
-def autolog_location_inputs(city, zip_code):
-    """
-    Optionally logs city and zip code inputs to 'Home Basics' section if not already logged.
-    """
-    now = datetime.now().isoformat()
-
-    # Ensure input_data exists
-    if "input_data" not in st.session_state:
-        st.session_state["input_data"] = {}
-
-    # Ensure the 'Home Basics' section exists
-    if "Home Basics" not in st.session_state["input_data"]:
-        st.session_state["input_data"]["Home Basics"] = []
-
-    def log_if_missing(label, value):
-        if value and not any(entry["question"] == label for entry in st.session_state["input_data"]["Home Basics"]):
-            # Add to input_data
-            st.session_state["input_data"]["Home Basics"].append({
-                "question": label,
-                "answer": value,
-                "timestamp": now
-            })
-
-            # Also add to interaction_log if enabled
-            st.session_state.setdefault("interaction_log", []).append({
-                "timestamp": now,
-                "user_id": st.session_state.get("user_id", "anonymous"),
-                "session_id": st.session_state.get("session_id", "anonymous"),
-                "action": "autolog",
-                "question": label,
-                "answer": value,
-                "section": "Home Basics"
-            })
-
-    log_if_missing("City", city)
-    log_if_missing("ZIP Code", zip_code)
 
 def preview_input_data():
     """Display a summary of all collected input data."""
@@ -307,15 +266,14 @@ def get_filtered_dates(start_date, end_date, refinement):
         return list(daterange(start_date, end_date))
     
 def select_runbook_date_range():
-    section = "Runbook Date Range"
-    #st.subheader("📅 Choose Date(s) or Timeframe")
+    section = "runbook_date_range"
     st.write("📅 First Select Date(s) or Timeframe for Your Runbook.")
 
     options = ["Pick Dates", "General"]
-    choice = capture_input(
-        "Runbook Timeframe Option",
-        st.radio,
-        section,
+    choice = register_task_input(
+        label="Runbook Timeframe Option",
+        input_fn=st.radio,
+        section=section,
         options=options,
         index=0,
         key="runbook_timeframe_option"
@@ -326,17 +284,17 @@ def select_runbook_date_range():
     today = datetime.now().date()
 
     if choice == "Pick Dates":
-        start_date = capture_input(
-            "Start Date",
-            st.date_input,
-            section,
+        start_date = register_task_input(
+            label="Start Date",
+            input_fn=st.date_input,
+            section=section,
             value=today,
             key="start_date_input"
         )
-        end_date = capture_input(
-            "End Date",
-            st.date_input,
-            section,
+        end_date = register_task_input(
+            label="End Date",
+            input_fn=st.date_input,
+            section=section,
             value=today + timedelta(days=7),
             key="end_date_input"
         )
@@ -349,10 +307,10 @@ def select_runbook_date_range():
             st.error("⚠️ The selected period must be no longer than 1 month.")
             return None, None, None, []
 
-        refinement = capture_input(
-            "Date Range Refinement",
-            st.radio,
-            section,
+        refinement = register_task_input(
+            label="Date Range Refinement",
+            input_fn=st.radio,
+            section=section,
             options=["All Days", "Weekdays Only", "Weekend Only"],
             index=0,
             horizontal=True,
@@ -512,26 +470,28 @@ def export_input_data_as_docx(file_name="input_data.docx"):
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
 
-def render_lock_toggle(session_key: str, label: str = "Section"):
+def render_lock_toggle(section: str, session_key: Optional[str] = None, label: Optional[str] = None):
     """
     Renders a simple toggle switch to lock/unlock inputs and updates session state.
 
     Args:
-        session_key (str): The key in st.session_state to track lock state.
-        label (str): The label to describe the section being controlled.
+        section (str): The logical section name (e.g., "mail", "trash_handling").
+        session_key (Optional[str]): Optional override for session state key.
+        label (Optional[str]): Optional display label for the section.
     """
-    if session_key not in st.session_state:
-        st.session_state[session_key] = False  # default unlocked
+    key = session_key or f"{section}_locked"
+    display_label = label or section.replace("_", " ").title()
 
-    # Display the toggle
-    is_locked = st.toggle(f"🔒 Lock {label}", value=st.session_state[session_key])
-    st.session_state[session_key] = is_locked
+    if key not in st.session_state:
+        st.session_state[key] = False  # default unlocked
 
-    # Show contextual feedback
+    is_locked = st.toggle(f"🔒 Lock {display_label}", value=st.session_state[key])
+    st.session_state[key] = is_locked
+
     if is_locked:
-        st.success(f"✅ {label} is saved and locked. Unlock to edit.")
+        st.success(f"✅ {display_label} is saved and locked. Unlock to edit.")
     else:
-        st.info(f"📝 You can now edit your {label.lower()}. Lock to save when finished.")
+        st.info(f"📝 You can now edit your {display_label.lower()}. Lock to save when finished.")
 
 def interaction_dashboard():
     if "interaction_log" not in st.session_state or not st.session_state["interaction_log"]:
@@ -626,32 +586,6 @@ def extract_and_log_providers(content: str) -> dict:
     st.session_state["water_provider"] = providers["water"]
 
     return providers
-
-def check_missing_utility_inputs():
-    """
-    Checks for missing required fields for utility runbook generation.
-    Returns a list of missing field labels.
-    """
-
-    missing = []
-
-    # User inputs (Home Basics)
-    if not get_answer("City", "Home Basics"):
-        missing.append("City")
-    if not get_answer("ZIP Code", "Home Basics"):
-        missing.append("ZIP Code")
-    if not get_answer("Internet Provider", "Home Basics"):
-        missing.append("Internet Provider")
-
-    # AI/Corrected utility providers (Utility Providers)
-    if not get_answer("Electricity Provider", "Utility Providers"):
-        missing.append("Electricity Provider")
-    if not get_answer("Natural Gas Provider", "Utility Providers"):
-        missing.append("Natural Gas Provider")
-    if not get_answer("Water Provider", "Utility Providers"):
-        missing.append("Water Provider")
-
-    return missing
 
 def generate_category_keywords_from_labels(input_data):
     """Auto-generate category keywords based on recurring words in labels."""

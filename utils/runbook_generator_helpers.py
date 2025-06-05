@@ -17,10 +17,17 @@ import tempfile
 from .common_helpers import get_schedule_placeholder_mapping
 from .prompt_block_utils import generate_all_prompt_blocks
 from .task_schedule_utils_updated import export_schedule_to_markdown
-import base64
 import markdown
 
-def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
+from docx import Document
+import pandas as pd
+from datetime import datetime
+
+def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame, section: str):
+    """
+    Adds grouped schedule tables to the DOCX document by date.
+    Image support has been removed.
+    """
     if schedule_df.empty:
         doc.add_paragraph("_No schedule data available._")
         return
@@ -36,241 +43,75 @@ def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame):
         day_str = date.strftime("%A, %Y-%m-%d")
         doc.add_heading(f"📅 {day_str}", level=2)
 
-        table = doc.add_table(rows=1, cols=2)
-        table.style = 'Light List' #Optional: imporve tabel appearance
+        table = doc.add_table(rows=1, cols=1)
+        table.style = 'Light List'
         table.autofit = True
 
         hdr_cells = table.rows[0].cells
         hdr_cells[0].text = 'Task'
-        hdr_cells[1].text = 'Image'
 
         for _, row in group.iterrows():
             task = row["Task"]
-            image_path = ""
-
-            # Look for matching uploaded images
-            for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
-                if label.lower().replace(" image", "") in task.lower():
-                    uploaded = st.session_state.trash_images.get(label)
-                    if uploaded:
-                        # Save uploaded file to temp location
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                            tmp.write(uploaded.read())
-                            image_path = tmp.name
-                        break
-
             row_cells = table.add_row().cells
             row_cells[0].text = task
 
-            if image_path:
-                try:
-                    run = row_cells[1].paragraphs[0].add_run()
-                    run.add_picture(image_path, width=Inches(1.5))
-                    if st.session_state.get("enable_debug_mode"):
-                        st.write(f"🖼️ Added image for task: {task}")
-                except Exception as e:
-                    row_cells[1].text = "⚠️ Image load failed"
-                    if st.session_state.get("enable_debug_mode"):
-                        st.write(f"❌ Error adding image for task '{task}': {e}")
-            else:
-                row_cells[1].text = ""
-
         doc.add_paragraph("")  # spacing between tables
 
-def add_table_from_schedule_to_markdown(schedule_df: pd.DataFrame) -> str:
+def add_table_from_schedule_to_markdown(schedule_df: pd.DataFrame, section: str) -> str:
     """
     Convert a schedule DataFrame into grouped markdown tables by date,
-    with image placeholders or markdown image links if available.
+    without images.
     """
+
     if schedule_df.empty:
         return "_No schedule data available._"
 
-    # Sort and format dates
+    # Format and sort
     schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
     schedule_df = schedule_df.sort_values(by=["Date", "Source", "Tag", "Task"])
     schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
     schedule_df["DateStr"] = schedule_df["Date"].dt.strftime("%Y-%m-%d")
 
     output_md = []
-
     grouped = schedule_df.groupby("Date")
 
     for date, group in grouped:
         day_str = date.strftime("%A, %Y-%m-%d")
         output_md.append(f"### 📅 {day_str}\n")
-        output_md.append("| Task | Image |\n|------|-------|")
+        output_md.append("| Task |\n|------|")
 
         for _, row in group.iterrows():
             task = row["Task"]
-            image_markdown = ""
-
-            # Match on known labels for trash/recycling uploaded image placeholders
-            for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
-                if label.lower().replace(" image", "") in task.lower():
-                    uploaded = st.session_state.get("trash_images", {}).get(label)
-                    if uploaded:
-                        # Encode image to base64
-                        image_bytes = uploaded.getvalue() if hasattr(uploaded, 'getvalue') else uploaded.read()
-                        base64_img = base64.b64encode(image_bytes).decode("utf-8")
-                        mime = "image/png"  # Could inspect MIME if needed
-                        image_markdown = f"![{label}](data:{mime};base64,{base64_img})"
-                    break
-
-            output_md.append(f"| {task} | {image_markdown} |")
+            output_md.append(f"| {task} |")
 
         output_md.append("")  # spacing
 
     return "\n".join(output_md)
 
-
-def generate_docx_from_split_prompts( ### depreciate 
-    prompts: List[str],
-    api_key: str,
-    *,
-    section_titles: Optional[List[str]] = None,
-    model: str = "mistral-small-latest",
-    doc_heading: str = "Runbook",
-    temperature: float = 0.5,
-    max_tokens: int = 2048,
-    debug: bool = False
-) -> Tuple[io.BytesIO, str]:
-
-    if not prompts or not isinstance(prompts, list):
-        raise ValueError("🚫 prompts must be a non-empty list of strings.")
-
-    prompts = [p.strip() for p in prompts if p.strip()]
-    if not prompts:
-        raise ValueError("🚫 All prompts were empty after stripping.")
-
-    combined_output = []
-
-    for i, prompt in enumerate(prompts):
-        try:
-            if debug:
-                st.markdown(f"### 🧾 Prompt Block {i+1}")
-                st.code(prompt, language="markdown")
-
-            client = Mistral(api_key=api_key)
-            completion = client.chat.complete(
-                model=model,
-                messages=[SystemMessage(content=prompt)],
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
-            response_text = completion.choices[0].message.content
-
-            if debug:
-                st.markdown(f"### 🧾 Raw LLM Response [Block {i + 1}]")
-                st.code(response_text, language="markdown")
-
-            title = section_titles[i].strip() if section_titles and i < len(section_titles) else ""
-            section_label = f"### {title}" if title else ""
-            output_block = f"{section_label}\n\n{response_text.strip()}" if section_label else response_text.strip()
-            combined_output.append(output_block)
-
-        except Exception as e:
-            st.error(f"❌ Error processing prompt {i + 1}: {e}")
-            continue
-
-    full_text = "\n\n".join(combined_output)
-    if debug:
-        st.markdown("### 🔍 Full Text Passed to DOCX Builder")
-        st.code(full_text, language="markdown")
-
-    doc = Document()
-    doc.add_heading(doc_heading, 0)
-    lines = full_text.splitlines()
-
-    if debug:
-        st.markdown("### 🧾 Lines Sent to DOCX")
-        st.code("\n".join(lines), language="markdown")
-
-    schedule_sources = get_schedule_placeholder_mapping()
-
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-
-        # Table placeholders
-        if line in schedule_sources:
-            df_key = schedule_sources[line]
-            schedule_df = st.session_state.get(df_key)
-
-            doc.add_paragraph("")  # spacing
-            if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
-                if debug:
-                    doc.add_paragraph(f"✅ [DEBUG] Inserted table for {line}")
-                add_table_from_schedule(doc, schedule_df)
-            else:
-                doc.add_paragraph("_No schedule available._")
-                if debug:
-                    st.warning(f"⚠️ No data found for placeholder: {line}")
-            doc.add_paragraph("")
-            continue
-
-        # Markdown-to-Word formatting
-        if line.startswith("##### "):
-            doc.add_heading(line[6:].strip(), level=4)
-        elif line.startswith("#### "):
-            doc.add_heading(line[5:].strip(), level=3)
-        elif line.startswith("### "):
-            doc.add_heading(line[4:].strip(), level=2)
-        elif line.startswith("## "):
-            doc.add_heading(line[3:].strip(), level=1)
-        elif line.startswith("# "):
-            doc.add_heading(line[2:].strip(), level=0)
-        elif line.startswith("- ") or line.startswith("* "):
-            doc.add_paragraph(line[2:].strip(), style="List Bullet")
-        elif re.match(r"^\d+\.\s", line):
-            doc.add_paragraph(re.sub(r"^\d+\.\s+", "", line), style="List Number")
-        else:
-            para = doc.add_paragraph()
-            cursor = 0
-            for match in re.finditer(r"(\*\*.*?\*\*)", line):
-                start, end = match.span()
-                if start > cursor:
-                    para.add_run(line[cursor:start])
-                para.add_run(match.group(1)[2:-2]).bold = True
-                cursor = end
-            if cursor < len(line):
-                para.add_run(line[cursor:])
-            para.style.font.size = Pt(11)
-
-    buffer = io.BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    return buffer, full_text
-
 def generate_docx_from_prompt_blocks(
+    section: str,
     blocks: List[str],
     use_llm: bool = False,
     api_key: Optional[str] = None,
     doc_heading: str = "Runbook",
     model: str = "mistral-small-latest",
     debug: bool = False,
+    insert_main_heading: bool = True, 
 ) -> Tuple[io.BytesIO, str]:
     from docx import Document
     from docx.shared import Pt
 
     doc = Document()
-    doc.add_heading(doc_heading, 0)
+    if insert_main_heading:
+        doc.add_heading(doc_heading, 0)
     markdown_output = []
     debug_warnings = []
     final_output = ""
 
     schedule_sources = get_schedule_placeholder_mapping()
 
-    #for i, block in enumerate(blocks):
-    #    if not block.strip():
-    #       continue
-
-    #    if debug:
-    #        st.markdown(f"### 🧱 Prompt Block {i+1}")
-    #        st.code(block, language="markdown")
-
     if use_llm:
-        client = Mistral(api_key=api_key) if use_llm else None
+        client = Mistral(api_key=api_key)
         for i, block in enumerate(blocks):
             if not block.strip():
                 continue
@@ -278,7 +119,7 @@ def generate_docx_from_prompt_blocks(
             if debug:
                 st.markdown(f"### 🧱 Prompt Block {i+1}")
                 st.code(block, language="markdown")
-        
+
             try:
                 st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
                 completion = client.chat.complete(
@@ -290,15 +131,16 @@ def generate_docx_from_prompt_blocks(
                 response_text = completion.choices[0].message.content.strip()
             except Exception as e:
                 response_text = f"❌ LLM error: {e}"
+
             markdown_output.append(response_text)
-        final_output = "\n\n".join(markdown_output)  
+        final_output = "\n\n".join(markdown_output)
 
     else:
         for block in blocks:
             if not block.strip():
                 continue
             markdown_output.append(block)
-        final_output= "\n\n".join(markdown_output)      
+        final_output = "\n\n".join(markdown_output)
 
     lines = final_output.splitlines()
     for line in lines:
@@ -311,13 +153,13 @@ def generate_docx_from_prompt_blocks(
             schedule_df = st.session_state.get(df_key)
             doc.add_paragraph("")
             if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
-                add_table_from_schedule(doc, schedule_df)
+                add_table_from_schedule(doc, schedule_df, section=section)
             else:
                 if debug:
                     section_hint = df_key.replace("_schedule_df", "").replace("_", " ").title()
                     debug_warnings.append(
                         f"⚠️ Skipping **{section_hint}** schedule placeholder `{line}` — no data found in [`st.session_state['{df_key}']`](#debug-{df_key})."
-                        )
+                    )
                 continue
             doc.add_paragraph("")
             continue
@@ -401,226 +243,47 @@ def generate_docx_from_prompt_blocks(
 
     return buffer, "\n\n---\n\n".join(markdown_output).strip()
 
-def generate_docx_from_text(text: str, doc_heading: str = "Runbook") -> BytesIO:
-    doc = Document()
-    doc.add_heading(doc_heading, 0)
-
-    lines = text.splitlines()
-    schedule_inserted = False
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-
-        if line == "<<INSERT_SCHEDULE_TABLE>>":
-            if not schedule_inserted:
-                schedule_df = st.session_state.get("home_schedule_df", pd.DataFrame())
-                add_table_from_schedule(doc, schedule_df)
-                schedule_inserted = True
-            continue
-
-        # Same heading, bullet, and markdown logic...
-        # (copy from generate_docx_from_split_prompts)
-
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    return buffer,
-
-def maybe_generate_prompt(section: str = "home") -> Tuple[Optional[str], List[str]]:
+def preview_runbook_output(section: str, runbook_text: str, label: str = "📖 Preview Runbook"):
     """
-    Generate a section-specific prompt and return both the final combined prompt string
-    and a list of individual prompt fragments (if any).
-    
-    Returns:
-    - combined_prompt (str or None)
-    - flat_prompts (List[str]) — the actual prompt chunks for use with multi-part LLM generation
-    """
-    confirm_key = f"confirm_ai_prompt_{section}"
-    confirmed = st.session_state.get(confirm_key, False)
-
-    st.write(f"🧪 maybe_generate_prompt() called for section: `{section}`")
-    st.write(f"🧪 Confirmation checkbox state: {confirmed}")
-
-    if not confirmed:
-        st.session_state["generated_prompt"] = None
-        st.session_state["prompt_blocks"] = []
-        return None, []
-
-    # Handle merging of multi-input fields
-    if section == "mail_trash_handling":
-        merged_inputs = (
-            st.session_state.get("input_data", {}).get("mail", []) +
-            st.session_state.get("input_data", {}).get("trash_handling", [])
-        )
-        st.session_state["input_data"]["mail_trash_handling"] = merged_inputs
-        st.write("📬 [DEBUG] Saved merged input_data['mail_trash_handling']:", merged_inputs)
-
-    # ✅ Use centralized prompt block builder
-    prompt_blocks = generate_all_prompt_blocks(section)
-
-    # Flatten and combine for LLM preview and fallback
-    flat_prompts = []
-    for block in prompt_blocks:
-        if isinstance(block, list):
-            flat_prompts.extend(block)
-        else:
-            flat_prompts.append(block)
-
-    combined_prompt = "\n\n".join(flat_prompts)
-
-    # ✅ Store for downstream use
-    st.session_state["generated_prompt"] = combined_prompt
-    st.session_state["prompt_blocks"] = flat_prompts
-
-    return combined_prompt, flat_prompts
-
-def maybe_generate_runbook(section: str = "home", doc_heading: Optional[str] = None):
-    """
-    Generate a runbook DOCX from the prompt blocks generated by section and render download.
-    Parameters:
-    - section: str — used to customize default document heading and filename
-    - doc_heading: Optional[str] — override the heading shown in the document
-    """
-    schedule_placeholder = "<<INSERT_SCHEDULE_TABLE>>"
-
-    # Always generate fresh blocks from source
-    prompt_blocks = generate_all_prompt_blocks(section)
-    combined_prompt = "\n\n".join(prompt_blocks)
-
-    if not prompt_blocks and st.session_state.get("generated_prompt"):
-        prompt_blocks = [st.session_state["generated_prompt"]]
-        if st.session_state.get("enable_debug_mode"):
-            st.info("⚠️ No prompt blocks returned — using combined prompt from session.")
-
-    prompt_blocks = [b for b in prompt_blocks if b.strip()]
-    if not prompt_blocks:
-        st.warning("⚠️ No valid prompt blocks available. Cannot generate runbook.")
-        return
-
-    if doc_heading is None:
-        doc_heading = f"{section.replace('_', ' ').title()} Emergency Runbook"
-
-    button_key = f"generate_runbook_button_{section}"
-    generate_triggered = st.button("📄 Click Me to Generate Runbook", key=button_key)
-    st.write("🔘 Button clicked?", generate_triggered)
-
-    if generate_triggered:
-        final_prompt_blocks = prompt_blocks.copy()
-        st.write("🧩 Placeholder Mapping:", get_schedule_placeholder_mapping())
-
-        if st.session_state.get("enable_debug_mode"):
-            st.markdown("### 🧾 Prompt Blocks Being Sent to LLM")
-            for i, block in enumerate(final_prompt_blocks):
-                st.code(f"[Block {i + 1}]\n{block}", language="markdown")
-
-        try:
-            st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
-            buffer, llm_output = generate_docx_from_prompt_blocks(
-                blocks=final_prompt_blocks,
-                use_llm=True,
-                api_key=os.getenv("MISTRAL_TOKEN"),
-                doc_heading=doc_heading,
-                debug=st.session_state.get("enable_debug_mode", False)
-            )
-            st.success("✅ generate_docx_from_prompt_blocks completed.")
-
-            st.write("🧪 Buffer type:", type(buffer))
-            st.write("🧪 Buffer size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "Invalid")
-
-            if buffer and isinstance(buffer, io.BytesIO) and buffer.getbuffer().nbytes > 0:
-                st.session_state[f"{section}_runbook_buffer"] = buffer
-                st.session_state[f"{section}_runbook_text"] = llm_output
-                st.session_state[f"{section}_runbook_ready"] = True
-            else:
-                st.warning("⚠️ Runbook buffer is empty. Prompt may contain only unresolved placeholders.")
-                st.session_state[f"{section}_runbook_ready"] = False
-
-        except Exception as e:
-            import traceback
-            st.error(f"❌ Exception in runbook generation: {e}")
-            st.code(traceback.format_exc(), language="python")
-            st.session_state[f"{section}_runbook_ready"] = False
-
-    if st.session_state.get(f"{section}_runbook_ready"):
-        st.markdown("___")
-        st.write("⏲️ Runbook Ready")
-        maybe_render_download(section=section)
-
-
-def preview_runbook_output(runbook_text: str, label: str = "📖 Preview Runbook"):
-    """
-    Shows an expandable markdown preview of the runbook text when a button is clicked.
+    Shows an expandable markdown preview of the runbook text with optional section-specific schedule substitution.
 
     Args:
+        section (str): Used to determine which schedule data (if any) to insert.
         runbook_text (str): The raw LLM-generated markdown-style text.
         label (str): Button label to trigger the preview.
     """
-    # use the following code with home_app_05_23_modified.py
-    #if not runbook_text:
-    #    st.warning("⚠️ No runbook content available to preview.")
-    #    return
-
-    #if st.button(label):
-    #    with st.expander("🧠 AI-Generated Runbook Preview", expanded=True):
-    #        st.markdown(runbook_text)
     if not runbook_text:
         st.warning("⚠️ No runbook content available to preview.")
         return
 
     if st.button(label):
-        # Optionally add schedule preview
-        schedule_df = st.session_state.get("combined_home_schedule_df")
-        if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
-            schedule_md = add_table_from_schedule_to_markdown(schedule_df)
-            runbook_text = runbook_text.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
+        # Optionally inject schedule table based on placeholder and section
+        if "<<INSERT_SCHEDULE_TABLE>>" in runbook_text:
+            df_key = "combined_home_schedule_df" if section == "home" else f"{section}_schedule_df"
+            schedule_df = st.session_state.get(df_key)
+            if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
+                schedule_md = add_table_from_schedule_to_markdown(schedule_df)
+                runbook_text = runbook_text.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
 
         with st.expander("🧠 AI-Generated Runbook Preview", expanded=True):
             st.markdown(runbook_text, unsafe_allow_html=True)
 
-def render_prompt_preview(missing: list, section: str = "home"):
-    confirmed = st.session_state.get(f"{section}_user_confirmation", False)
-
-    with st.expander("🧠 AI Prompt Preview (Optional)", expanded=True):
-        if missing:
-            st.warning(f"⚠️ Cannot generate prompt. Missing: {', '.join(missing)}")
-            return
-
-        if not confirmed:
-            st.info("☕️ Please check the box to confirm AI prompt generation.")
-            return
-
-        prompt = st.session_state.get("generated_prompt", "")
-        prompt_blocks = st.session_state.get("prompt_blocks", [])
-        schedule_md = st.session_state.get("home_schedule_markdown", "_No schedule available._")
-
-        if not prompt:
-            st.warning("⚠️ Prompt not generated yet.")
-            return
-
-        # Build combined preview by inserting schedule into the final prompt block
-        if prompt_blocks:
-            full_preview = "\n\n".join(prompt_blocks)
-            full_preview = full_preview.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
-        else:
-            full_preview = prompt.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
-
-        # Display the formatted full prompt preview
-        st.markdown(full_preview)
-        if section == "mail_trash_handling":
-            st.markdown("### 📋 Schedule Preview")
-            st.markdown(st.session_state.get("home_schedule_markdown", "_No schedule available._"))
-        st.success("✅ Prompt ready! This is what will be sent to the LLM.")
-
-def maybe_render_download(section: str = "home", filename: Optional[str] = None) -> bool:
+def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
     """
-    Renders download buttons and preview for a generated runbook, with fallback HTML export.
+    Render preview and download buttons for a runbook generated for a specific section.
+
+    Parameters:
+    - section (str): The section key used for retrieving runbook content from session state.
+    - filename (Optional[str]): Optional override for the DOCX filename.
 
     Returns:
-        bool: True if a download buffer was presented, else False.
+    - bool: True if a download buffer was presented, False otherwise.
     """
-    buffer = st.session_state.get(f"{section}_runbook_buffer")
-    runbook_text = st.session_state.get(f"{section}_runbook_text")
+    buffer_key = f"{section}_runbook_buffer"
+    text_key = f"{section}_runbook_text"
+
+    buffer = st.session_state.get(buffer_key)
+    runbook_text = st.session_state.get(text_key)
     doc_heading = f"{section.replace('_', ' ').title()} Emergency Runbook"
 
     if not filename:
@@ -628,120 +291,35 @@ def maybe_render_download(section: str = "home", filename: Optional[str] = None)
 
     st.subheader(f"📤 Export Options: {doc_heading}")
 
-    shown = False  # Will be returned to signal whether a buffer/download was available
+    col1, col2, col3, col4 = st.columns(4)
+    # 🔍 Render preview and HTML export if runbook text is available
+    with col1:
+        if st.button("📖 Preview Runbook"):
+            preview_runbook_output(section, runbook_text)
+    with col2:
+        if runbook_text:
+            html_output = f"<html><body><h1>{doc_heading}</h1>\n{markdown.markdown(runbook_text)}\n</body></html>"
+            html_filename = filename.replace(".docx", ".html")
+            st.download_button(
+                label="🌐 Download as HTML",
+                data=html_output.encode("utf-8"),
+                file_name=html_filename,
+                mime="text/html"
+            )
+    with col3:
+        if buffer:
+            st.download_button(
+                label="📄 Download DOCX",
+                data=buffer,
+                file_name=filename,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+        else:
+            st.warning(f"⚠️ DOCX runbook buffer not found for `{section}`. Markdown/HTML export still available.")
+    with col4:
+        if st.button(f"♻️ Reset {section.title()} Runbook Cache"):
+            for key in [buffer_key, text_key, f"{section}_runbook_ready"]:
+                st.session_state.pop(key, None)
+            st.success(f"🔄 Cleared session state for `{section}` runbook.")
+            st.stop()
 
-    # 🔍 Markdown/Prompt Preview (always shown if available)
-    if runbook_text:
-        #st.markdown("### 📝 Prompt Output Preview")
-        preview_runbook_output(runbook_text)
-        #st.write("🧪 Runbook Text Length:", len(runbook_text))
-
-        # 🖥️ Export HTML file from markdown
-        html_filename = filename.replace(".docx", ".html")
-        html_output = f"<html><body><h1>{doc_heading}</h1>\n{markdown.markdown(runbook_text)}\n</body></html>"
-
-        st.download_button(
-            label="🌐 Download as HTML",
-            data=html_output.encode("utf-8"),
-            file_name=html_filename,
-            mime="text/html"
-        )
-        shown = True
-
-    # 📥 DOCX Export
-    if buffer:
-        #st.write("🧪 Buffer Type:", type(buffer))
-        #st.write("🧪 Buffer Size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "❌ Invalid")
-        
-        #st.success("✅ DOCX runbook ready for download!")
-        shown = False
-        
-        st.download_button(
-            label="📄 Download DOCX",
-            data=buffer,
-            file_name=filename,
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
-    else:
-        st.warning(f"⚠️ DOCX runbook buffer not found for `{section}`. Markdown/HTML export still available.")
-
-    # 🔁 Reset Button
-    if st.button(f"♻️ Reset {section.title()} Runbook Cache"):
-        for key in [f"{section}_runbook_buffer", f"{section}_runbook_text", f"{section}_runbook_ready"]:
-            st.session_state.pop(key, None)
-        st.success(f"🔄 Cleared session state for {section} runbook.")
-        st.stop()
-
-    return shown
-
-def render_schedule_grouped_by_date_then_type_markdown(schedule_df: pd.DataFrame) -> str:
-    """
-    Returns markdown formatted string grouped by date then task_type with bullets,
-    including base64 image links if matched (e.g. trash/recycling).
-    """
-    if schedule_df.empty:
-        return "_No schedule data available._"
-
-    schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
-    schedule_df = schedule_df.sort_values(by=["Date", "task_type", "Task"])
-    schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
-
-    lines = []
-    current_date = None
-    trash_images = st.session_state.get("trash_images", {})
-
-    grouped = schedule_df.groupby(["Date", "task_type"])
-
-    for (date, task_type), group in grouped:
-        if date != current_date:
-            lines.append(f"### 📅 {date.strftime('%A, %Y-%m-%d')}\n")
-            current_date = date
-
-        lines.append(f"#### 📌 {task_type} Schedule\n")
-
-        for _, row in group.iterrows():
-            task = row["Task"]
-            image_md = ""
-
-            # Attempt to attach image via label match
-            for label in ["Outdoor Bin Image", "Recycling Bin Image"]:
-                if label.lower().replace(" image", "") in task.lower():
-                    uploaded = trash_images.get(label)
-                    if uploaded:
-                        try:
-                            image_bytes = uploaded.getvalue() if hasattr(uploaded, 'getvalue') else uploaded.read()
-                            base64_img = base64.b64encode(image_bytes).decode("utf-8")
-                            mime = "image/png"
-                            image_md = f" ![image](data:{mime};base64,{base64_img})"
-                        except Exception:
-                            image_md = " ⚠️ (image error)"
-                    break
-
-            lines.append(f"- {task}{image_md}")
-
-        lines.append("")  # spacing
-
-    return "\n".join(lines)
-
-def render_schedule_grouped_by_date_then_type(doc: Document, combined_df: pd.DataFrame):
-    """
-    Adds a single combined schedule to the DOCX, grouped by Date then task_type,
-    with image support for matching task labels.
-    """
-    if combined_df.empty:
-        doc.add_paragraph("_No scheduled tasks available._")
-        return
-
-    combined_df["Date"] = pd.to_datetime(combined_df["Date"], errors="coerce")
-    combined_df = combined_df.sort_values(by=["Date", "task_type", "Task"])
-    combined_df["Day"] = combined_df["Date"].dt.strftime("%A")
-
-    trash_images = st.session_state.get("trash_images", {})
-
-    current_date = None
-    grouped = combined_df.groupby(["Date", "task_type"])
-
-    for (date, task_type), group_df in grouped:
-        if date != current_date:
-            if current_date is not None:
-                doc.add_paragraph("")  # spacing b_

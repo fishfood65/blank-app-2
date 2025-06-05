@@ -1,5 +1,4 @@
 from utils.common_helpers import (
-    check_home_progress,
     extract_all_trash_tasks_grouped, 
     extract_grouped_mail_task, 
     generate_flat_home_schedule_markdown,
@@ -10,15 +9,13 @@ from utils.common_helpers import (
 from prompts.templates import(
     utility_provider_lookup_prompt
 )
-from utils.input_tracker import (
+from utils.data_helpers import (
     capture_input, 
     flatten_answers_to_dict, 
     get_answer, 
     extract_and_log_providers, 
     log_provider_result, 
-    autolog_location_inputs, 
     preview_input_data, 
-    check_missing_utility_inputs, 
     export_input_data_as_csv, 
     render_lock_toggle,
     daterange,
@@ -26,15 +23,10 @@ from utils.input_tracker import (
     select_runbook_date_range,
     register_task_input,
     extract_providers_from_text,
-    build_metadata
+    check_missing_utility_inputs
 )
 from utils.runbook_generator_helpers import (
-    generate_docx_from_split_prompts, 
-    preview_runbook_output,
-    maybe_generate_prompt,
     maybe_render_download,
-    maybe_generate_runbook,
-    render_prompt_preview,
     generate_docx_from_prompt_blocks
 )
 from utils.task_schedule_utils_updated import (
@@ -52,7 +44,12 @@ from utils.preview_helpers import (
     edit_button_redirect,
     get_active_section_label
 )
-from config.sections import (SECTION_METADATA, LLM_SECTIONS)
+from config.sections import (
+    SECTION_METADATA, 
+    LLM_SECTIONS,
+    check_home_progress
+)
+from config.section_router import get_handler, critical_documents_flow
 from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
 import re
@@ -70,8 +67,6 @@ import io
 import uuid
 import json
 from docx.shared import Inches
-
-#from bs4 import BeautifulSoup
 
 # Only include sections that have a numeric level
 LEVEL_LABELS = {
@@ -101,24 +96,6 @@ st.markdown(
     ### Start your Training!
     """
     )
-# Generate the AI prompt
-api_key = os.getenv("MISTRAL_TOKEN")
-client = Mistral(api_key=api_key)
-
-if not api_key:
-    api_key = st.text_input("Enter your Mistral API key:", type="password")
-
-if api_key:
-    st.success("API key successfully loaded.")
-else:
-   st.error("API key is not set.")
-
-   # Display environment variables in the Streamlit app
-#st.title("Environment Variables")
-
-# Display all environment variables
-#env_vars = "\n".join([f"{key}: {value}" for key, value in os.environ.items()])
-#st.text(env_vars)
 
 # Main entry point of the app
 
@@ -144,10 +121,10 @@ def main():
     st.progress(percent_complete)
     st.markdown(
         f"""
-        ✅ **Completed {num_completed} out of {total_levels} levels**  
-        🗂️ **Completed Levels:** {', '.join(friendly_labels) if friendly_labels else 'None'}
+        🏆 **Completed {num_completed} out of {total_levels} levels** - {', '.join(friendly_labels) if friendly_labels else 'None'}
         """
     )
+    # 🗂️ **Completed Levels:** {', '.join(friendly_labels) if friendly_labels else 'None'}
     #percent_complete, completed = check_home_progress(st.session_state["level_progress"])
    # st.write("✅ Completed:", completed)
    # st.write("✅ Percent:", percent_complete)
@@ -187,301 +164,38 @@ def main():
         st.session_state["task_inputs"] = []
 
     st.sidebar.checkbox("🐞 Enable Debug Mode", key="enable_debug_mode")
+    st.write("Debug mode?", st.session_state.get("enable_debug_mode"))
     selected = st.sidebar.radio("Choose a Level:", available_levels)
 
     # Save current section key
     st.session_state["section"] = LABEL_TO_KEY.get(selected, "home")
     section = st.session_state["section"]
+    
+    if st.session_state.get("enable_debug_mode"): # DEBUG
+        st.markdown("### 🧪 Debug: Section Key")
+        st.write("🔍 Current section key:", section)
 
     if "current_page" in st.session_state:
         nav_page = st.session_state.pop("current_page")
         st.switch_page(f"{nav_page}.py")  # or use your page navigation logic
+        st.stop()  # ✅ Prevent executing the rest of this page after switching
 
-    # === your existing levels 1–4 ===
-    if section == "home":
-        st.subheader("🏁 Welcome to Level 1 Home Basics")
-        home()
-    elif section == "emergency_kit":
-        st.subheader("🚨 Level 2 Emergency Preparedness")
-        emergency_kit_utilities()
-    elif section == "mail_trash_handling":
-        st.subheader("📬 Level 3 Mail & Trash Handling")
-        mail_trash_handling()
-    elif section == "home_security":
-        st.subheader("🏡 Level 4 Home Services")
-        security_convenience_ownership()
+    # === Levels 5 and Bonus ===
+    if st.session_state.get("enable_debug_mode"): # DEBUG
+        st.write("📦 Available sections in metadata:", list(SECTION_METADATA.keys()))
+        st.write("🎯 Current section from session:", section)
 
-    # === Level 5: now with st.tabs ===
-    elif section == "emergency_kit_critical_documents":
-        st.subheader("💼 Level 5 Critical Documents")
-        tabs = st.tabs([
-            "📝 Select Documents",
-            "📋 Review Selections",
-            "🗂 Document Details",
-            "📦 Generate Kit"
-        ])
+    handler = get_handler(section)
 
-        with tabs[0]:
-            st.markdown("### Step 1: Pick Critical Documents")
-            emergency_kit_critical_documents()
-
-        with tabs[1]:
-            st.markdown("### Step 2: Review Your Picks")
-            review_selected_documents()
-
-        with tabs[2]:
-            st.markdown("### Step 3: Fill in Document Details")
-            collect_document_details()
-        
-        with tabs[3]:
-            generate_kit_tab()
-
-    # === Bonus Level ===
-    elif section == "bonus_level":
-        st.subheader("🎁 Bonus Level Content")
-        bonus_level()
+    if callable(handler):
+        if st.session_state.get("enable_debug_mode"): # DEBUG
+            st.write("✅ Calling handler for:", section)
+        handler()
+    else:
+        if st.session_state.get("enable_debug_mode"): # DEBUG
+            st.warning("⚠️ Section handler not defined.")
 
 ###### Main Functions that comprise of the Levels
-
-### Leve 1 - Home
-
-def home():
-    section = st.session_state.get("section", "home")
-    # Optionally validate against SECTION_METADATA
-    if section not in SECTION_METADATA:
-        section = "home"  # or raise a warning/log it
-
-    st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")
-    switch_section("home")
-
-    st.subheader("Let's gather some information. Please enter your details:")
-   
-# Step 1: Input collection
-    def get_home_inputs():
-        section = "Home Basics"
-
-        city = register_task_input(
-            "City", st.text_input,
-            task_type="Location Info",
-            section=section
-        )
-
-        zip_code = register_task_input(
-            "ZIP Code", st.text_input,
-            task_type="Location Info",
-            section=section
-        )
-
-        internet_provider = register_task_input(
-            "Internet Provider", st.text_input,
-            task_type="Utilities",
-            section=section
-        )
-
-        # Store to session state directly for external access
-        st.session_state.city = city
-        st.session_state.zip_code = zip_code
-        st.session_state.internet_provider = internet_provider
-
-        return city, zip_code, internet_provider
-
-# ✅ Call the function at runtime
-    city, zip_code, internet_provider = get_home_inputs()
-
-# Step 2: Fetch utility providers
-
-    def query_utility_providers(test_mode=False) -> dict:
-        city = get_answer("City", "Home Basics")
-        zip_code = get_answer("ZIP Code", "Home Basics")
-
-        if test_mode:
-            return {
-                "electricity": "Austin Energy",
-                "natural_gas": "Atmos Energy",
-                "water": "Austin Water"
-            }
-
-        prompt = utility_provider_lookup_prompt(city, zip_code)
-
-        try:
-            response = client.chat.complete(
-                model="mistral-small-latest",
-                messages=[UserMessage(content=prompt)],
-                max_tokens=1500,
-                temperature=0.5,
-            )
-            content = response.choices[0].message.content
-        except Exception as e:
-            st.error(f"Error querying Mistral API: {str(e)}")
-            return {}
-
-        return extract_and_log_providers(content)
-
-
-    def register_provider_input(label, value, section="Utility Providers"):
-        if not label or not isinstance(label, str):
-            raise ValueError("Provider label must be a non-empty string.")
-
-        if not isinstance(value, str) or value.strip().lower() in ["", "not found", "n/a"]:
-            return
-
-        # Register as structured input data
-        input_data = st.session_state.setdefault("input_data", {})
-        section_data = input_data.setdefault(section, [])
-
-        # Remove duplicates first
-        section_data = [entry for entry in section_data if entry["question"] != f"{label} Provider"]
-        section_data.append({
-            "question": f"{label} Provider",
-            "answer": value.strip()
-        })
-        input_data[section] = section_data
-
-        # Optionally: also track in task_inputs (if needed for scheduling)
-        task_row = {
-            "question": f"{label} Provider",
-            "answer": value.strip(),
-            "category": section,
-            "section": section,
-            "area": "home",
-            "task_type": "info",
-            "is_freq": False
-        }
-        st.session_state.setdefault("task_inputs", []).append(task_row)
-
-    def extract_and_log_providers(content: str) -> dict:
-        """
-        Extracts provider names and logs them using structured metadata.
-        """
-        providers = extract_providers_from_text(content)
-
-        register_provider_input("Electricity", providers["electricity"])
-        register_provider_input("Natural Gas", providers["natural_gas"])
-        register_provider_input("Water", providers["water"])
-
-        # Store for retrieval
-        st.session_state["utility_providers"] = providers
-        for key, val in providers.items():
-            st.session_state[f"{key}_provider"] = val
-
-        return providers
-
-    def get_corrected_providers(results: dict) -> dict:
-        updated = {}
-        label_to_key = {
-            "Electricity": "electricity",
-            "Natural Gas": "natural_gas",
-            "Water": "water"
-        }
-
-        for label in label_to_key:
-            key = label_to_key[label]
-            current_value = results.get(key, "")
-            correct_flag = st.checkbox(f"Correct {label} Provider", value=False)
-            corrected = st.text_input(
-                f"{label} Provider",
-                value=current_value,
-                disabled=not correct_flag
-            )
-            if correct_flag and corrected != current_value:
-                register_provider_input(label, corrected)
-                st.session_state[f"{key}_provider"] = corrected
-            updated[key] = corrected if correct_flag else current_value
-
-        return updated
-
-    def fetch_utility_providers():
-        results = query_utility_providers()
-        st.session_state["utility_providers"] = results
-        return results
-
-    if st.button("Find My Utility Providers"):
-        with st.spinner("Fetching providers from Mistral..."):
-            fetch_utility_providers()
-            st.success("Providers stored in session state!")
-
-    # Step 3: Handle corrections
-    current_results = st.session_state.get("utility_providers", {
-        "electricity": "",
-        "natural_gas": "",
-        "water": ""
-    })
-    updated = get_corrected_providers(current_results)
-
-    def update_session_state_with_providers(updated):
-        st.session_state["utility_providers"] = updated
-        for key, value in updated.items():
-            st.session_state[f"{key}_provider"] = value
-
-    if st.button("Save Utility Providers"):
-        update_session_state_with_providers(updated)
-        st.success("Utility providers updated!")
-
-    # Step 4: Confirm and maybe generate prompt
-    st.subheader("👍 Validate")
-    if st.button("✅ Confirm Utility Info and Generate Prompt"):
-        st.session_state["confirm_ai_prompt_home"] = True
-    
-    blocks = []
-    if st.session_state.get("confirm_ai_prompt_home"):
-        blocks = generate_all_prompt_blocks("home")
-
-        if st.session_state.get("enable_debug_mode"):
-            st.markdown("### 🧾 Prompt Preview")
-            for block in blocks:
-                st.code(block, language="markdown")
-    else:
-        st.info("Please review and confirm before generating the prompt.")
-    
-    if st.session_state.get("enable_debug_mode"):
-        st.markdown("### 🧾 Prompt Preview")
-        for block in blocks:
-            st.code(blocks or "", language="markdown")
-
-    # Step 5: Prompt preview + runbook
-
-    missing = check_missing_utility_inputs()
-    if missing:
-        st.warning(f"⚠️ Missing required fields: {', '.join(missing)}")
-    else:
-        st.success("✅ All required utility inputs are complete.")
-
-    st.subheader("🎉 Reward")
-
-   # Step 6: Generate the DOCX and Markdown
-    generate_key= "generate_runbook_home"
-    if st.button("📥 Generate Runbook"):
-        st.session_state[generate_key] = True
-
-    if st.session_state.get(generate_key):
-        #st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
-        buffer, markdown_text = generate_docx_from_prompt_blocks(
-            blocks=blocks,
-            use_llm=bool(True),
-            api_key=os.getenv("MISTRAL_TOKEN"),
-            doc_heading="🏠 Utilities Emergency Runbook",
-            debug=False
-        )
-
-        #st.write("📋 Blocks sent to generator:", blocks)
-        #st.write("📝 Markdown Text:", markdown_text)
-        #st.write("📁 DOCX Buffer:", buffer)
-        #st.write("🧪 Buffer type:", type(buffer))
-        #st.write("🧪 Buffer size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "Invalid")
-
-        # Cache results in session state
-        st.session_state[f"{section}_runbook_text"] = markdown_text
-        st.session_state[f"{section}_runbook_buffer"] = buffer
-        st.session_state[f"{section}_runbook_ready"] = True
-
-    # Step 4: Show download if ready
-    if st.session_state.get(f"{section}_runbook_ready"):
-        #st.success("✅ Runbook Ready!")
-        maybe_render_download(section="home", filename="utilities_emergency.docx")
-        st.session_state["level_progress"]["home"] = True
-    else:
-        st.info("ℹ️ Click the button above to generate your runbook.")
-
 
 ### Level 2 - Emergency Kit Details
 

@@ -1,29 +1,10 @@
+#shared logic across apps
 from typing import Optional
 import pandas as pd
 import streamlit as st
 import re
 from collections import defaultdict
 from config.sections import SECTION_METADATA
-
-def check_home_progress(progress_dict):
-    """
-    Checks overall progress across all levels using SECTION_METADATA.
-    Returns a completion percentage and sorted list of completed level keys.
-    """
-    total_levels = len(progress_dict)
-    completed = [k for k, v in progress_dict.items() if v]
-
-    if total_levels == 0:
-        return 0, []
-
-    # Sort completed levels by numeric level if available
-    def level_sort_key(k):
-        return SECTION_METADATA.get(k, {}).get("level", 99)  # fallback if level missing
-
-    completed_sorted = sorted(completed, key=level_sort_key)
-    percent_complete = int((len(completed) / total_levels) * 100)
-
-    return percent_complete, completed_sorted
 
 def extract_all_trash_tasks_grouped(valid_dates, utils):
     utils = utils or get_schedule_utils()
@@ -220,12 +201,6 @@ def extract_rent_own_service_schedule():
     return pd.DataFrame(schedule) if schedule else pd.DataFrame(
         columns=["Task", "Category", "Source", "Tag", "Area", "Frequency", "Day", "Notes"]
     )
-def get_pool_schedule():
-    selected_months = st.session_state.get("pool_seasonal_months", [])
-    if not selected_months:
-        return "No pool maintenance schedule defined."
-
-    return "\n".join(f"- Pool Maintenance: Scheduled in **{month}**" for month in selected_months)
 
 def extract_grouped_mail_task(valid_dates):
     utils = get_schedule_utils()

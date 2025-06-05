@@ -3,7 +3,7 @@ import streamlit as st
 from datetime import datetime, timedelta
 import builtins
 import contextlib
-from home_app_05_23_modified import emergency_kit_utilities
+from old.home_app_05_23_modified import emergency_kit_utilities
 from prompts.llm_queries import emergency_kit_utilities_runbook_prompt
 
 @pytest.fixture(autouse=True)
@@ -42,7 +42,7 @@ def patch_streamlit_functions(monkeypatch):
     yield
 
 def test_emergency_kit_utilities_runs(monkeypatch):
-    import home_app_05_23_modified
+    import old.home_app_05_23_modified as home_app_05_23_modified
     print("Before patch:", home_app_05_23_modified.emergency_kit_utilities_runbook_prompt)
 
     monkeypatch.setattr("home_app_05_23_modified.emergency_kit_utilities_runbook_prompt", lambda: "Mocked Emergency Prompt")

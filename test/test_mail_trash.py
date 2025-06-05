@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 import streamlit as st
-from home_app_05_23_modified import mail, trash_handling, mail_trash_handling
+from old.home_app_05_23_modified import mail, trash_handling, mail_trash_handling
 from utils.runbook_generator_helpers import generate_docx_from_split_prompts, generate_docx_from_text
 from io import BytesIO
 import pandas as pd
@@ -33,7 +33,7 @@ class TestMailAndTrashInput(unittest.TestCase):
         # Manually set __name__ so capture_input can extract it
         mock_text_area.__name__ = "text_area"
 
-        from home_app_05_23_modified import mail 
+        from old.home_app_05_23_modified import mail 
 
         with patch("streamlit.subheader"), patch("streamlit.expander"), patch("streamlit.markdown"):
             mail()
@@ -61,7 +61,7 @@ class TestMailAndTrashInput(unittest.TestCase):
         # Manually set __name__ so capture_input can extract it
         mock_text_area.__name__ = "text_area"
 
-        from home_app_05_23_modified import trash_handling 
+        from old.home_app_05_23_modified import trash_handling 
 
         with patch("streamlit.subheader"), patch("streamlit.expander"), patch("streamlit.markdown"), \
              patch("streamlit.image"), patch("streamlit.file_uploader", return_value=None), \
@@ -194,7 +194,7 @@ class TestTrashImageHandling(unittest.TestCase):
         mock_file_uploader.return_value = fake_image_bytes
         mock_image_open.return_value = MagicMock()
 
-        from home_app_05_23_modified import trash_handling
+        from old.home_app_05_23_modified import trash_handling
 
         with patch("streamlit.subheader"), patch("streamlit.expander"), \
              patch("streamlit.markdown"), patch("streamlit.selectbox", return_value="Tuesday"), \

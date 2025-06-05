@@ -1,5 +1,5 @@
 import pytest
-from utils.input_tracker import capture_input, get_answer, render_lock_toggle
+from data_helpers import capture_input, get_answer, render_lock_toggle
 import streamlit as st
 from datetime import datetime
 
@@ -13,7 +13,7 @@ def setup_session_state(monkeypatch):
 def test_capture_input_adds_data(monkeypatch):
     # Setup fake Streamlit state
     import types
-    import utils.input_tracker as it  # Adjust import path to match your project
+    import data_helpers as it  # Adjust import path to match your project
     fake_st = types.SimpleNamespace()
     fake_st.session_state = {
         "input_data": {},
@@ -45,7 +45,7 @@ def test_capture_input_adds_data(monkeypatch):
 def test_capture_input_with_validation(monkeypatch):
     # Setup fake Streamlit state
     import types
-    import utils.input_tracker as it  # Adjust import path to match your project
+    import data_helpers as it  # Adjust import path to match your project
     fake_st = types.SimpleNamespace()
     fake_st.session_state = {
         "input_data": {},
@@ -76,7 +76,7 @@ def test_capture_input_with_validation(monkeypatch):
 def test_capture_input_with_preprocessing(monkeypatch):
     # Setup fake Streamlit state
     import types
-    import utils.input_tracker as it  # Adjust import path to match your project
+    import data_helpers as it  # Adjust import path to match your project
     fake_st = types.SimpleNamespace()
     fake_st.session_state = {
         "input_data": {},
