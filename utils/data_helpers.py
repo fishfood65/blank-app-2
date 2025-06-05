@@ -10,7 +10,9 @@ import plotly.express as px
 from uuid import uuid4
 import re
 from collections import defaultdict
+from config.sections import SECTION_METADATA
 
+DEFAULT_COMMON_SECTIONS = set(SECTION_METADATA.keys())
 
 def get_or_create_session_id():
     """Assigns a persistent unique ID per session"""
@@ -50,45 +52,34 @@ def capture_input(
     preprocess_fn=None,
     required: bool = False,
     autofill: bool = True,
-    metadata: dict = None, 
+    metadata: dict = None,
     **kwargs
 ):
     """
     Captures user input and records structured metadata in session state.
 
-    Args:
-        label: Display label for the input field.
-        input_fn: A Streamlit input function like st.text_input or st.selectbox.
-        section: The logical section key (must be passed explicitly).
-        *args: Positional args passed to input_fn.
-        validate_fn: Optional callable to validate the input.
-        preprocess_fn: Optional callable to transform the input before saving.
-        required: Whether this input is required.
-        autofill: If True, will attempt to auto-populate value from session.
-        metadata: Optional dictionary of metadata for tracking purposes.
-        **kwargs: Additional keyword arguments passed to input_fn.
-
     Returns:
         The final processed input value.
     """
-    unique_key = kwargs.get("key", f"{section}_{label.replace(' ', '_').lower()}")
+    # Use explicit key or generate one
+    default_key = f"{section}_{sanitize_label(label)}"
+    unique_key = kwargs.get("key", default_key)
     kwargs["key"] = unique_key
 
-    # Auto-fill from get_answer()
+    # Auto-fill value from get_answer()
     if autofill:
-        default_value = get_answer(label, section)
+        default_value = get_answer(key=label, section=section)
         if default_value is not None and "value" not in kwargs:
             kwargs["value"] = default_value
 
-        # Remove value for incompatible input types
-        if input_fn in [st.radio, st.selectbox] and "value" in kwargs:
-            kwargs.pop("value")
-        if input_fn == st.multiselect and "value" in kwargs:
+        # Prevent .value for incompatible widgets
+        if input_fn in [st.radio, st.selectbox, st.multiselect] and "value" in kwargs:
             kwargs.pop("value")
 
+    # Render input widget
     value = input_fn(label, *args, **kwargs)
 
-    # Apply optional preprocessing
+    # Optional transform
     if preprocess_fn:
         try:
             value = preprocess_fn(value)
@@ -96,7 +87,7 @@ def capture_input(
             st.error(f"❌ Error processing input: {e}")
             return None
 
-    # Apply optional validation
+    # Optional validation
     if validate_fn:
         try:
             if not validate_fn(value):
@@ -111,6 +102,7 @@ def capture_input(
     entry = {
         "question": label,
         "answer": value,
+        "key": unique_key,  # ✅ required for get_answer to match
         "timestamp": datetime.now().isoformat(),
         "input_type": getattr(input_fn, "__name__", str(input_fn)),
         "section": section,
@@ -119,9 +111,13 @@ def capture_input(
         "metadata": metadata or {},
     }
 
-    if "input_data" not in st.session_state:
-        st.session_state["input_data"] = {}
-    st.session_state["input_data"].setdefault(section, []).append(entry)
+    st.session_state.setdefault("input_data", {}).setdefault(section, [])
+
+    # ✅ Optional: overwrite previous entry for same key
+    section_entries = st.session_state["input_data"][section]
+    section_entries = [e for e in section_entries if e.get("key") != unique_key]
+    section_entries.append(entry)
+    st.session_state["input_data"][section] = section_entries
 
     log_interaction("input", label, value, section)
     autosave_input_data()
@@ -135,6 +131,7 @@ def register_task_input(
     section: str,
     is_freq: bool = False,
     task_type: str = None,
+    key: str = None,  # ✅ Explicit key
     *args,
     **kwargs
 ):
@@ -148,6 +145,7 @@ def register_task_input(
         section (str): The section name (flat string, e.g., "emergency_kit").
         is_freq (bool): Whether this task is frequency-based.
         task_type (str): Optional logical type (e.g., 'mail', 'trash').
+        key (str): Optional key to ensure matching across inputs and get_answer().
         *args, **kwargs: Passed through to capture_input().
     """
     metadata = {
@@ -160,10 +158,12 @@ def register_task_input(
     }
     kwargs["metadata"] = metadata
 
+    if key:
+        kwargs["key"] = key
+
     value = capture_input(label, input_fn, section=section, *args, **kwargs)
 
     if value not in (None, ""):
-        # Save to task_inputs if relevant
         if metadata["is_task"]:
             task_row = {
                 "question": label,
@@ -173,45 +173,21 @@ def register_task_input(
                 "area": metadata["area"],
                 "task_type": metadata["task_type"],
                 "is_freq": metadata["is_freq"],
-                "key": kwargs.get("key"),
+                "key": key,  # ✅ Store key directly
             }
             st.session_state.setdefault("task_inputs", []).append(task_row)
 
-        # ✅ Always save to input_data so get_answer() works
         input_record = {
             "question": label,
             "answer": value,
             "section": section,
-            "key": kwargs.get("key"),
+            "key": key,  # ✅ Store key here too
         }
         st.session_state.setdefault("input_data", {}).setdefault(section, []).append(input_record)
 
     return value
 
-def get_answer(
-    section: str,
-    key: str,
-    *,
-    nested_parent: str = None,
-    nested_child: str = None,
-    verbose: bool = False
-) -> str | None:
-    """
-    Retrieves the most recent answer for a given key in a section.
-    Supports flat lookup and nested dict fallback.
-
-    Args:
-        section (str): Section name used in 'task_inputs'.
-        key (str): The question label or widget key to retrieve.
-        nested_parent (str): Optional nested parent dict.
-        nested_child (str): Optional nested child key.
-        verbose (bool): If True, will print debug info via Streamlit.
-
-    Returns:
-        str | None: Matched value or None.
-    """
-
-    def sanitize(text):
+def sanitize(text):
         return (
             text.lower().strip()
             .replace(" ", "_")
@@ -220,43 +196,81 @@ def get_answer(
             .replace("-", "_")
         )
 
+def get_answer(
+    *,
+    key: str,
+    section: str,
+    nested_parent: str = None,
+    nested_child: str = None,
+    verbose: bool = False,
+    common_sections: set = None
+) -> str | None:
+    """
+    Retrieves the most recent answer for a given key in a section.
+    Supports flat lookup, nested fallback, and optional verbose debugging.
+    Nested_parent/nested_child is prioritized before task_inputs or input_data
+
+    Args:
+        section (str): Logical section name (e.g., "home", "emergency_kit").
+        key (str): The question label or key to retrieve.
+        nested_parent (str): Optional session_state parent (e.g., "input_data").
+        nested_child (str): Optional nested dict under parent.
+        verbose (bool): If True, shows debug output.
+        common_sections (set): Optional override set of valid section names.
+
+    Returns:
+        str | None: Answer if found.
+    """
     norm_key = sanitize(key)
 
-    # 🔍 Optional nested dict check (e.g. input_data["home"]["city"])
+    # Warn if arguments may be reversed
+    common_set = common_sections or DEFAULT_COMMON_SECTIONS
+    if section not in common_set and key in common_set:
+        if verbose:
+            st.warning(f"⚠️ `section='{section}'` may be reversed with `key='{key}'`")
+
+    # Optional nested lookup (e.g., input_data["home"]["city"])
     if nested_parent and nested_child:
-        nested_value = (
+        nested_val = (
             st.session_state.get(nested_parent, {})
             .get(nested_child, {})
             .get(key)
         )
-        if nested_value is not None:
+        if nested_val is not None:
             if verbose:
-                st.write(f"✅ [Nested Fallback] Found in {nested_parent} → {nested_child} → {key}")
-            return nested_value
+                st.write(f"✅ [Nested Fallback] Found in `{nested_parent} → {nested_child} → {key}`")
+            return nested_val
 
+    # 1️⃣ Look in st.session_state["task_inputs"]
     entries = st.session_state.get("task_inputs", [])
-    if verbose:
-        st.write("🔍 Searching in task_inputs for section:", section)
-        st.write("🔑 Normalized key:", norm_key)
-
     for entry in entries:
         if entry.get("section") != section:
             continue
-
         label_raw = entry.get("question", "")
         key_raw = entry.get("key", "")
 
-        label_match = sanitize(label_raw) == norm_key
-        key_match = sanitize(key_raw) == norm_key
-
-        if label_match or key_match:
+        if sanitize(label_raw) == norm_key or sanitize(key_raw) == norm_key:
             if verbose:
-                st.write(f"✅ Match found — label: '{label_raw}', key: '{key_raw}'")
+                st.write("🔍 Searching in `task_inputs`")
+                st.write(f"✅ Match found — label: `{label_raw}`, key: `{key_raw}`")
+            return entry.get("answer")
+
+    # 2️⃣ Fallback to st.session_state["input_data"]
+    input_data = st.session_state.get("input_data", {}).get(section, [])
+    for entry in input_data:
+        label_raw = entry.get("question", "")
+        key_raw = entry.get("key", "")
+
+        if sanitize(label_raw) == norm_key or sanitize(key_raw) == norm_key:
+            if verbose:
+                st.write("🔍 Searching in `input_data`")
+                st.write(f"✅ Match found — label: `{label_raw}`, key: `{key_raw}`")
             return entry.get("answer")
 
     if verbose:
         st.warning(f"❌ No match found for key '{key}' in section '{section}'.")
     return None
+
 
 def check_missing_utility_inputs(section="home"):
     """
@@ -265,11 +279,11 @@ def check_missing_utility_inputs(section="home"):
     """
     missing = []
 
-    if not get_answer(section, "City"):
+    if not get_answer(key="City", section=section):
         missing.append("City")
-    if not get_answer(section, "ZIP Code"):
+    if not get_answer(key="ZIP Code", section=section):
         missing.append("ZIP Code")
-    if not get_answer(section, "Internet Provider"):
+    if not get_answer(key="Internet Provider", section=section):
         missing.append("Internet Provider")
 
     return missing
@@ -651,46 +665,7 @@ def generate_category_keywords_from_labels(input_data):
 def sanitize_label(label: str) -> str:
     return label.lower().strip().replace(" ", "_").replace("?", "").replace(":", "")
 
-def debug_get_answer(section: str, key: str):
-    st.markdown(f"### 🧪 Debug `get_answer(section='{section}', key='{key}')`")
 
-    task_inputs = st.session_state.get("task_inputs", [])
-    st.markdown(f"**🔍 Total `task_inputs`:** {len(task_inputs)}")
-
-    if not task_inputs:
-        st.error("❌ No task inputs found.")
-        return
-
-    sanitized_key = sanitize_label(key)
-    st.markdown(f"**🔑 Sanitized key:** `{sanitized_key}`")
-
-    # Step 1: Filter by section
-    matching_section = [entry for entry in task_inputs if entry.get("section") == section]
-    if not matching_section:
-        st.warning(f"⚠️ No entries found for section `{section}`.")
-        return
-
-    st.markdown(f"**📂 Entries in section `{section}`:**")
-    st.json(matching_section)
-
-    # Step 2: Try to find sanitized label match
-    for entry in matching_section:
-        label_raw = entry.get("label", "")
-        label_sanitized = sanitize_label(label_raw)
-        if label_sanitized == sanitized_key:
-            st.success("✅ Exact match found:")
-            st.write(f"🧾 Label: {label_raw}")
-            st.write(f"📦 Value returned: `{entry.get('value')}`")
-            return
-
-    # Step 3: Try partial match
-    partial_matches = [entry for entry in matching_section if sanitized_key in sanitize_label(entry.get("label", ""))]
-    if partial_matches:
-        st.warning("⚠️ No exact match, but found partial label matches:")
-        st.json(partial_matches)
-        return
-
-    st.error(f"❌ No label match for key `{sanitized_key}` in section `{section}`.")
 
 
 # Placeholder for future enhancement: Cloud saving logic

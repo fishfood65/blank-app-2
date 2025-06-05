@@ -19,6 +19,7 @@ from docx.shared import Inches
 from utils.preview_helpers import get_active_section_label
 from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download
+from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data
 from prompts.templates import utility_provider_lookup_prompt
 
 # --- Generate the AI prompt ---
@@ -89,11 +90,11 @@ def query_utility_providers(section: str, test_mode: bool = False) -> dict:
     Returns:
         dict: A dictionary containing utility provider names.
     """
-    city = get_answer("City", section)
-    zip_code = get_answer("ZIP Code", section)
+    city = get_answer(key="City", section=section, verbose=True)
+    zip_code = get_answer(key="ZIP Code", section=section, verbose=True)
 
     if st.session_state.get("enable_debug_mode"):
-        st.markdown("### 🧪 Debug: Utility Query Inputs")
+        st.markdown("### 🧪 Debug: Utility Query Inputs fetching from get_answer(), data saved by register_task")
         st.write("📍 City:", city)
         st.write("📮 ZIP Code:", zip_code)
 
@@ -222,6 +223,9 @@ def home():
     #st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")
     #switch_section(section)
 
+    if st.button("🧼 Reset All Data"):
+        clear_all_session_data()
+
     st.subheader("Let's gather some information. Please enter your details:")
    
 # Step 1: Input collection
@@ -258,12 +262,8 @@ def home():
         })
         updated = get_corrected_providers(current_results)
 
-        if st.session_state.get("enable_debug_mode"):
-            st.markdown("### 🧪 Debug: get_corrected_providers")
-            st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
-            st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
-            st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
-            st.write("💧 Water:", st.session_state.get("water_provider"))
+        if st.session_state.get("enable_debug_mode", False):
+            debug_all_sections_input_capture_with_summary(["home", "emergency_kit"])
 
 # Step 4: Save Utility Providers (with validation)
         st.write("Render button for:", generate_key)

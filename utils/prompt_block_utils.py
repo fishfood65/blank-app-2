@@ -142,9 +142,9 @@ def is_content_meaningful(content: str) -> bool:
     return bool(non_placeholder_lines)
 
 def utilities_emergency_runbook_prompt(section: str = "home", debug: bool = False) -> str:
-    city = get_answer("City", section) or "⚠️ Not provided"
-    zip_code = get_answer("ZIP Code", section) or "⚠️ Not provided"
-    internet = get_answer("Internet Provider", section) or "⚠️ Not provided"
+    city = get_answer(key="City", section=section) or "⚠️ Not provided"
+    zip_code = get_answer(key="ZIP Code", section=section) or "⚠️ Not provided"
+    internet = get_answer(key="Internet Provider", section=section) or "⚠️ Not provided"
 
     providers = st.session_state.get("utility_providers", {})
     electricity = providers.get("electricity", "⚠️ Not provided")
@@ -173,13 +173,13 @@ def fallback_utilities_emergency_prompt(section: str = "home") -> str:
     return utilities_emergency_runbook_prompt(section=section, debug=False)
 
 def emergency_kit_utilities_runbook_prompt(section: str = "home", debug: bool = False) -> str:
-    city = get_answer("City", section) or ""
-    zip_code = get_answer("ZIP Code", section) or ""
-    internet = get_answer("Internet Provider", section) or ""
+    city = get_answer(key="City", section="home") or ""
+    zip_code = get_answer(key="ZIP Code", section="home") or ""
+    internet = get_answer(key="Internet Provider", section="home") or ""
 
-    emergency_kit_status = get_answer("Do you have an Emergency Kit?", "Emergency Kit") or "No"
-    emergency_kit_location = get_answer("Where is (or where will) the Emergency Kit be located?", "Emergency Kit") or ""
-    additional_items = get_answer("Add any additional emergency kit items not in the list above (comma-separated):", "Emergency Kit") or ""
+    emergency_kit_status = get_answer(key="Do you have an Emergency Kit?", section="emergency_kit") or "No"
+    emergency_kit_location = get_answer(key="Where is (or where will) the Emergency Kit be located?", section="emergency_kit") or ""
+    additional_items = get_answer(key="Add any additional emergency kit items not in the list above (comma-separated):", section="emergency_kit") or ""
 
     selected_items = st.session_state.get("homeowner_kit_stock", [])
     not_selected_items = st.session_state.get("not_selected_items", [])
@@ -221,6 +221,18 @@ def emergency_kit_utilities_runbook_prompt(section: str = "home", debug: bool = 
     ]):
         return "⚠️ No emergency or utility data provided."
 
+    if debug:
+        st.markdown("### 🐞 Debug: Emergency Utilities + Kit Prompt")
+        st.write("City:", city)
+        st.write("ZIP Code:", zip_code)
+        st.write("Internet:", internet)
+        st.write("Electricity:", electricity)
+        st.write("Gas:", gas)
+        st.write("Water:", water)
+        st.write("Emergency Kit Status:", emergency_kit_status)
+        st.write("Emergency Kit Location", emergency_kit_location)
+        st.write("Additional:", additional_md)
+        
     raw = emergency_kit_utilities_prompt_template(
     city=city,
     zip_code=zip_code,

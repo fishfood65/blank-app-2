@@ -51,8 +51,7 @@ def emergency_kit_utilities_prompt_template(
     electricity: str,
     gas: str,
     water: str,
-    emergency_kit_status: str,
-    emergency_kit_location: str,
+    kit_summary_line: str,
     selected_md: str,
     missing_md: str,
     additional_md: str,
@@ -86,8 +85,7 @@ Please retrieve:
 # 🧰 Emergency Kit Summary
 
 ## Emergency Kit:
-- Do you have a kit?: {emergency_kit_status}
-- The emergency kit is (or will be) located in the {emergency_kit_location}."
+- {kit_summary_line}."
 
 ## Kit Inventory:  
 {selected_md or "_(none selected)_"}  
