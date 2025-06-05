@@ -102,6 +102,7 @@ def emergency_kit(section="emergency_kit"):
         index=0,
         metadata={"is_task": False, "frequency_field": False},
         key="radio_emergency_kit_status"
+        value=st.session_state.get("emergency_kit_status", "")
     )
 
     # Store explicitly (if needed elsewhere, like in prompt)
@@ -119,6 +120,7 @@ def emergency_kit(section="emergency_kit"):
         section=section,
         value=st.session_state.get("emergency_kit_location", ""),
         placeholder="e.g., hall closet, garage bin",
+        key="emergency_kit_locaiton",
         metadata={"is_task": False, "frequency_field": False}
     )
     if emergency_kit_location:
@@ -135,6 +137,7 @@ def emergency_kit(section="emergency_kit"):
         input_fn=st.text_input,
         section=section,
         value=st.session_state.get("additional_kit_items", ""),
+        key="additonal_kit_items"
         metadata={"is_task": False, "frequency_field": False}
     )
     if additional:
@@ -163,6 +166,12 @@ def emergency_kit_utilities():
 
     # Step 1: Input collection
     emergency_kit()
+
+    if st.session_state.get("enable_debug_mode"):
+        st.markdown("### 🧪 Session State Debug")
+        st.write("emergency_kit_status:", st.session_state.get("emergency_kit_status"))
+        st.write("emergency_kit_location:", st.session_state.get("emergency_kit_location"))
+        st.write("additional_kit_items:", st.session_state.get("additional_kit_items"))
     
     missing = check_missing_utility_inputs()
     if missing:
@@ -206,6 +215,12 @@ def emergency_kit_utilities():
             st.write("📁 DOCX Buffer:", buffer)
             st.write("🧪 Buffer type:", type(buffer))
             st.write("🧪 Buffer size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "Invalid")
+            with st.expander("🧪 Session Debug: Emergency Kit", expanded=True):
+                st.write("Status:", st.session_state.get("emergency_kit_status"))
+                st.write("Location:", st.session_state.get("emergency_kit_location"))
+                st.write("Additional Items:", st.session_state.get("additional_kit_items"))
+                st.json(st.session_state)  # Full dump if needed
+
 
         # Cache results in session state
         st.session_state[f"{section}_runbook_text"] = markdown_text
