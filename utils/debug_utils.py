@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 from typing import List
-from .data_helpers import sanitize, get_answer
+from .data_helpers import sanitize, get_answer, sanitize_label
 from config.sections import SECTION_METADATA
 
 DEFAULT_COMMON_SECTIONS = set(SECTION_METADATA.keys())
@@ -90,18 +90,26 @@ def debug_single_get_answer(section: str, key: str):
     st.markdown(f"**📂 Entries in section `{section}`:**")
     st.json(matching_section)
 
-    # Step 2: Try to find sanitized label match
+    # Step 2: Try to find match by sanitized question or key
     for entry in matching_section:
-        label_raw = entry.get("label", "")
-        label_sanitized = sanitize_label(label_raw)
-        if label_sanitized == sanitized_key:
+        question_raw = entry.get("question", "")
+        key_raw= entry.get("key", "")
+        question_sanitized = sanitize_label(question_raw)
+        key_sanitized = sanitize_label(key_raw)
+
+        if question_sanitized == sanitized_key or key_sanitized == sanitized_key:
             st.success("✅ Exact match found:")
-            st.write(f"🧾 Label: {label_raw}")
-            st.write(f"📦 Value returned: `{entry.get('value')}`")
+            st.write(f"🧾 Label: {question_raw}")
+            st.write(f"🗝️ Key: {key_raw}")
+            st.write(f"📦 Value returned: `{entry.get('answer')}`")
             return
 
     # Step 3: Try partial match
-    partial_matches = [entry for entry in matching_section if sanitized_key in sanitize_label(entry.get("label", ""))]
+    partial_matches = [
+        entry for entry in matching_section 
+        if sanitized_key in sanitize_label(entry.get("question", ""))
+        or sanitized_key in sanitize_label(entry.get("key", ""))
+    ]
     if partial_matches:
         st.warning("⚠️ No exact match, but found partial label matches:")
         st.json(partial_matches)

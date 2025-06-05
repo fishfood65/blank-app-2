@@ -17,7 +17,8 @@ import uuid
 import json
 from docx.shared import Inches
 from utils.preview_helpers import get_active_section_label
-from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs,debug_get_answer
+from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs 
+from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download
 from prompts.templates import utility_provider_lookup_prompt
 
@@ -146,25 +147,25 @@ def emergency_kit_utilities():
             st.session_state.pop(key, None)
         st.success("🔄 Level 2 session state reset.")
         st.stop()  # 🔁 prevent rest of UI from running this frame
-   
+
     #st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")
     #switch_section("emergency_kit")
 
     # Step 1: Input collection
     emergency_kit()
 
-    if st.session_state.get("enable_debug_mode"):
+    if st.session_state.get("enable_debug_mode", False):
         st.markdown("### 🧪 Session State Debug")
         st.write("emergency_kit_status:", st.session_state.get("emergency_kit_status"))
         st.write("emergency_kit_location:", st.session_state.get("emergency_kit_location"))
         st.write("additional_kit_items:", st.session_state.get("additional_kit_items"))
         st.markdown("### 🧪 Task Inputs")
         st.json(st.session_state.get("task_inputs", []))
-        st.write(debug_get_answer("emergency_kit", "emergency_kit_status"))
-        st.write(debug_get_answer("emergency_kit", "emergency_kit_location"))
-        st.write(debug_get_answer("emergency_kit", "additional_kit_items"))
+        st.write(debug_single_get_answer(key="emergency_kit_status", section="emergency_kit"))
+        st.write(debug_single_get_answer(key="emergency_kit_location", section="emergency_kit"))
+        st.write(debug_single_get_answer(key="additional_kit_items", section="emergency_kit"))
+        debug_all_sections_input_capture_with_summary(["emergency_kit"])
 
-    
     missing = check_missing_utility_inputs()
     if missing:
         st.warning(f"⚠️ Missing required fields: {', '.join(missing)}")
@@ -184,9 +185,9 @@ def emergency_kit_utilities():
         for block in blocks:
             st.code(block, language="markdown")
         st.markdown("### 🧪 get_answer() Results")
-        st.write("🔹 emergency_kit_status:", get_answer("emergency_kit", "emergency_kit_status"))
-        st.write("🔹 emergency_kit_location:", get_answer("emergency_kit", "emergency_kit_location"))
-        st.write("🔹 additional_kit_items:", get_answer("emergency_kit", "additional_kit_items"))
+        st.write(debug_single_get_answer(key="emergency_kit_status", section="emergency_kit"))
+        st.write(debug_single_get_answer(key="emergency_kit_location", section="emergency_kit"))
+        st.write(debug_single_get_answer(key="additional_kit_items", section="emergency_kit"))
 
 
     #Step 2: Generate DOCX
