@@ -8,6 +8,14 @@ SECTION_METADATA: dict[str, dict] = {
         "requires_llm": True,
         "progress_key": "home",
     },
+    "emergency_kit": {
+        "label": "🧰 Emergency Kit",
+        "icon": "🧰",
+        "level": 2,
+        "enabled": True,
+        "requires_llm": True,
+        "progress_key": "emergency_kit",
+    },
     "mail_trash_handling": {
         "label": "📬 Mail & Trash",
         "icon": "📬",
@@ -27,14 +35,6 @@ SECTION_METADATA: dict[str, dict] = {
         "enabled": True,
         "requires_llm": False,
         "progress_key": "home_security",
-    },
-    "emergency_kit": {
-        "label": "🧰 Emergency Kit",
-        "icon": "🧰",
-        "level": 2,
-        "enabled": True,
-        "requires_llm": True,
-        "progress_key": "emergency_kit",
     },
     "emergency_kit_critical_documents": {
         "label": "📑 Critical Documents",

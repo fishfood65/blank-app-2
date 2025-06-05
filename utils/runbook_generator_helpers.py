@@ -256,17 +256,16 @@ def preview_runbook_output(section: str, runbook_text: str, label: str = "📖 P
         st.warning("⚠️ No runbook content available to preview.")
         return
 
-    if st.button(label):
-        # Optionally inject schedule table based on placeholder and section
-        if "<<INSERT_SCHEDULE_TABLE>>" in runbook_text:
-            df_key = "combined_home_schedule_df" if section == "home" else f"{section}_schedule_df"
-            schedule_df = st.session_state.get(df_key)
-            if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
-                schedule_md = add_table_from_schedule_to_markdown(schedule_df)
-                runbook_text = runbook_text.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
+    # Optionally inject schedule table based on placeholder and section
+    if "<<INSERT_SCHEDULE_TABLE>>" in runbook_text:
+        df_key = "combined_home_schedule_df" if section == "home" else f"{section}_schedule_df"
+        schedule_df = st.session_state.get(df_key)
+        if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
+            schedule_md = add_table_from_schedule_to_markdown(schedule_df)
+            runbook_text = runbook_text.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
 
-        with st.expander("🧠 AI-Generated Runbook Preview", expanded=True):
-            st.markdown(runbook_text, unsafe_allow_html=True)
+    with st.expander("🧠 AI-Generated Runbook Preview", expanded=True):
+        st.markdown(runbook_text, unsafe_allow_html=True)
 
 def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
     """
@@ -294,7 +293,7 @@ def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
     col1, col2, col3, col4 = st.columns(4)
     # 🔍 Render preview and HTML export if runbook text is available
     with col1:
-        if st.button("📖 Preview Runbook"):
+        if st.button("📖 Preview Runbook", key=f"Preview_Runbook_{section}"):
             preview_runbook_output(section, runbook_text)
     with col2:
         if runbook_text:
@@ -304,7 +303,8 @@ def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
                 label="🌐 Download as HTML",
                 data=html_output.encode("utf-8"),
                 file_name=html_filename,
-                mime="text/html"
+                mime="text/html",
+                key=f"HTML_Runbook_{section}"
             )
     with col3:
         if buffer:
@@ -312,12 +312,13 @@ def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
                 label="📄 Download DOCX",
                 data=buffer,
                 file_name=filename,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                key=f"DOCX_Runbook_{section}"
             )
         else:
             st.warning(f"⚠️ DOCX runbook buffer not found for `{section}`. Markdown/HTML export still available.")
     with col4:
-        if st.button(f"♻️ Reset {section.title()} Runbook Cache"):
+        if st.button(f"♻️ Reset {section.title()} Runbook Cache", key=f"{section}_reset_preview"):
             for key in [buffer_key, text_key, f"{section}_runbook_ready"]:
                 st.session_state.pop(key, None)
             st.success(f"🔄 Cleared session state for `{section}` runbook.")

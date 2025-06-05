@@ -31,7 +31,7 @@ def get_handler(section_key: str):
         from handlers.home import home
         return home
     elif section_key == "emergency_kit":
-        from home_app2 import emergency_kit_utilities
+        from handlers.emergency_kit import emergency_kit_utilities
         return emergency_kit_utilities
     elif section_key == "home_security":
         from home_app2 import home_security

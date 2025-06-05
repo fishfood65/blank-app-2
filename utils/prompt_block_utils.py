@@ -187,6 +187,7 @@ def emergency_kit_utilities_runbook_prompt(section: str = "home", debug: bool = 
     medications_info = st.session_state.get("medications_info", "")
     mask_info = st.session_state.get("mask_info", "")
     maps_contacts_info = st.session_state.get("maps_contacts_info", "")
+    fire_extinguisher_info = st.session_state.get("fire_extingguisher_info", "")
 
     selected_md = "".join(f"- {item}\n" for item in selected_items) if selected_items else ""
     missing_md = "".join(f"- {item}\n" for item in not_selected_items) if not_selected_items else ""
@@ -206,15 +207,31 @@ def emergency_kit_utilities_runbook_prompt(section: str = "home", debug: bool = 
         kit_summary_line, selected_md, missing_md, additional_md,
         electricity, gas, water, internet,
         flashlights_info, radio_info, food_water_info, important_docs_info,
-        whistle_info, medications_info, mask_info, maps_contacts_info
+        whistle_info, medications_info, mask_info, maps_contacts_info, fire_extinguisher_info
     ]):
         return "⚠️ No emergency or utility data provided."
 
     raw = emergency_kit_utilities_prompt_template(
-        city, zip_code, internet, electricity, gas, water,
-        kit_summary_line, selected_md, missing_md, additional_md,
-        flashlights_info, radio_info, food_water_info, important_docs_info,
-        whistle_info, medications_info, mask_info, maps_contacts_info
+    city=city,
+    zip_code=zip_code,
+    internet=internet,
+    electricity=electricity,
+    gas=gas,
+    water=water,
+    emergency_kit_status=emergency_kit_status,
+    emergency_kit_location=emergency_kit_location,
+    selected_md=selected_md,
+    missing_md=missing_md,
+    additional_md=additional_md,
+    flashlights_info=flashlights_info,
+    radio_info=radio_info,
+    food_water_info=food_water_info,
+    important_docs_info=important_docs_info,
+    whistle_info=whistle_info,
+    medications_info=medications_info,
+    mask_info=mask_info,
+    maps_contacts_info=maps_contacts_info,
+    fire_extinguisher_info=fire_extinguisher_info
     )
 
     return wrap_prompt_block(

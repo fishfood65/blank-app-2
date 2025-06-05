@@ -206,6 +206,7 @@ def update_session_state_with_providers(updated):
             st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
             st.write("💧 Water:", st.session_state.get("water_provider"))
 
+# --- Main Function Start ---
 def home():
     section = "home"
     generate_key = f"generate_runbook_{section}"  # Define it early
@@ -321,6 +322,6 @@ def home():
     if st.session_state.get(f"{section}_runbook_ready"):
         st.success("✅ Runbook Ready!")
         maybe_render_download(section=section, filename="utilities_emergency.docx")
-        st.session_state["level_progress"]["home"] = True
+        st.session_state["level_progress"][section] = True
     else:
         st.info("ℹ️ Click the button above to generate your runbook.")

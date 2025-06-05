@@ -100,15 +100,36 @@ st.markdown(
 # Main entry point of the app
 
 def main():
+    # 🛑 Intercept redirect BEFORE widget rendering
+    if st.session_state.get("go_home"):
+        st.session_state["selected_level"] = "🏠 Home Setup"
+        st.session_state["section"] = "home"
+        del st.session_state["go_home"]
+        st.rerun()
 
-# Initialize or retrieve level progress tracking
-# "level_progress" is set for Level 1 - 6
-# See LEVEL_LABELS, at the top, for definition of each Level
-# This tracks whether each key section of the app has been completed
-# Used by check_home_progress() to calculate total progress
+    # Initialize default state
+    if "selected_level" not in st.session_state:
+        first_label = next(iter(LABEL_TO_KEY))
+        st.session_state["selected_level"] = first_label
+        st.session_state["section"] = LABEL_TO_KEY[first_label]
+
+    # Sidebar navigation
+    selected = st.sidebar.radio(
+        "Choose a Level:",
+        list(LABEL_TO_KEY.keys()),
+        key="selected_level"
+    )
+
+    # Sync selected label → internal section key
+    new_section = LABEL_TO_KEY[st.session_state["selected_level"]]
+    if new_section != st.session_state.get("section"):
+        st.session_state["section"] = new_section
+
+    section = st.session_state["section"]
 
     st.markdown("#### 🧭 Progress")
-
+   
+   #Get current progress
     if "level_progress" not in st.session_state:
         st.session_state["level_progress"] = {key: False for key in LEVEL_LABELS}
 
@@ -131,17 +152,18 @@ def main():
     
     export_input_data_as_csv()
 
-    #Get current progress
-    if "level_progress" not in st.session_state:
-        st.session_state["level_progress"] = {k: False for k in LEVEL_LABELS}
-
-    # Set default section key
-    default_key = st.session_state.get("section", "home")
-    default_label = LEVEL_LABELS.get(default_key, levels[0])
-
-    # Ensure the default label is in levels
-    if default_label not in levels:
-        default_label = levels[0]  # fallback
+    # === Routing ===
+    handler = get_handler(section)
+    if callable(handler):
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown("### 🧪 Debug: Section Key")
+            st.write("🔍 Current section key:", section)
+            st.write("📦 Available sections:", list(SECTION_METADATA.keys()))
+            st.write("✅ Calling handler for:", section)
+        handler()
+    else:
+        if st.session_state.get("enable_debug_mode"):
+            st.warning("⚠️ Section handler not defined.")
 
     # Limit access to Level 1 until completed
     #if not st.session_state["level_progress"]["home"]:
@@ -160,17 +182,12 @@ def main():
         else:
             available_levels = levels
 
-    if "task_inputs" in st.session_state:
-        st.session_state["task_inputs"] = []
+    #if "task_inputs" in st.session_state:
+     #   st.session_state["task_inputs"] = []
 
     st.sidebar.checkbox("🐞 Enable Debug Mode", key="enable_debug_mode")
     st.write("Debug mode?", st.session_state.get("enable_debug_mode"))
-    selected = st.sidebar.radio("Choose a Level:", available_levels)
 
-    # Save current section key
-    st.session_state["section"] = LABEL_TO_KEY.get(selected, "home")
-    section = st.session_state["section"]
-    
     if st.session_state.get("enable_debug_mode"): # DEBUG
         st.markdown("### 🧪 Debug: Section Key")
         st.write("🔍 Current section key:", section)
@@ -184,16 +201,6 @@ def main():
     if st.session_state.get("enable_debug_mode"): # DEBUG
         st.write("📦 Available sections in metadata:", list(SECTION_METADATA.keys()))
         st.write("🎯 Current section from session:", section)
-
-    handler = get_handler(section)
-
-    if callable(handler):
-        if st.session_state.get("enable_debug_mode"): # DEBUG
-            st.write("✅ Calling handler for:", section)
-        handler()
-    else:
-        if st.session_state.get("enable_debug_mode"): # DEBUG
-            st.warning("⚠️ Section handler not defined.")
 
 ###### Main Functions that comprise of the Levels
 

@@ -51,7 +51,8 @@ def emergency_kit_utilities_prompt_template(
     electricity: str,
     gas: str,
     water: str,
-    kit_summary_line: str,
+    emergency_kit_status: str,
+    emergency_kit_location: str,
     selected_md: str,
     missing_md: str,
     additional_md: str,
@@ -62,7 +63,8 @@ def emergency_kit_utilities_prompt_template(
     whistle_info: str,
     medications_info: str,
     mask_info: str,
-    maps_contacts_info: str
+    maps_contacts_info: str,
+    fire_extinguisher_info: str
 ) -> str:
     def render_recommended(*items):
         return "".join(f"- {i}\n" for i in items if i and i.strip())
@@ -84,7 +86,8 @@ Please retrieve:
 # 🧰 Emergency Kit Summary
 
 ## Emergency Kit:
-{kit_summary_line}
+- Do you have a kit?: {emergency_kit_status}
+- The emergency kit is (or will be) located in the {emergency_kit_location}."
 
 ## Kit Inventory:  
 {selected_md or "_(none selected)_"}  
@@ -113,7 +116,7 @@ Please retrieve:
 - Contact Info
 - Emergency Steps
 ### Recommended Kit Items:
-{render_recommended(whistle_info, important_docs_info, flashlights_info)}
+{render_recommended(whistle_info, important_docs_info, flashlights_info, fire_extinguisher_info, maps_contacts_info)}
 
 ---
 
