@@ -260,8 +260,6 @@ def emergency_kit_utilities_runbook_prompt(section: str = "home", debug: bool = 
         title="⛑️ Emergency Utilities and Preparedness",
         instructions=("You are a structured assistant writing a house emergency runbook in Markdown.\n\n"
             "⚠️ Do not re-order or summarize sections.\n"
-            "✅ Use the exact section layout provided in the template.\n"
-            "📌 Preserve headings and bullet formatting strictly.\n"
             "🧱 Keep each utility and emergency kit section distinct and complete."),
         debug=debug
     )

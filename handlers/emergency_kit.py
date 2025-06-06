@@ -202,14 +202,14 @@ def emergency_kit_utilities():
             insert_main_heading=True,
             use_llm=True,
             api_key=os.getenv("MISTRAL_TOKEN"),
-            doc_heading="🧰 Utilities & Emergency Kit Runbook ",
+            doc_heading="⛑️ Utilities & Emergency Kit Runbook ",
             debug=st.session_state.get("enable_debug_mode", False)
         )
 
     maybe_generate_runbook(
         section=section,
         generator_fn=generate_kit_docx,
-        doc_heading="🧰 Utilities & Emergency Kit Runbook",
+        doc_heading="⛑️ Utilities & Emergency Kit Runbook",
         filename="utilities_emergency_kit.docx",
         button_label="📥 Generate Runbook"
     )

@@ -20,3 +20,7 @@ pages = [
 pg = st.navigation(pages)     # shows the sidebar selector
 st.set_page_config(page_title="My Streamlit Suite", page_icon="🚀", layout="wide")
 pg.run()                      # execute the selected page
+
+with st.sidebar.expander("⚙️ Developer Options", expanded=False):
+    st.checkbox("🐞 Enable Debug Mode", key="enable_debug_mode", value=False)
+    st.checkbox("📆 Show Schedule Snapshot in Preview", key="show_schedule_snapshot", value=False)
