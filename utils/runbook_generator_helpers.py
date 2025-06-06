@@ -23,68 +23,126 @@ from docx import Document
 import pandas as pd
 from datetime import datetime
 
-def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame, section: str):
+# Priority order for sorting task types
+PRIORITY_ORDER = [
+    "Mail Handling",
+    "Indoor Trash",
+    "Outdoor Trash",
+    "Recycling",
+    "Compost",
+]
+
+# Emoji map for task type labeling
+TASK_TYPE_EMOJI = {
+    "Mail Handling": "📬",
+    "Indoor Trash": "🗑️",
+    "Outdoor Trash": "🚛",
+    "Recycling": "♻️",
+    "Compost": "🌱",
+}
+
+def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame, section: str, include_priority: bool = True):
     """
     Adds grouped schedule tables to the DOCX document by date.
-    Image support has been removed.
+    Supports emoji task types and optional priority column.
     """
     if schedule_df.empty:
         doc.add_paragraph("_No schedule data available._")
         return
 
+    # Ensure correct datetime parsing and sorting
     schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
-    schedule_df = schedule_df.sort_values(by=["Date", "Source", "Tag", "Task"])
     schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
     schedule_df["DateStr"] = schedule_df["Date"].dt.strftime("%Y-%m-%d")
 
+    # Add priority score and emoji task type label
+    schedule_df["Priority"] = schedule_df["task_type"].apply(
+        lambda t: PRIORITY_ORDER.index(t) if t in PRIORITY_ORDER else len(PRIORITY_ORDER)
+    )
+    schedule_df["Task Type"] = schedule_df["task_type"].apply(
+        lambda t: f"{TASK_TYPE_EMOJI.get(t, '')} {t}" if t else "❓"
+    )
+
+    # Sort by date and priority
+    schedule_df = schedule_df.sort_values(by=["Date", "Priority", "clean_task"])
+
+    # Group by date
     grouped = schedule_df.groupby("Date")
 
     for date, group in grouped:
         day_str = date.strftime("%A, %Y-%m-%d")
         doc.add_heading(f"📅 {day_str}", level=2)
 
-        table = doc.add_table(rows=1, cols=1)
+        # Decide table structure
+        columns = ["📝 Task", "🔖 Category"]
+        if include_priority:
+            columns.append("🔢 Priority")
+
+        table = doc.add_table(rows=1, cols=len(columns))
         table.style = 'Light List'
         table.autofit = True
 
-        hdr_cells = table.rows[0].cells
-        hdr_cells[0].text = 'Task'
+        # Set header row
+        for idx, col in enumerate(columns):
+            table.rows[0].cells[idx].text = col
 
+        # Fill rows
         for _, row in group.iterrows():
-            task = row["Task"]
-            row_cells = table.add_row().cells
-            row_cells[0].text = task
+            cells = table.add_row().cells
+            cells[0].text = str(row.get("clean_task", ""))
+            cells[1].text = str(row.get("Task Type", ""))
+            if include_priority:
+                cells[2].text = str(row.get("Priority", ""))
 
-        doc.add_paragraph("")  # spacing between tables
+        doc.add_paragraph("")  # spacing between date groups
 
-def add_table_from_schedule_to_markdown(schedule_df: pd.DataFrame, section: str) -> str:
+
+def add_table_from_schedule_to_markdown(schedule_df: pd.DataFrame, section: str, include_priority: bool = True) -> str:
     """
     Convert a schedule DataFrame into grouped markdown tables by date,
-    without images.
+    with optional priority column and task type emoji indicators.
     """
-
     if schedule_df.empty:
         return "_No schedule data available._"
 
-    # Format and sort
+    # Ensure datetime and formatting
     schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
-    schedule_df = schedule_df.sort_values(by=["Date", "Source", "Tag", "Task"])
     schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
     schedule_df["DateStr"] = schedule_df["Date"].dt.strftime("%Y-%m-%d")
 
-    output_md = []
-    grouped = schedule_df.groupby("Date")
+    # Assign task priority based on defined order
+    schedule_df["Priority"] = schedule_df["task_type"].apply(
+        lambda t: PRIORITY_ORDER.index(t) if t in PRIORITY_ORDER else len(PRIORITY_ORDER)
+    )
 
-    for date, group in grouped:
+    # Emoji label
+    schedule_df["Task Type"] = schedule_df["task_type"].apply(
+        lambda t: f"{TASK_TYPE_EMOJI.get(t, '')} {t}" if t else "❓"
+    )
+
+    # Sort by Date, then priority, then clean_task
+    schedule_df = schedule_df.sort_values(by=["Date", "Priority", "clean_task"])
+
+    output_md = []
+    for date, group in schedule_df.groupby("Date"):
         day_str = date.strftime("%A, %Y-%m-%d")
         output_md.append(f"### 📅 {day_str}\n")
-        output_md.append("| Task |\n|------|")
 
+        # Header
+        header_cols = ["📝 Task", "🔖 Type"]
+        if include_priority:
+            header_cols.insert(1, "🔢 Priority")
+        output_md.append("| " + " | ".join(header_cols) + " |")
+        output_md.append("|" + " --- |" * len(header_cols))
+
+        # Rows
         for _, row in group.iterrows():
-            task = row["Task"]
-            output_md.append(f"| {task} |")
+            values = [row.get("clean_task", ""), row.get("Task Type", "")]
+            if include_priority:
+                values.insert(1, str(row.get("Priority", "")))
+            output_md.append("| " + " | ".join(values) + " |")
 
-        output_md.append("")  # spacing
+        output_md.append("")  # Spacer
 
     return "\n".join(output_md)
 

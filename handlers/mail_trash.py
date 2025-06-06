@@ -20,7 +20,7 @@ from utils.preview_helpers import get_active_section_label
 from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs, select_runbook_date_range, sanitize_label, sanitize, section_has_valid_input
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook, render_runbook_preview_inline
-from utils.common_helpers import get_schedule_utils, debug_saved_schedule_dfs
+from utils.common_helpers import get_schedule_utils, debug_saved_schedule_dfs, get_schedule_placeholder_mapping
 from utils.task_schedule_utils_updated import extract_and_schedule_all_tasks, extract_unscheduled_tasks_from_inputs_with_category, display_enriched_task_preview, save_task_schedules_by_type, load_label_map, normalize_label
 from prompts.templates import utility_provider_lookup_prompt
 from config.section_router import get_handler
@@ -362,7 +362,13 @@ def mail_trash():
                     display_enriched_task_preview(combined_df)
 
                     save_task_schedules_by_type(combined_df)
-                    st.write("📆 Scheduled Tasks:", combined_df)
+
+                    mapping = get_schedule_placeholder_mapping()
+
+                    st.subheader("🧩 Placeholder → Schedule Mapping")
+                    st.json(mapping)
+
+                    st.write("📆 Scheduled Tasks: is combined_df = combined_home_schedule_df", combined_df)
 
                     st.session_state["combined_home_schedule_df"] = combined_df
 
