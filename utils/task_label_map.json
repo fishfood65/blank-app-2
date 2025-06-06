@@ -28,6 +28,10 @@
     "template": "Put out garbage and recycling bins for collection on {timing} on {days}",
     "keys": ["timing", "days"]
   },
+    "When and where should bins be brought back in?":{
+    "template": "Bring back garbage and recycling bins for collection on {timing} on {days}",
+    "keys": ["timing", "days"]
+  },
   "Empty the trash":{
     "template": "Empty trash before pickup {timing} on {days}",
     "keys": ["timing", "days"]
