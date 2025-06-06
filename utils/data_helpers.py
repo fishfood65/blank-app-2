@@ -138,6 +138,7 @@ def register_task_input(
     """
     Registers a user input and stores it in session state for both tasks and non-tasks.
     Compatible with get_answer() by storing question/answer metadata in input_data.
+    Prevents duplicate task inputs by checking the key.
 
     Args:
         label (str): The input label (used for question and task description).
@@ -160,31 +161,38 @@ def register_task_input(
 
     if key:
         kwargs["key"] = key
+    else:
+        key = f"{section}_{sanitize(label)}"
 
     value = capture_input(label, input_fn, section=section, *args, **kwargs)
 
     if value not in (None, ""):
+        timestamp = datetime.now().isoformat()
+
         if metadata["is_task"]:
-            task_row = {
+            task_inputs = st.session_state.setdefault("task_inputs", [])
+            if not any(t.get("key") == key for t in task_inputs):
+                task_inputs.append({
+                    "question": label,
+                    "answer": value,
+                    "category": section,
+                    "section": section,
+                    "area": metadata["area"],
+                    "task_type": metadata["task_type"],
+                    "is_freq": metadata["is_freq"],
+                    "key": key,
+                    "timestamp": timestamp,  # ✅ Persist timestamp
+                })
+
+        input_data = st.session_state.setdefault("input_data", {}).setdefault(section, [])
+        if not any(i.get("key") == key for i in input_data):
+            input_data.append({
                 "question": label,
                 "answer": value,
-                "category": section,
                 "section": section,
-                "area": metadata["area"],
-                "task_type": metadata["task_type"],
-                "is_freq": metadata["is_freq"],
-                "key": key,  # ✅ Store key directly
-            }
-            st.session_state.setdefault("task_inputs", []).append(task_row)
-
-        input_record = {
-            "question": label,
-            "answer": value,
-            "section": section,
-            "key": key,  # ✅ Store key here too
-        }
-        st.session_state.setdefault("input_data", {}).setdefault(section, []).append(input_record)
-
+                "key": key,
+                "timestamp": timestamp,  # ✅ Persist timestamp
+            })
     return value
 
 def sanitize(text):

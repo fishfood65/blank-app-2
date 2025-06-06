@@ -302,7 +302,7 @@ def mail_trash():
         st.success("🔄 Level 3 session state reset. Inputs and data cleared.")
             # ⛔ Skip rerun if debugging
         if not skip_rerun:
-            st.experimental_rerun()
+            st.rerun()
 
     # 🔍 Debugging output
     with st.expander("🧠 Session State (After Reset)"):
