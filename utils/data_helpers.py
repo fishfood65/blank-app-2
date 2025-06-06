@@ -668,6 +668,21 @@ def generate_category_keywords_from_labels(input_data):
 def sanitize_label(label: str) -> str:
     return label.lower().strip().replace(" ", "_").replace("?", "").replace(":", "")
 
+def section_has_valid_input(section: str, min_entries: int = 1) -> bool:
+    """
+    Check if a given section has at least `min_entries` valid task inputs in session state.
+
+    Args:
+        section (str): The section name to filter by (e.g. "mail_trash").
+        min_entries (int): Minimum number of entries required to consider the section valid.
+
+    Returns:
+        bool: True if section has enough inputs, False otherwise.
+    """
+    inputs = st.session_state.get("task_inputs", [])
+    valid = [item for item in inputs if item.get("section") == section and item.get("answer") not in ("", None)]
+    return len(valid) >= min_entries
+
 
 
 

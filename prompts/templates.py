@@ -242,14 +242,14 @@ TEMPLATE_MAP = {
             "🧃 Indoor Compost or Green Waste",
             "🧼 Bathroom Trash Bin",
             "🪑 Other Room Trash Bins",
-            "How often and when is Outdoor Garbage and Recycling Collected?",
-            "What the Outdoor Trash Bins Look Like",
-            "Specific Location or Instructions for Emptying Outdoor Bins",
-            "Is there a common disposal area?",
-            "Instructions for Common Disposal Area",
-            "Waste Management Company Name",
-            "Contact Phone Number",
-            "When to Contact"
+            "🏞️ How often and when is Outdoor Garbage and Recycling Collected?",
+            "📍 Where are the trash, recycling, and compost bins stored outside?",
+            "🏷️ How are the outdoor bins marked?",
+            "📋 Stuff to know before putting recycling or compost in the bins?",
+            "🏠 Is a Single-family home?",
+            "🛻 When and where should garbage, recycling, and compost bins be placed for pickup?",
+            "🗑️ When and where should garbage, recycling, and compost bins be brought back in after pickup?",
+            "📇 Waste Management Company Name",
         ]
     },
     "home_security": {
