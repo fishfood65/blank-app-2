@@ -188,13 +188,16 @@ def register_task_input(
     return value
 
 def sanitize(text):
-        return (
-            text.lower().strip()
-            .replace(" ", "_")
-            .replace("?", "")
-            .replace(":", "")
-            .replace("-", "_")
-        )
+    if not isinstance(text, str):
+        print(f"[DEBUG] sanitize received invalid type: {text} ({type(text)})")
+        return ""
+    return (
+        text.lower().strip()
+        .replace(" ", "_")
+        .replace("?", "")
+        .replace(":", "")
+        .replace("-", "_")
+    )
 
 def get_answer(
     *,

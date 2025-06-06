@@ -1,4 +1,5 @@
 import streamlit as st
+from utils.debug_utils import debug_all_sections_input_capture_with_summary
 
 # ------------------------------------------------------------------
 # 1️⃣  Register pages (order here = order in sidebar)
@@ -24,3 +25,8 @@ pg.run()                      # execute the selected page
 with st.sidebar.expander("⚙️ Developer Options", expanded=False):
     st.checkbox("🐞 Enable Debug Mode", key="enable_debug_mode", value=False)
     st.checkbox("📆 Show Schedule Snapshot in Preview", key="show_schedule_snapshot", value=False)
+
+# ✅ Then the debug check happens — safely reads the key
+if st.session_state.get("enable_debug_mode"):
+    debug_all_sections_input_capture_with_summary(["home", "emergency_kit", "mail_trash_handling", "mail", "trash_handling"])
+

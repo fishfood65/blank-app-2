@@ -1,4 +1,4 @@
-### Leve 2 - Emergency Kit
+### Level 2 - Emergency Kit
 from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
 import re

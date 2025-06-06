@@ -16,3 +16,4 @@ Goal robust app for easing mental load of organizing, preparing, and collaborati
 - Ultimately, assisting in a trust, estate executor with final duties 
 
 #### 👈 Click the Left Navigation Bar To Start """)
+

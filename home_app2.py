@@ -272,7 +272,7 @@ def trash_handling(section="trash_handling"):
     st.subheader("🗑️ Trash & Recycling Instructions")
 
     # 🔒 Lock/unlock toggle
-    render_lock_toggle(session_key="trash_locked", label="Trash Info")
+    render_lock_toggle(section="trash_handling", session_key="trash_locked", label="Trash Info")
 
     # Determine whether inputs are editable
     disabled = st.session_state.get("trash_locked", False)
