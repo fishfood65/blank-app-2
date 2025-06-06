@@ -16,17 +16,13 @@ SECTION_METADATA: dict[str, dict] = {
         "requires_llm": True,
         "progress_key": "emergency_kit",
     },
-    "mail_trash_handling": {
+    "mail_trash": {
         "label": "📬 Mail & Trash",
         "icon": "📬",
         "level": 3,
         "enabled": True,
         "requires_llm": True,
-        "progress_key": "mail_trash_handling",
-        "subsections": {
-            "mail": "📬 Mail",
-            "trash_handling": "🗑️ Trash",
-        },
+        "progress_key": "mail_trash",
     },
     "home_security": {
         "label": "🔐 Home Security",

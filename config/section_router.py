@@ -26,23 +26,35 @@ def critical_documents_flow(
     with tabs[3]:
         generate_kit_tab()
 
-def get_handler(section_key: str):
+def get_handler(section_key: str, subsection_key: str | None = None):
     if section_key == "home":
         from handlers.home import home
         return home
+
     elif section_key == "emergency_kit":
         from handlers.emergency_kit import emergency_kit_utilities
         return emergency_kit_utilities
+
     elif section_key == "home_security":
         from home_app2 import home_security
         return home_security
+
     elif section_key == "emergency_kit_critical_documents":
-        from home_app2 import emergency_kit_critical_documents, emergency_kit_critical_documents, review_selected_documents, collect_document_details, generate_kit_tab 
+        from home_app2 import (
+            emergency_kit_critical_documents,
+            review_selected_documents,
+            collect_document_details,
+            generate_kit_tab,
+        )
         return emergency_kit_critical_documents
-    elif section_key == "mail_trash_handling":
-        from home_app2 import mail_trash_handling
-        return mail_trash_handling
+
+    elif section_key == "mail_trash":
+        from handlers.mail_trash import mail_trash
+        return mail_trash  # fallback to combined handler
+
     elif section_key == "bonus_level":
         from home_app2 import bonus_level
+        return bonus_level
 
     return None
+

@@ -17,10 +17,12 @@ import uuid
 import json
 from docx.shared import Inches
 from utils.preview_helpers import get_active_section_label
-from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs, render_lock_toggle
+from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs, select_runbook_date_range, render_lock_toggle
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
+from utils.common_helpers import get_schedule_utils
 from prompts.templates import utility_provider_lookup_prompt
+from config.section_router import get_handler
 
 # --- Generate the AI prompt ---
 api_key = os.getenv("MISTRAL_TOKEN")
@@ -36,15 +38,22 @@ else:
 
 # --- Helper functions (top of the file) ---
 def mail(section="mail"):
-    st.subheader("📥 Mail & Package Instructions")
+    # 🔁 Lock toggle
+    if st.session_state.get("mail_locked", False):
+        if st.button("🔓 Unlock Mail Form"):
+            st.session_state["mail_locked"] = False
+    else:
+        if st.button("🔒 Lock Mail Form"):
+            st.session_state["mail_locked"] = True
 
-    # 🔒 Lock/unlock toggle
-    render_lock_toggle(section="mail", session_key="mail_locked", label="Mail Info")
+    # Status indicator
+    status = "🔒 Locked" if st.session_state.get("mail_locked") else "✅ Editable"
+    st.markdown(f"**Status:** {status}")
 
-    # Determine whether inputs are editable
     disabled = st.session_state.get("mail_locked", False)
 
-    with st.expander("📋 Details", expanded=True):
+    # Form wrapper
+    with st.form("mail_form"):
         register_task_input(
             label= "📍 Mailbox Location", 
             input_fn = st.text_area,
@@ -99,17 +108,33 @@ def mail(section="mail"):
             disabled=disabled
         )
 
-def trash_handling(section="trash_handling"):
-    st.subheader("🗑️ Trash & Recycling Instructions")
+        submitted = st.form_submit_button("✅ Save Mail Info")
 
-    # 🔒 Lock/unlock toggle
-    render_lock_toggle(section="trash_handling", session_key="trash_locked", label="Trash Info")
+    if submitted:
+        st.success("📬 Mail info saved!")
+        if st.session_state.get("enable_debug_mode"):
+            st.json(st.session_state.get("task_inputs", {}).get(section, {}))
 
-    # Determine whether inputs are editable
+
+def trash(section="trash"):
+    # 🔁 Lock toggle
+    if st.session_state.get("trash_locked", False):
+        if st.button("🔓 Unlock Mail Form"):
+            st.session_state["trash_locked"] = False
+    else:
+        if st.button("🔒 Lock Trash Form"):
+            st.session_state["trash_locked"] = True
+
+    # Status indicator
+    status = "🔒 Locked" if st.session_state.get("trash_locked") else "✅ Editable"
+    st.markdown(f"**Status:** {status}")
+
     disabled = st.session_state.get("trash_locked", False)
     
-    # ─── Indoor Trash Disposal ────────────────────────────────
-    with st.expander("Indoor Garbage Disposal (Kitchen, Recycling, Compost, Bath, Other)", expanded=True):
+    # Form wrapper
+    with st.form("trash_form"):
+        # ─── Indoor Trash Disposal ────────────────────────────────
+        st.write("Indoor Garbage Disposal (Kitchen, Recycling, Compost, Bath, Other)")
         register_task_input(
             label="🧴 Kitchen Garbage Bin", 
             input_fn=st.text_area,
@@ -161,7 +186,7 @@ def trash_handling(section="trash_handling"):
         )
 
     # ─── Outdoor Trash Disposal ────────────────────────────────
-    with st.expander("Garbage & Recycling Pickup Details", expanded=True):
+        st.write("Garbage & Recycling Pickup Details")
         register_task_input(
             label="Where are the trash, recycling, and compost bins stored outside?", 
             input_fn=st.text_area,
@@ -177,7 +202,7 @@ def trash_handling(section="trash_handling"):
             task_type="Outdoor Trash",  
             placeholder="E.g., 'Black bin with green lid is for compost.  Black bin with black lid is for garbage.  Grey bin with blue lid is for plastic and glass container recycling. Grey bin with yellow lid is for paper recycling.'",
             disabled=disabled 
-            )
+        )
         register_task_input(
             label="Stuff to know before putting recycling or compost in the bins?", 
             input_fn=st.text_area,
@@ -185,10 +210,10 @@ def trash_handling(section="trash_handling"):
             task_type="Outdoor Trash", 
             placeholder="E.g., 'Separate the recycling into paper, containers (plastic, glass). Compost goes into the compost bin.'",
             disabled=disabled
-            )
+        )
 
     # ─── Single-Family Disposal Area ─────────────────────────────────
-    with st.expander("Single-family homes only", expanded=True):
+        st.write("Single-family homes only")
         single_family_disposal = register_task_input(
             label="Is a Single-family home?",
             input_fn=st.checkbox,
@@ -216,7 +241,7 @@ def trash_handling(section="trash_handling"):
                 disabled=disabled, 
                 )
     # ─── Waste Management Contact ─────────────────────────────
-    with st.expander("Waste Management Contact Info", expanded=True):
+        st.write("Waste Management Contact Info")
         register_task_input(
             label="Waste Management Company Name", 
             input_fn=st.text_input, 
@@ -238,6 +263,76 @@ def trash_handling(section="trash_handling"):
             task_type="Outdoor Trash", 
             disabled=disabled,
             )
+        submitted = st.form_submit_button("✅ Save Trash Info")
 
+    if submitted:
+        st.success("📬 Trash info saved!")
+        if st.session_state.get("enable_debug_mode"):
+            st.json(st.session_state.get("task_inputs", {}).get(section, {}))
 
 # --- Main Function Start ---
+
+def mail_trash():
+    section = "mail_trash"
+    generate_key = f"generate_runbook_{section}"  # Define it early
+
+    # Optional reset
+    skip_rerun = st.checkbox("⚠️ Skip rerun (debug only)", value=False)
+    if st.checkbox("🔪 Reset Mail and Trash Session State"):
+        keys_to_clear = [
+            "generated_prompt",
+            "runbook_buffer",
+            "runbook_text",
+            "user_confirmation",
+            "task_inputs",
+            "combined_home_schedule_df",
+            "mail_schedule_df",
+            "trash_schedule_df",
+            "mail_schedule_markdown",
+            "trash_flat_schedule_md",
+            "home_schedule_markdown",
+            "mail_locked",
+            "trash_locked",
+            "indoor_trash_schedule_df",
+            "mail_handling_schedule_df",
+            "outdoor_trash_schedule_df",
+            "input_data",
+            "autosaved_json",
+            "interaction_log",
+            "grouped_mail_task",
+            "grouped_trash_schedule"
+        ]
+        for key in keys_to_clear:
+            if key in st.session_state:
+                del st.session_state[key]
+
+        st.success("🔄 Level 3 session state reset. Inputs and data cleared.")
+            # ⛔ Skip rerun if debugging
+        if not skip_rerun:
+            st.experimental_rerun()
+
+    # 🔍 Debugging output
+    with st.expander("🧠 Session State (After Reset)"):
+        st.json({k: str(v) for k, v in st.session_state.items()})
+
+    section = st.session_state.get("section", "home")
+
+    st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")
+
+
+# --- Use Expanders to Break out Groups ---
+
+    # 📬 Mail
+    from handlers.mail_trash import mail
+    with st.expander("📬 Mail Handling", expanded=True):
+        mail()
+
+    # 🗑️ Trash
+    from handlers.mail_trash import trash
+    with st.expander("🗑️ Trash Handling", expanded=False):
+        trash()
+
+    # 🧐 Review
+    st.markdown("### 🧐 Review & Reward")
+    # Your placeholder or preview/export function here
+    # e.g., render_schedule_preview(), render_prompt_preview(), etc.

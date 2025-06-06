@@ -27,7 +27,7 @@ from utils.data_helpers import (
 )
 from utils.runbook_generator_helpers import (
     maybe_render_download,
-    generate_docx_from_prompt_blocks
+    generate_docx_from_prompt_blocks,
 )
 from utils.task_schedule_utils_updated import (
     extract_and_schedule_all_tasks,
@@ -49,6 +49,7 @@ from config.sections import (
     LLM_SECTIONS,
     check_home_progress
 )
+from old.old_code import render_prompt_preview
 from config.section_router import get_handler, critical_documents_flow
 from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
@@ -200,6 +201,40 @@ def main():
         st.write("🎯 Current section from session:", section)
 
 ###### Main Functions that comprise of the Levels
+
+def render_prompt_preview(missing: list, section: str = "home"):
+    confirmed = st.session_state.get(f"{section}_user_confirmation", False)
+
+    with st.expander("🧠 AI Prompt Preview (Optional)", expanded=True):
+        if missing:
+            st.warning(f"⚠️ Cannot generate prompt. Missing: {', '.join(missing)}")
+            return
+
+        if not confirmed:
+            st.info("☕️ Please check the box to confirm AI prompt generation.")
+            return
+
+        prompt = st.session_state.get("generated_prompt", "")
+        prompt_blocks = st.session_state.get("prompt_blocks", [])
+        schedule_md = st.session_state.get("home_schedule_markdown", "_No schedule available._")
+
+        if not prompt:
+            st.warning("⚠️ Prompt not generated yet.")
+            return
+
+        # Build combined preview by inserting schedule into the final prompt block
+        if prompt_blocks:
+            full_preview = "\n\n".join(prompt_blocks)
+            full_preview = full_preview.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
+        else:
+            full_preview = prompt.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
+
+        # Display the formatted full prompt preview
+        st.markdown(full_preview)
+        if section == "mail_trash_handling":
+            st.markdown("### 📋 Schedule Preview")
+            st.markdown(st.session_state.get("home_schedule_markdown", "_No schedule available._"))
+        st.success("✅ Prompt ready! This is what will be sent to the LLM.")
 
 
 ##### Level 3 - Mail Handling and Trash

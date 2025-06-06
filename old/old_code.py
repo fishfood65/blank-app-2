@@ -18,7 +18,6 @@ import json
 from docx.shared import Inches, Pt
 from typing import List, Tuple, Optional, Union
 from utils.common_helpers import (
-    check_home_progress,
     extract_all_trash_tasks_grouped, 
     extract_grouped_mail_task, 
     generate_flat_home_schedule_markdown,
@@ -35,7 +34,6 @@ from utils.data_helpers import (
     get_answer, 
     extract_and_log_providers, 
     log_provider_result, 
-    autolog_location_inputs, 
     preview_input_data, 
     check_missing_utility_inputs, 
     export_input_data_as_csv, 
@@ -45,10 +43,8 @@ from utils.data_helpers import (
     select_runbook_date_range,
     register_task_input,
     extract_providers_from_text,
-    build_metadata
 )
 from utils.runbook_generator_helpers import (
-    maybe_generate_prompt,
     maybe_render_download,
     maybe_generate_runbook,
     generate_docx_from_prompt_blocks,
