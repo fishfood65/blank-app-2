@@ -204,6 +204,7 @@ def emergency_kit_utilities():
             api_key=os.getenv("MISTRAL_TOKEN"),
             doc_heading="⛑️ Utilities & Emergency Kit Runbook ",
             debug=st.session_state.get("enable_debug_mode", False)
+            #include_priority=include_priority
         )
 
     maybe_generate_runbook(

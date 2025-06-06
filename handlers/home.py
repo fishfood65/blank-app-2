@@ -312,7 +312,8 @@ def home():
                 use_llm=bool(True),
                 api_key=os.getenv("MISTRAL_TOKEN"),
                 doc_heading="🏠 Utilities Emergency Runbook",
-                debug=False
+                debug=False,
+                #include_priority=include_priority
             )
             if st.session_state.get("enable_debug_mode"):
                 st.write("📋 Blocks sent to DOCX generator:", blocks)

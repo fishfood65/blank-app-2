@@ -350,6 +350,9 @@ def mail_trash():
             combined_df = None
             refresh_preview = st.checkbox("🔄 Refresh Preview", value=True)
 
+            include_priority = st.checkbox("🔢 Show priority and emoji in schedule tables", value=True)
+            st.session_state["include_priority"] = include_priority  # Optional: store for reuse
+
             if refresh_preview:
                 combined_df = extract_and_schedule_all_tasks(valid_dates, utils)
 

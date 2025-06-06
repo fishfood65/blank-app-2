@@ -1,9 +1,11 @@
+import pandas as pd
 import streamlit as st
 import json
 from typing import List
 from .data_helpers import sanitize, get_answer, sanitize_label
 from config.sections import SECTION_METADATA
 from .runbook_generator_helpers import runbook_preview_dispatcher
+from utils.task_schedule_utils_updated import extract_and_schedule_all_tasks, extract_unscheduled_tasks_from_inputs_with_category, display_enriched_task_preview, save_task_schedules_by_type, load_label_map, normalize_label
 
 DEFAULT_COMMON_SECTIONS = set(SECTION_METADATA.keys())
 
@@ -37,7 +39,7 @@ def debug_task_input_capture_with_answers_tabs(section: str):
     entries = st.session_state.get("task_inputs", [])
     input_data = st.session_state.get("input_data", {}).get(section, [])
     st.markdown(f"## 🔍 Debug for Section: `{section}`")
-    tabs = st.tabs(["🧾 Input Records", "📬 get_answer() Results", "📖 Runbook Preview", "🧠 Session State"])
+    tabs = st.tabs(["🧾 Input Records", "📬 get_answer() Results", "📖 Runbook Preview", "🧠 Session State", "🧪 Enriched Diff",])
 
     with tabs[0]:
         st.subheader("📌 task_inputs")
@@ -74,6 +76,9 @@ def debug_task_input_capture_with_answers_tabs(section: str):
     with tabs[3]:
         st.subheader("🧠 Raw `st.session_state`")
         st.json(dict(st.session_state))
+
+    with tabs[4]:  # ✅ Enrichment Diff tab
+        render_enrichment_debug_view(section)
 
 def debug_single_get_answer(section: str, key: str):
     st.markdown(f"### 🧪 Debug `get_answer(section='{section}', key='{key}')`")
@@ -155,4 +160,61 @@ def clear_all_session_data():
         st.session_state.pop(key, None)
 
     st.success("🧹 All session state has been cleared.")
+
+def render_enrichment_debug_view(section: str):
+    """
+    Renders debug info comparing raw vs enriched task scheduling.
+    Includes label normalization and task diffs.
+    """
+    st.markdown("## 🔍 Task Preview: Raw vs Enriched")
+
+    raw_df = extract_unscheduled_tasks_from_inputs_with_category()
+    combined_df = st.session_state.get("combined_home_schedule_df")
+    label_map = load_label_map()
+
+    if not raw_df.empty:
+        st.markdown("### 🔍 Label → Clean Task Mappings")
+        for label in raw_df["question"].dropna().unique():
+            norm_label = normalize_label(label)
+            cleaned = label_map.get(norm_label, "⚠️ No match in LABEL_MAP")
+            st.text(f"Label: '{label}' → Normalized: '{norm_label}' → Cleaned: '{cleaned}'")
+    else:
+        st.warning("⚠️ No raw tasks available to preview.")
+
+    if not raw_df.empty:
+        st.markdown("### 📝 Raw Task Inputs")
+        st.dataframe(raw_df)
+
+    if isinstance(combined_df, pd.DataFrame) and not combined_df.empty:
+        st.markdown("### ✨ Enriched & Scheduled Tasks")
+        st.dataframe(combined_df)
+
+        st.markdown("### 🔁 Matched Task Diffs")
+        for i, row in raw_df.iterrows():
+            raw_q = str(row.get("question", "")).strip()
+            raw_a = str(row.get("answer", "")).strip()
+
+            matches = combined_df[
+                combined_df["question"].astype(str).str.strip() == raw_q
+            ]
+
+            if not matches.empty:
+                enriched_sample = matches.iloc[0]
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**Raw Task {i+1}:**")
+                    st.write(f"**Question:** {raw_q}")
+                    st.write(f"**Answer:** {raw_a}")
+
+                with col2:
+                    st.markdown("**🪄 Enriched View**")
+                    st.write(f"**Clean Task:** {enriched_sample.get('clean_task', '')}")
+                    st.write(f"**Formatted Answer:** {enriched_sample.get('formatted_answer', '')}")
+                    st.write(f"**Inferred Days:** {enriched_sample.get('inferred_days', '')}")
+            else:
+                st.warning(f"⚠️ No enriched match for: `{raw_q}`")
+    else:
+        st.warning("⚠️ No enriched schedule found.")
+
 

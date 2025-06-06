@@ -154,7 +154,8 @@ def generate_docx_from_prompt_blocks(
     doc_heading: str = "Runbook",
     model: str = "mistral-small-latest",
     debug: bool = False,
-    insert_main_heading: bool = True, 
+    insert_main_heading: bool = True,
+    include_priority: bool = False, 
 ) -> Tuple[io.BytesIO, str]:
     from docx import Document
     from docx.shared import Pt
