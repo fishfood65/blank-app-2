@@ -367,13 +367,9 @@ def mail_runbook_prompt(section: str = "mail_trash", debug: bool = False) -> str
         safe_line("Mailbox key location", mail_info.get("🔑 Mailbox Key (Optional)")),
         safe_line("Pick up Mail", mail_info.get("📆 Mail Pick-Up Schedule")),
         safe_line("After picking up the mail, please", mail_info.get("📥 What to Do with the Mail")),
-        safe_line("Where to pick up and store all packages", mail_info.get("📦 Packages")),
+        safe_line("Where should non-mail packages (e.g., Amazon, UPS) be picked up?", mail_info.get("🚚 Pick up oversized packages at")),
+        safe_line("Where should all packages be stored after delivery?", mail_info.get("📦 Place packages after pickup")),
     ]))
-
-    instructions = (
-        "Use the provided instructions for where, when, and how to collect and store mail and packages. "
-        "DO NOT invent details, add advice, or insert a schedule table. Leave all placeholders untouched."
-    )
 
     markdown = f"""
 ## 📬 Mail Handling Instructions
@@ -388,7 +384,7 @@ def mail_runbook_prompt(section: str = "mail_trash", debug: bool = False) -> str
     return wrap_prompt_block(
         content=markdown,
         title="📬 Mail Handling Instructions",
-        instructions=instructions,
+        instructions=None,
         debug=debug,
         section=section  # Pass explicitly to wrap_prompt_block
     )
@@ -428,9 +424,9 @@ def trash_runbook_prompt(section: str = "trash_handling", debug: bool = False) -
 
     # Outdoor Trash Instructions
     outdoor_block = "\n".join(filter(None, [
-        safe_line("Location of outside trash, recycling, and compost bins:", trash_info.get("Where are the trash, recycling, and compost bins stored outside?")),
-        safe_line("Outdoor bins are marked as follows:", trash_info.get("How are the outdoor bins marked?")),
-        safe_line("Important steps to follow before putting recycling or compost in the bins:", trash_info.get("Stuff to know before putting recycling or compost in the bins?")),
+        safe_line("Location of outside trash, recycling, and compost bins:", trash_info.get("📍 Bin Storage Location")),
+        safe_line("Outdoor bins are marked as follows:", trash_info.get("🏷️ How are bins marked?")),
+        safe_line("Important steps to follow before putting recycling or compost in the bins:", trash_info.get("📋 What to know before recycling or composting")),
     ]))
 
     # Single Family Disposal Instruction
