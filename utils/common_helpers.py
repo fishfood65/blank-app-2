@@ -347,13 +347,16 @@ def generate_flat_home_schedule_markdown(schedule_df):
 
 def get_schedule_utils():
     """Shared date parsing, tag generation, and frequency utilities."""
-    print("💡 get_schedule_utils() CALLED")
+    print("✨ get_schedule_utils() CALLED")
+    import calendar
     emoji_tags = {
         "[Daily]": "🔁 Daily",
         "[Weekly]": "📅 Weekly",
         "[One-Time]": "🗓️ One-Time",
         "[X-Weeks]": "↔️ Every X Weeks",
-        "[Monthly]": "📆 Monthly"
+        "[Monthly]": "📆 Monthly",
+        "[Quarterly]": "🔢 Quarterly",
+        "[Bi-Annually]": "🌐 Bi-Annually"
     }
 
     weekday_to_int = {
@@ -364,20 +367,15 @@ def get_schedule_utils():
     def extract_week_interval(text):
         text = text.lower()
         print("🧪 Checking interval in text:", text)
-
-        # ✅ Fix: use \d+ correctly, not \\d+
-        if "every week" in text and not re.search(r"every \d+ week", text):
+        if "every week" in text and not re.search(r"every \\d+ week", text):
             print("✅ Detected 'every week' → returning 1")
             return 1
-
-        match = re.search(r"every (\d+) week", text)
+        match = re.search(r"every (\\d+) week", text)
         if match:
             print(f"✅ Detected 'every {match.group(1)} weeks'")
             return int(match.group(1))
-
         if "biweekly" in text:
             return 2
-
         return None
 
     def extract_weekday_mentions(text):
@@ -385,8 +383,8 @@ def get_schedule_utils():
 
     def extract_dates(text):
         patterns = [
-            r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?",
-            r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?"
+            r"\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\s+\\d{1,2}(?:,\\s*\\d{4})?",
+            r"\\b\\d{1,2}/\\d{1,2}(?:/\\d{2,4})?"
         ]
         matches = []
         for pattern in patterns:
@@ -399,6 +397,40 @@ def get_schedule_utils():
         except:
             return None
 
+    def extract_annual_dates(text):
+        matches = []
+        for match in re.findall(r"every (\w+ \d{1,2}|\d{1,2}/\d{1,2})", text.lower()):
+            try:
+                dt = pd.to_datetime(match, errors="coerce")
+                if pd.notna(dt):
+                    matches.append((dt.month, dt.day))
+            except:
+                pass
+        return matches
+
+    def extract_ordinal_patterns(text):
+        ordinals = {
+            "first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3,
+            "fourth": 4, "4th": 4, "fifth": 5, "5th": 5
+        }
+        patterns = []
+        for ordinal, num in ordinals.items():
+            for day in weekday_to_int:
+                pattern = rf"{ordinal} {day.lower()}"
+                if re.search(pattern, text.lower()):
+                    patterns.append((num, day))
+        return patterns
+
+    def resolve_nth_weekday(year, month, weekday_name, n):
+        weekday_num = weekday_to_int[weekday_name]
+        count = 0
+        for day in range(1, calendar.monthrange(year, month)[1] + 1):
+            if datetime(year, month, day).weekday() == weekday_num:
+                count += 1
+                if count == n:
+                    return datetime(year, month, day).date()
+        return None
+
     def determine_frequency_tag(text, valid_dates):
         interval = extract_week_interval(text)
         weekday_mentions = extract_weekday_mentions(text)
@@ -408,6 +440,10 @@ def get_schedule_utils():
             if parsed_date and parsed_date in valid_dates:
                 return emoji_tags["[One-Time]"]
 
+        if "quarterly" in text.lower():
+            return emoji_tags["[Quarterly]"]
+        if "bi-annual" in text.lower() or "biannually" in text.lower():
+            return emoji_tags["[Bi-Annually]"]
         if interval:
             return f"↔️ Every {interval} Weeks"
         if weekday_mentions and not interval:
@@ -423,8 +459,12 @@ def get_schedule_utils():
         "extract_weekday_mentions": extract_weekday_mentions,
         "extract_dates": extract_dates,
         "normalize_date": normalize_date,
-        "determine_frequency_tag": determine_frequency_tag
+        "determine_frequency_tag": determine_frequency_tag,
+        "extract_annual_dates": extract_annual_dates,
+        "extract_ordinal_patterns": extract_ordinal_patterns,
+        "resolve_nth_weekday": resolve_nth_weekday
     }
+
 
 def get_schedule_placeholder_mapping() -> dict:
     """
@@ -502,16 +542,43 @@ def merge_all_schedule_dfs(
             if annotate_source:
                 df_copy["SourceKey"] = key
 
-            # Optional filtering by valid date range
             if valid_dates is not None and "Date" in df_copy.columns:
                 df_copy = df_copy.copy()
                 df_copy["Date"] = pd.to_datetime(df_copy["Date"], errors="coerce")
                 df_copy = df_copy[df_copy["Date"].dt.date.isin(valid_dates)]
 
-            # Optional place to use `utils` for preprocessing (e.g., utils.normalize_task_df(df_copy))
-            # Example:
-            # if utils and hasattr(utils, "normalize_task_df"):
-            #     df_copy = utils.normalize_task_df(df_copy)
+            if utils:
+                for col in df_copy.columns:
+                    if df_copy[col].dtype == object:
+                        try:
+                            df_copy[col] = df_copy[col].astype(str)
+                        except Exception:
+                            pass
+
+                if "clean_task" in df_copy.columns:
+                    df_copy["WeekdayMentions"] = df_copy["clean_task"].apply(
+                        lambda x: utils["extract_weekday_mentions"](x) if isinstance(x, str) else []
+                    )
+
+                    df_copy["FrequencyTag"] = df_copy["clean_task"].apply(
+                        lambda x: utils["determine_frequency_tag"](x, valid_dates or []) if isinstance(x, str) else ""
+                    )
+
+                    df_copy["DateMentions"] = df_copy["clean_task"].apply(
+                        lambda x: utils["extract_dates"](x) if isinstance(x, str) else []
+                    )
+
+                    df_copy["WeekInterval"] = df_copy["clean_task"].apply(
+                        lambda x: utils["extract_week_interval"](x) if isinstance(x, str) else None
+                    )
+
+                    df_copy["AnnualDates"] = df_copy["clean_task"].apply(
+                        lambda x: utils["extract_annual_dates"](x) if isinstance(x, str) else []
+                    )
+
+                    df_copy["OrdinalPatterns"] = df_copy["clean_task"].apply(
+                        lambda x: utils["extract_ordinal_patterns"](x) if isinstance(x, str) else []
+                    )
 
             merged_frames.append(df_copy)
 
@@ -521,13 +588,86 @@ def merge_all_schedule_dfs(
 
     combined_df = pd.concat(merged_frames, ignore_index=True)
 
+    if utils and valid_dates:
+        expanded_rows = []
+        for _, row in combined_df.iterrows():
+            weekdays = row.get("WeekdayMentions", [])
+            interval = row.get("WeekInterval")
+            freq_tag = row.get("FrequencyTag", "")
+            one_time_dates = [utils["normalize_date"](d) for d in row.get("DateMentions", [])]
+            annual_tuples = row.get("AnnualDates", [])
+            ordinal_patterns = row.get("OrdinalPatterns", [])
+
+            if "Daily" in freq_tag:
+                weekdays = list(utils["weekday_to_int"].keys())
+
+            for date in valid_dates:
+                if one_time_dates and date in one_time_dates:
+                    new_row = row.copy()
+                    new_row["Date"] = date
+                    new_row["Day"] = date.strftime("%A")
+                    expanded_rows.append(new_row)
+                    continue
+
+                if any((date.month, date.day) == tup for tup in annual_tuples):
+                    new_row = row.copy()
+                    new_row["Date"] = date
+                    new_row["Day"] = date.strftime("%A")
+                    expanded_rows.append(new_row)
+                    continue
+
+                if "Quarterly" in freq_tag and (date.month, date.day) in [(1, 1), (4, 1), (7, 1), (10, 1)]:
+                    new_row = row.copy()
+                    new_row["Date"] = date
+                    new_row["Day"] = date.strftime("%A")
+                    expanded_rows.append(new_row)
+                    continue
+
+                if "Bi-Annually" in freq_tag and (date.month, date.day) in [(1, 1), (7, 1)]:
+                    new_row = row.copy()
+                    new_row["Date"] = date
+                    new_row["Day"] = date.strftime("%A")
+                    expanded_rows.append(new_row)
+                    continue
+
+                if weekdays:
+                    weekday_numbers = [utils["weekday_to_int"].get(day) for day in weekdays]
+                    if date.weekday() not in weekday_numbers:
+                        continue
+
+                    if interval and interval > 1:
+                        ref_date = valid_dates[0]
+                        delta_weeks = (date - ref_date).days // 7
+                        if delta_weeks % interval != 0:
+                            continue
+
+                    if "Monthly" in freq_tag and date.day != valid_dates[0].day:
+                        continue
+
+                    new_row = row.copy()
+                    new_row["Date"] = date
+                    new_row["Day"] = date.strftime("%A")
+                    expanded_rows.append(new_row)
+                    continue
+
+                for ordinal_day, weekday in ordinal_patterns:
+                    nth_weekday = utils["resolve_nth_weekday"](date.year, date.month, weekday, ordinal_day)
+                    if date == nth_weekday:
+                        new_row = row.copy()
+                        new_row["Date"] = date
+                        new_row["Day"] = date.strftime("%A")
+                        expanded_rows.append(new_row)
+                        break
+
+        if expanded_rows:
+            combined_df = pd.DataFrame(expanded_rows)
+
     if deduplicate and dedup_fields:
         before = len(combined_df)
         combined_df = combined_df.drop_duplicates(subset=dedup_fields)
         after = len(combined_df)
         if before > after:
             st.info(f"🧹 Removed {before - after} duplicate task entries.")
-
 
     if show_summary and "SourceKey" in combined_df.columns and st.session_state.get("enable_debug_mode", False):
         st.subheader("📊 Schedule Source Summary")
@@ -546,5 +686,6 @@ def merge_all_schedule_dfs(
         st.session_state[output_key] = combined_df
 
     return combined_df
+
 
 

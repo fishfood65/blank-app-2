@@ -316,7 +316,16 @@ def get_schedule_utils():
         return None
 
     def extract_weekday_mentions(text):
-        return [day for day in weekday_to_int if day.lower() in text.lower()]
+        text = text.lower()
+        weekdays = []
+        if "weekend" in text:
+            weekdays.extend(["Saturday", "Sunday"])
+        if "weekday" in text:
+            weekdays.extend(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"])
+        for day in weekday_to_int:
+            if day.lower() in text:
+                weekdays.append(day)
+        return sorted(set(weekdays))
 
     def extract_dates(text):
         patterns = [
@@ -327,6 +336,32 @@ def get_schedule_utils():
         for pattern in patterns:
             matches += re.findall(pattern, text, flags=re.IGNORECASE)
         return matches
+    
+    def extract_annual_dates(text):
+        """
+        Extract annual recurrence patterns like 'every July 4' or 'every 7/4'
+        and return a list of (month, day) tuples.
+        """
+        results = []
+
+        # Match "every July 4" or "each July 4"
+        month_day_pattern = re.findall(r"(?:every|each)?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2})", text, re.IGNORECASE)
+        for month, day in month_day_pattern:
+            try:
+                parsed_date = pd.to_datetime(f"{month} {day}", format="%b %d")
+                results.append((parsed_date.month, parsed_date.day))
+            except:
+                pass
+
+        # Match numeric form: "every 7/4" or "on 07/04"
+        numeric_pattern = re.findall(r"(?:every|on)?\s*(\d{1,2})/(\d{1,2})", text)
+        for month, day in numeric_pattern:
+            try:
+                results.append((int(month), int(day)))
+            except:
+                pass
+
+        return results
 
     def normalize_date(date_str):
         try:
