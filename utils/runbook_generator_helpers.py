@@ -342,28 +342,7 @@ def generate_docx_from_prompt_blocks(
     combined_schedule = st.session_state.get("combined_home_schedule_df")
     if isinstance(combined_schedule, pd.DataFrame) and not combined_schedule.empty:
         doc.add_heading("📆 Complete Schedule Summary", level=1)
-        combined_schedule["Date"] = pd.to_datetime(combined_schedule["Date"], errors="coerce")
-        combined_schedule = combined_schedule.sort_values(by=["Date", "Category", "Tag", "Task"])
-
-        for date, group in combined_schedule.groupby("Date"):
-            day_str = date.strftime("%A, %Y-%m-%d")
-            doc.add_heading(f"📅 {day_str}", level=2)
-
-            for category, cat_group in group.groupby("Category"):
-                doc.add_heading(category, level=3)
-                table = doc.add_table(rows=1, cols=1)
-                table.style = 'Light List'
-                table.autofit = True
-
-                hdr_cells = table.rows[0].cells
-                hdr_cells[0].text = 'Task'
-
-                for _, row in cat_group.iterrows():
-                    task = row["Task"]
-                    row_cells = table.add_row().cells
-                    row_cells[0].text = task
-
-                doc.add_paragraph("")
+        add_table_from_schedule(doc, combined_schedule, section=section, include_priority=include_priority)
 
         markdown_output.append("## 📆 Complete Schedule Summary")
         markdown_output.append(add_table_from_schedule_to_markdown(combined_schedule, section))
