@@ -402,7 +402,7 @@ def mail_trash():
             section=section,
             blocks=blocks,  
             insert_main_heading=True,
-            use_llm=True,
+            use_llm=False,
             api_key=os.getenv("MISTRAL_TOKEN"),
             doc_heading="⛑️ Utilities & Emergency Kit Runbook ",
             debug=st.session_state.get("enable_debug_mode", False),

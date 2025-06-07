@@ -6,15 +6,16 @@ def wrap_prompt_block(
     *,
     title: str = "",
     instructions: str = "",
+    section: str = None,
     debug: bool = False,
     for_llm: bool = False
 ) -> str:
     """
-    Wraps a content block with optional title and guidance.
-    Can be used for LLM prompts or export-ready formatting.
+    Wraps a content block with optional title, guidance, and section metadata.
+    Useful for both LLM prompts and export-ready documentation.
     """
 
-    # 🛡️ Normalize input
+    # 🛡️ Normalize input types
     if isinstance(content, list):
         content = "\n\n".join(str(item) for item in content)
     elif isinstance(content, dict):
@@ -24,17 +25,25 @@ def wrap_prompt_block(
 
     block = []
 
+    # Optional section marker (can also be used for debugging or internal tracking)
+    if section:
+        block.append(f"<!-- Section: {section} -->")
+
+    # Markdown heading
     if title:
         block.append(f"# {title}")
 
+    # Instructions block
     if instructions:
         if for_llm:
             block.append(f"_Instructions: {instructions}_")  # LLM-friendly
         else:
-            block.append(f"**Instructions:** {instructions}")  # Reader-friendly
+            block.append(f"**Instructions:** {instructions}")  # User-facing
 
+    # Content itself
     block.append(content)
 
+    # Join and return
     final = "\n\n".join(block).strip()
 
     if debug:

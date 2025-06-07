@@ -100,7 +100,7 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
                         fallback_emergency_kit_utilities_runbook_prompt(section=section)
             )
         ],
-        "mail_trash_handling": [
+        "mail_trash": [
             ("Mail Instructions", lambda: mail_runbook_prompt(section=section, debug=debug)),
             ("Trash Instructions", lambda: trash_runbook_prompt(section=section, debug=debug)),
         ],
