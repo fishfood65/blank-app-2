@@ -358,7 +358,7 @@ def generate_docx_from_prompt_blocks(
                 doc.add_paragraph("")
 
         markdown_output.append("## 📆 Complete Schedule Summary")
-        markdown_output.append(add_table_from_schedule_to_markdown(combined_schedule))
+        markdown_output.append(add_table_from_schedule_to_markdown(combined_schedule, section))
     else:
         if debug:
             debug_warnings.append(

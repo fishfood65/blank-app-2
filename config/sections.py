@@ -4,6 +4,7 @@ SECTION_METADATA: dict[str, dict] = {
         "label": "🏠 Home Setup",
         "icon": "🏠",
         "level": 1,
+        "visible": True,
         "enabled": True,
         "requires_llm": True,
         "progress_key": "home",
@@ -12,6 +13,7 @@ SECTION_METADATA: dict[str, dict] = {
         "label": "🧰 Emergency Kit",
         "icon": "🧰",
         "level": 2,
+        "visible": True,
         "enabled": True,
         "requires_llm": True,
         "progress_key": "emergency_kit",
@@ -20,6 +22,7 @@ SECTION_METADATA: dict[str, dict] = {
         "label": "📬 Mail & Trash",
         "icon": "📬",
         "level": 3,
+        "visible": True,
         "enabled": True,
         "requires_llm": True,
         "progress_key": "mail_trash",
@@ -28,6 +31,7 @@ SECTION_METADATA: dict[str, dict] = {
         "label": "🔐 Home Security",
         "icon": "🔐",
         "level": 4,
+        "visible": True,
         "enabled": True,
         "requires_llm": False,
         "progress_key": "home_security",
@@ -36,6 +40,7 @@ SECTION_METADATA: dict[str, dict] = {
         "label": "📑 Critical Documents",
         "icon": "📑",
         "level": 5,
+        "visible": True,
         "enabled": True,
         "requires_llm": False,
         "progress_key": "emergency_kit_critical_documents",
@@ -44,6 +49,16 @@ SECTION_METADATA: dict[str, dict] = {
         "label": "🎁 Bonus Level",
         "icon": "🎁",
         "level": None,  # Optional/extra
+        "visible": True,
+        "enabled": True,
+        "requires_llm": False,
+        "progress_key": "bonus_level",
+    },
+    "runbook_date_range": {
+        "label": "📅 Runbook Date Selection",
+        "icon": "📅",
+        "level": None,  # Optional/extra
+        "visible": False, # Helps hide it from sidebar rendering logic
         "enabled": True,
         "requires_llm": False,
         "progress_key": "bonus_level",
@@ -75,3 +90,19 @@ def check_home_progress(progress_dict):
     percent_complete = int((len(completed) / total_levels) * 100)
 
     return percent_complete, completed_sorted
+
+def get_all_sections(include_hidden: bool = False):
+    """
+    It gives you a single point of reference to retrieve the list of all known sections 
+    (from SECTION_METADATA) — optionally filtering out hidden/internal ones.
+
+    Usage:
+    from config.sections import get_all_sections
+
+    all_sections = get_all_sections()  # Just visible sections
+    all_sections_debug = get_all_sections(include_hidden=True)  # All sections
+    """
+
+    if include_hidden:
+        return list(SECTION_METADATA.keys())
+    return [key for key, meta in SECTION_METADATA.items() if meta.get("visible", True)]

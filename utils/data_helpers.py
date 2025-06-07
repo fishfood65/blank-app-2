@@ -333,66 +333,48 @@ def get_filtered_dates(start_date, end_date, refinement):
     else:  # All Days
         return list(daterange(start_date, end_date))
     
-def select_runbook_date_range(section="runbook_date_range") -> Tuple[str, Optional[datetime], Optional[datetime], List[datetime]]:
+def select_runbook_date_range(section="runbook_date_range"):
+    """
+    Displays a user-friendly runbook date selector with presets, date inputs, and confirmation.
+    Stores confirmation status in session state to control downstream flow.
+    Returns: choice, start_date, end_date, valid_dates
+    """
+    st.markdown("### 🗓️ Customize Your Runbook Date Range")
+
+    options = ["Pick Dates", "General"]
+    choice = register_task_input(
+        label="Runbook Timeframe Option",
+        input_fn=st.radio,
+        section=section,
+        options=options,
+        index=0,
+        key="runbook_timeframe_option"
+    )
+
+    start_date, end_date, valid_dates, refinement = None, None, [], "All Days"
     today = datetime.now().date()
-    display_choice = None
-    start_date, end_date = None, None
-    valid_dates = []
 
-    presets = ["Next 3 Days", "This Weekend", "Next Week", "Custom Range"]
-
-    st.markdown("### 📅 Customize Your Runbook Date Range")
-
-    # Presets as column radios
-    cols = st.columns(len(presets))
-    preset_choice = None
-    for i, preset in enumerate(presets):
-        if cols[i].button(preset):
-            st.session_state["date_range_preset"] = preset
-
-    preset_choice = st.session_state.get("date_range_preset", "Next 3 Days")
-
-    # Handle presets
-    if preset_choice == "Next 3 Days":
-        start_date = today
-        end_date = today + timedelta(days=2)
-        refinement = "All Days"
-
-    elif preset_choice == "This Weekend":
-        next_saturday = today + timedelta((5 - today.weekday()) % 7)
-        next_sunday = next_saturday + timedelta(days=1)
-        start_date, end_date = next_saturday, next_sunday
-        refinement = "All Days"
-
-    elif preset_choice == "Next Week":
-        next_monday = today + timedelta((7 - today.weekday()) % 7)
-        next_sunday = next_monday + timedelta(days=6)
-        start_date, end_date = next_monday, next_sunday
-        refinement = "All Days"
-
-    elif preset_choice == "Custom Range":
+    if choice == "Pick Dates":
         col1, col2 = st.columns(2)
-        start_date = register_task_input(
-            label="Start Date",
-            input_fn=col1.date_input,
-            section=section,
-            value=today,
-            key="start_date_input"
-        )
-        end_date = register_task_input(
-            label="End Date",
-            input_fn=col2.date_input,
-            section=section,
-            value=today + timedelta(days=7),
-            key="end_date_input"
-        )
+        with col1:
+            start_date = register_task_input(
+                label="Start Date",
+                input_fn=st.date_input,
+                section=section,
+                value=today,
+                key="start_date_input"
+            )
+        with col2:
+            end_date = register_task_input(
+                label="End Date",
+                input_fn=st.date_input,
+                section=section,
+                value=today + timedelta(days=7),
+                key="end_date_input"
+            )
 
         if start_date >= end_date:
-            st.error("⚠️ Start date must be before end date.")
-            return None, None, None, []
-
-        if (end_date - start_date).days > 31:
-            st.error("⚠️ Date range too long. Limit: 31 days.")
+            st.error("\u26a0\ufe0f Start date must be before end date.")
             return None, None, None, []
 
         refinement = register_task_input(
@@ -404,26 +386,32 @@ def select_runbook_date_range(section="runbook_date_range") -> Tuple[str, Option
             horizontal=True,
             key="refinement_option"
         )
-    else:
-        st.warning("⚠️ Invalid preset selected.")
-        return None, None, None, []
 
-    # Final result
-    valid_dates = get_filtered_dates(start_date, end_date, refinement)
-    display_choice = f"{preset_choice} ({refinement})"
+        valid_dates = get_filtered_dates(start_date, end_date, refinement)
+        st.info(f"🗓️ Using dates from **{start_date}** to **{end_date}** ({refinement})")
 
-    col_reset, col_summary = st.columns([1, 4])
+    elif choice == "General":
+        start_date = today
+        end_date = today + timedelta(days=7)
+        valid_dates = get_filtered_dates(start_date, end_date, "All Days")
+        st.info(f"🗓️ 1-week schedule starting **{start_date}**")
 
-    with col_reset:
-        if st.button("🧹 Reset Selection"):
-            for key in ["start_date_input", "end_date_input", "refinement_option", "date_range_preset"]:
-                st.session_state.pop(key, None)
-            st.experimental_rerun()
+    # ✅ Confirmation button
+    if start_date and end_date:
+        confirmed = st.button("✅ Confirm Runbook Dates")
+        if confirmed:
+            st.session_state["runbook_dates_confirmed"] = True
+            st.success("✅ Dates confirmed! You may now proceed.")
+        else:
+            st.session_state["runbook_dates_confirmed"] = False
 
-    with col_summary:
-        st.info(f"📆 Using dates from **{start_date}** to **{end_date}** ({refinement})")
+    return choice, start_date, end_date, valid_dates
 
-    return display_choice, start_date, end_date, valid_dates
+def check_runbook_dates_confirmed(section: str = "runbook_date_range") -> bool:
+    """
+    Returns True if the user confirmed date selection for the given section.
+    """
+    return st.session_state.get(f"{section}_confirmed", False)
 
 def preview_interaction_log():
     """Display a log of all user interactions."""

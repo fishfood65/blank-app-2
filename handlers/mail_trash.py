@@ -17,7 +17,7 @@ import uuid
 import json
 from docx.shared import Inches
 from utils.preview_helpers import get_active_section_label
-from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs, select_runbook_date_range, sanitize_label, sanitize, section_has_valid_input
+from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs, select_runbook_date_range, sanitize_label, sanitize, section_has_valid_input, check_runbook_dates_confirmed
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook, render_runbook_preview_inline, display_user_friendly_schedule_table
 from utils.common_helpers import get_schedule_utils, debug_saved_schedule_dfs, get_schedule_placeholder_mapping, merge_all_schedule_dfs
@@ -384,4 +384,35 @@ def mail_trash():
         st.session_state.update({
             "combined_home_schedule_df": combined_df
         })
-        st.markdown("---")
+    st.markdown("---")
+    
+    # ✅ Automatically generate prompt blocks once providers are saved
+    if (
+    st.session_state.get("mail_locked") is True and
+    st.session_state.get("trash_locked") is True and
+    st.session_state.get("runbook_dates_confirmed") is True
+    ):
+        blocks = generate_all_prompt_blocks(section)
+
+    #Step 2: Generate DOCX
+
+    def generate_kit_docx():
+        blocks = generate_all_prompt_blocks(section)
+        return generate_docx_from_prompt_blocks(
+            section=section,
+            blocks=blocks,  
+            insert_main_heading=True,
+            use_llm=True,
+            api_key=os.getenv("MISTRAL_TOKEN"),
+            doc_heading="⛑️ Utilities & Emergency Kit Runbook ",
+            debug=st.session_state.get("enable_debug_mode", False),
+            include_priority=include_priority #include schedule priority 
+        )
+
+    maybe_generate_runbook(
+        section=section,
+        generator_fn=generate_kit_docx,
+        doc_heading="⛑️ Utilities & Emergency Kit Runbook",
+        filename="utilities_emergency_kit.docx",
+        button_label="📥 Generate Runbook"
+    )
