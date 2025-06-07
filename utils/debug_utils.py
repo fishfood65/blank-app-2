@@ -1,10 +1,11 @@
 import pandas as pd
 import streamlit as st
 import json
-from typing import List
+from typing import List, Optional
 from .data_helpers import sanitize, get_answer, sanitize_label
 from config.sections import SECTION_METADATA
 from .runbook_generator_helpers import runbook_preview_dispatcher
+from .common_helpers import get_schedule_placeholder_mapping
 from utils.task_schedule_utils_updated import extract_and_schedule_all_tasks, extract_unscheduled_tasks_from_inputs_with_category, display_enriched_task_preview, save_task_schedules_by_type, load_label_map, normalize_label
 
 DEFAULT_COMMON_SECTIONS = set(SECTION_METADATA.keys())
@@ -16,6 +17,9 @@ def debug_all_sections_input_capture_with_summary(sections: List[str]):
     st.header("🧪 All Sections Debug Panel")
 
     for section in sections:
+        if not isinstance(section, str):
+            st.error(f"❌ Invalid section key: expected string, got {type(section)} - {section}")
+            continue
         with st.expander(f"🧠 Debug Section: `{section}`", expanded=False):
             debug_task_input_capture_with_answers_tabs(section)
 
@@ -39,7 +43,7 @@ def debug_task_input_capture_with_answers_tabs(section: str):
     entries = st.session_state.get("task_inputs", [])
     input_data = st.session_state.get("input_data", {}).get(section, [])
     st.markdown(f"## 🔍 Debug for Section: `{section}`")
-    tabs = st.tabs(["🧾 Input Records", "📬 get_answer() Results", "📖 Runbook Preview", "🧠 Session State", "🧪 Enriched Diff",])
+    tabs = st.tabs(["🧾 Input Records", "📬 get_answer() Results", "📖 Runbook Preview", "🧠 Session State", "🧪 Enriched Diff","📆 Scheduled Tasks"])
 
     with tabs[0]:
         st.subheader("📌 task_inputs")
@@ -79,6 +83,10 @@ def debug_task_input_capture_with_answers_tabs(section: str):
 
     with tabs[4]:  # ✅ Enrichment Diff tab
         render_enrichment_debug_view(section)
+    
+    with tabs[5]:  # 📆 Scheduled Tasks tab
+        combined_df = st.session_state.get("combined_home_schedule_df")
+        render_schedule_debug_info(combined_df, section="combined_home_schedule_df")
 
 def debug_single_get_answer(section: str, key: str):
     st.markdown(f"### 🧪 Debug `get_answer(section='{section}', key='{key}')`")
@@ -216,5 +224,67 @@ def render_enrichment_debug_view(section: str):
                 st.warning(f"⚠️ No enriched match for: `{raw_q}`")
     else:
         st.warning("⚠️ No enriched schedule found.")
+
+def render_schedule_debug_info(
+    df: Optional[pd.DataFrame] = None,
+    section: str = "combined_home_schedule_df"
+):
+    """
+    Render debugging details for a scheduled task DataFrame.
+    Supports optional explicit input or fallback to st.session_state[section].
+
+    Includes:
+    - Duplicate detection
+    - Full raw table
+    - Placeholder mapping
+    - Grouped summary by SourceKey and metrics
+
+    Usage:
+    - Inside debug tabs:
+    -- render_schedule_debug_info(section="combined_home_schedule_df")
+    - For test injection:
+    -- render_schedule_debug_info(df=some_filtered_df)
+    """
+    if df is None:
+        df = st.session_state.get(section)
+
+    if df is None or df.empty:
+        st.warning(f"⚠️ No data found in `{section}`.")
+        return
+
+    # 🔁 Show duplicate tasks
+    dupes = df[df.duplicated(subset=["Date", "Day", "clean_task", "task_type"], keep=False)]
+    if not dupes.empty:
+        st.markdown("### 🔁 Possible Duplicate Tasks")
+        st.dataframe(dupes)
+
+    # 🧠 Raw schedule output
+    st.markdown(f"### 🧠 Raw `{section}` Schedule")
+    st.dataframe(df)
+
+    # 🧩 Placeholder → DataFrame mapping
+    st.subheader("🧩 Placeholder → Schedule Mapping")
+    mapping = get_schedule_placeholder_mapping()
+    st.json(mapping)
+
+    # 📆 Scheduled Tasks Output
+    st.subheader("📆 Scheduled Tasks")
+    st.write(df)
+
+    # 📊 Grouped summary
+    if "SourceKey" in df.columns:
+        st.markdown("### 📊 Task Summary by `SourceKey`")
+        summary = (
+            df.groupby("SourceKey")
+              .agg(
+                  task_count=("clean_task", "count"),
+                  unique_dates=("Date", pd.Series.nunique),
+                  unique_types=("task_type", pd.Series.nunique)
+              )
+              .reset_index()
+              .sort_values(by="task_count", ascending=False)
+        )
+        st.dataframe(summary)
+
 
 

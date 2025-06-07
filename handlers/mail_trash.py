@@ -19,8 +19,8 @@ from docx.shared import Inches
 from utils.preview_helpers import get_active_section_label
 from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs, select_runbook_date_range, sanitize_label, sanitize, section_has_valid_input
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer
-from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook, render_runbook_preview_inline
-from utils.common_helpers import get_schedule_utils, debug_saved_schedule_dfs, get_schedule_placeholder_mapping
+from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook, render_runbook_preview_inline, display_user_friendly_schedule_table
+from utils.common_helpers import get_schedule_utils, debug_saved_schedule_dfs, get_schedule_placeholder_mapping, merge_all_schedule_dfs
 from utils.task_schedule_utils_updated import extract_and_schedule_all_tasks, extract_unscheduled_tasks_from_inputs_with_category, display_enriched_task_preview, save_task_schedules_by_type, load_label_map, normalize_label
 from prompts.templates import utility_provider_lookup_prompt
 from config.section_router import get_handler
@@ -313,129 +313,75 @@ def mail_trash():
     st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")
 
 
-# --- Use Expanders to Break out Groups ---
+# --- Sections Broken out by "--" ---
 
     # 📬 Mail
     from handlers.mail_trash import mail
     with st.expander("📬 Mail Handling", expanded=True):
         mail(section)
-
+# ----------------------------------
     # 🗑️ Trash
     from handlers.mail_trash import trash
     with st.expander("🗑️ Trash Handling", expanded=False):
         trash(section)
-
-    if section_has_valid_input("mail_trash", min_entries=5):
+# ----------------------------------
+    if section_has_valid_input("mail_trash", min_entries=8):
         st.subheader("🧐 Customize, Review and Reward")
 
-    #if st.session_state.get("enable_debug_mode"):
-    #    debug_saved_schedule_dfs()
+    # Customize date range
+    choice, start_date, end_date, valid_dates = select_runbook_date_range()
 
-        choice, start_date, end_date, valid_dates = select_runbook_date_range()
+    if start_date and end_date:
+        # Step 2–3: Store dates in session
+        st.session_state.update({
+            "start_date": start_date,
+            "end_date": end_date,
+            "valid_dates": valid_dates
+        })
+        st.markdown("---")
+        # Step 4: Load scheduling utilities
+        utils = get_schedule_utils()
 
-        if start_date and end_date:
-            st.session_state.update({
-                "start_date": start_date,
-                "end_date": end_date,
-                "valid_dates": valid_dates
-            })
+        # Step 5: Extract raw tasks from input
+        df = extract_unscheduled_tasks_from_inputs_with_category()
 
-            utils = get_schedule_utils()
+        # Step 6: UI toggles
+        refresh_preview = st.checkbox("🔄 Refresh Preview", value=True)
 
-            df = extract_unscheduled_tasks_from_inputs_with_category()
-        # st.write("📦 Session task inputs:", st.session_state.get("task_inputs", []))
-            #st.write("🧾 Extracted Raw Task DataFrame:", df)
+        # Step 7: Schedule and merge all available *_schedule_df entries
+        combined_df = merge_all_schedule_dfs(
+            valid_dates=valid_dates,
+            utils=utils,
+            output_key="combined_home_schedule_df",  # optional deduplication protection
+            deduplicate=True,
+            annotate_source=True
+        )
+        st.session_state["combined_home_schedule_df"] = combined_df  # Step 13
 
-            # 🆕 Universal scheduler
-            combined_df = None
-            refresh_preview = st.checkbox("🔄 Refresh Preview", value=True)
+        # Step 8: Show user preview
+        if refresh_preview and combined_df is not None:
+            st.subheader("📆 Review & Update Scheduled Tasks:")
+            display_enriched_task_preview(combined_df)
 
-            include_priority = st.checkbox("🔢 Show priority and emoji in schedule tables", value=True)
-            st.session_state["include_priority"] = include_priority  # Optional: store for reuse
+        # Step 10: Save split schedules for mail/trash/etc
+        save_task_schedules_by_type(combined_df)
 
-            if refresh_preview:
-                combined_df = extract_and_schedule_all_tasks(valid_dates, utils)
+        display_user_friendly_schedule_table(
+            df=combined_df,
+            heading_text="🧹 Task Schedule",
+            show_heading=True,             # Optional, defaults to True
+            show_legend=True,              # ✅ Enables emoji legend in expander
+            enable_task_filter=True        # ✅ Enables collapsible task type filter
+        )
+        include_priority = st.checkbox("🔢 Show priority and emoji in schedule tables", value=True)
+        st.session_state["include_priority"] = include_priority
+        if include_priority:
+            st.caption("✅ Showing tasks with priority and emoji labels")
+        else:
+            st.caption("📄 Basic task view (no priority/emoji)")
 
-                if combined_df is not None:
-                    dupes = combined_df[combined_df.duplicated(subset=["Date", "Day", "clean_task", "task_type"], keep=False)]
-                    st.write("🔁 Possible duplicate tasks scheduled:", dupes)
-
-                    preview_df = combined_df.drop_duplicates(subset=["Date", "Day", "clean_task", "task_type"])
-                    st.write("📆 Preview Scheduled Tasks:")
-                    display_enriched_task_preview(combined_df)
-
-                    save_task_schedules_by_type(combined_df)
-
-                    mapping = get_schedule_placeholder_mapping()
-
-                    st.subheader("🧩 Placeholder → Schedule Mapping")
-                    st.json(mapping)
-
-                    st.write("📆 Scheduled Tasks: is combined_df = combined_home_schedule_df", combined_df)
-
-                    st.session_state["combined_home_schedule_df"] = combined_df
-
-            st.session_state.update({
-            #    "mail_schedule_df": mail_df,
-            #    "trash_schedule_df": trash_df,
-                "combined_home_schedule_df": combined_df,
-            #    "mail_schedule_markdown": generate_flat_home_schedule_markdown(mail_df),
-            #    "trash_flat_schedule_md": generate_flat_home_schedule_markdown(trash_df),
-            #    "home_schedule_markdown": generate_flat_home_schedule_markdown(combined_df),
-            })
-
-            if st.session_state.get("enable_debug_mode"):
-                st.markdown("## 🔍 Task Preview: Raw vs Enriched")
-
-                raw_df = extract_unscheduled_tasks_from_inputs_with_category()
-                combined_df = st.session_state.get("combined_home_schedule_df")
-
-                LABEL_MAP = load_label_map()
-                if not df.empty:
-                    st.markdown("### 🔍 Label → Clean Task Mappings")
-                    for label in df["question"].dropna().unique():
-                        norm_label = normalize_label(label)
-                        cleaned = LABEL_MAP.get(norm_label, "⚠️ No match in LABEL_MAP")
-                        st.text(f"Label: '{label}' → Normalized: '{norm_label}' → Cleaned: '{cleaned}'")
-
-                else:
-                    st.warning("⚠️ No raw tasks available to preview.")
-
-                if isinstance(raw_df, pd.DataFrame) and not raw_df.empty:
-                    st.markdown("### 📝 Raw Task Inputs")
-                    st.dataframe(raw_df)
-
-                    if isinstance(combined_df, pd.DataFrame) and not combined_df.empty:
-                        st.markdown("### ✨ Enriched & Scheduled Tasks")
-                        st.dataframe(combined_df)
-
-                        st.markdown("### 🔁 Matched Task Diffs")
-                        for i, row in raw_df.iterrows():
-                            raw_q = str(row.get("question", "")).strip()
-                            raw_a = str(row.get("answer", "")).strip()
-
-                            matches = combined_df[
-                                combined_df["question"].astype(str).str.strip() == raw_q
-                            ]
-
-                            if not matches.empty:
-                                enriched_sample = matches.iloc[0]
-
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    st.markdown(f"**Raw Task {i+1}:**")
-                                    st.write(f"**Question:** {raw_q}")
-                                    st.write(f"**Answer:** {raw_a}")
-
-                                with col2:
-                                    st.markdown("**🪄 Enriched View**")
-                                    st.write(f"**Clean Task:** {enriched_sample.get('clean_task', '')}")
-                                    st.write(f"**Formatted Answer:** {enriched_sample.get('formatted_answer', '')}")
-                                    st.write(f"**Inferred Days:** {enriched_sample.get('inferred_days', '')}")
-                            else:
-                                st.warning(f"⚠️ No enriched match for: `{raw_q}`")
-                    else:
-                        st.warning("⚠️ No enriched schedule found.")
-                else:
-                    st.warning("⚠️ No raw task inputs available.")
-    
+        # Step 14: Redundant update (keep for consistency)
+        st.session_state.update({
+            "combined_home_schedule_df": combined_df
+        })
+        st.markdown("---")

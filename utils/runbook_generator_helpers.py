@@ -41,6 +41,86 @@ TASK_TYPE_EMOJI = {
     "Compost": "🌱",
 }
 
+def display_user_friendly_schedule_table(
+    df: pd.DataFrame,
+    label_col: str = "clean_task",
+    show_heading: bool = True,
+    heading_text: str = "📆 Scheduled Tasks",
+    show_legend: bool = True,
+    enable_task_filter: bool = True
+):
+    """
+    Displays a user-friendly task schedule table:
+    - Sorts by date and priority
+    - Adds emojis and task labels
+    - Gracefully handles missing columns
+    - Includes collapsible emoji legend and task type filter
+    """
+
+    if df is None or df.empty:
+        st.warning("⚠️ No scheduled tasks to display.")
+        return
+
+    df = df.copy()
+
+    # 🏷️ Add emoji and readable label
+    if "task_type" in df.columns:
+        df["emoji"] = df["task_type"].map(TASK_TYPE_EMOJI).fillna("❓")
+        df["🏷️ Task Type"] = df["emoji"] + " " + df["task_type"]
+    else:
+        df["🏷️ Task Type"] = "❓ Unknown"
+
+    # 🧮 Add priority
+    if "task_type" in df.columns:
+        priority_lookup = {task: i for i, task in enumerate(PRIORITY_ORDER, 1)}
+        df["priority"] = df["task_type"].map(priority_lookup).fillna(len(PRIORITY_ORDER) + 1).astype(int)
+    else:
+        df["priority"] = len(PRIORITY_ORDER) + 1
+
+    # 🧮 Sort by Date and priority
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+        df = df.sort_values(by=["Date", "priority"])
+
+    # 📋 Column label mapping
+    display_cols = {}
+
+    if "Date" in df.columns:
+        display_cols["Date"] = "📅 Date"
+    if "Day" in df.columns:
+        display_cols["Day"] = "🗓️ Day"
+
+    display_cols["🏷️ Task Type"] = "🏷️ Task Type"
+
+    if label_col in df.columns:
+        display_cols[label_col] = "✅ Task"
+    else:
+        df[label_col] = "⚠️ Missing"
+        display_cols[label_col] = "✅ Task"
+
+    user_friendly_df = df[list(display_cols.keys())].rename(columns=display_cols)
+
+    # 🧾 Final display
+    if show_heading:
+        st.subheader(heading_text)
+
+    st.dataframe(user_friendly_df, use_container_width=True)
+
+    # 📖 Emoji legend in expander wrapped by columns
+    col1, col2 = st.columns(2)
+    with col1:
+        if show_legend:
+            with st.expander("🗂️ Show Emoji Legend", expanded=False):
+                legend_lines = [f"{emoji} = {task}" for task, emoji in TASK_TYPE_EMOJI.items()]
+                st.markdown("  \n".join(legend_lines))
+    with col2:
+        # ✅ Filter by task type if enabled
+        if enable_task_filter and "task_type" in df.columns:
+            with st.expander("🎛️ Filter by Task Type", expanded=False):
+                unique_types = sorted(df["task_type"].dropna().unique())
+                selected_types = st.multiselect("Show only these task types:", unique_types, default=unique_types)
+                df = df[df["task_type"].isin(selected_types)]
+
 def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame, section: str, include_priority: bool = True):
     """
     Adds grouped schedule tables to the DOCX document by date.

@@ -28,5 +28,5 @@ with st.sidebar.expander("⚙️ Developer Options", expanded=False):
 
 # ✅ Then the debug check happens — safely reads the key
 if st.session_state.get("enable_debug_mode"):
-    debug_all_sections_input_capture_with_summary(["home", "emergency_kit", "mail_trash_handling", "mail", "trash_handling"])
+    debug_all_sections_input_capture_with_summary(["home", "emergency_kit", "mail_trash"])
 

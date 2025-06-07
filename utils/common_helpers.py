@@ -1,5 +1,6 @@
 #shared logic across apps
-from typing import Optional
+from datetime import datetime
+from typing import List, Optional
 import pandas as pd
 import streamlit as st
 import re
@@ -458,3 +459,92 @@ def debug_saved_schedule_dfs():
         if key.endswith("_schedule_df") and isinstance(val, pd.DataFrame):
             st.markdown(f"#### `{key}`")
             st.dataframe(val)
+
+def merge_all_schedule_dfs(
+    valid_dates: Optional[List[datetime.date]] = None,
+    utils=None,  # ✅ added for future extension
+    output_key: str = "combined_home_schedule_df",
+    exclude_keys: Optional[List[str]] = None,
+    dedup_fields: Optional[List[str]] = None,
+    deduplicate: bool = True, 
+    annotate_source: bool = True,
+    save_to_session: bool = True,
+    show_summary: bool = True,
+) -> pd.DataFrame:
+    """
+    Merges all *_schedule_df DataFrames in st.session_state with optional:
+    - Date filtering (valid_dates)
+    - Key exclusion
+    - Deduplication by specified fields
+    - Source annotation
+    - Schedule summary display
+    - Session state persistence
+
+    `utils` can be optionally passed for future extensibility (e.g., date parsing or metadata injection).
+    """
+    if exclude_keys is None:
+        exclude_keys = []
+    if dedup_fields is None:
+        dedup_fields = ["Date", "Day", "clean_task", "task_type"]
+
+    all_keys = [
+        k for k in st.session_state
+        if k.endswith("_schedule_df") and isinstance(st.session_state[k], pd.DataFrame)
+    ]
+
+    keys_to_merge = [k for k in all_keys if k != output_key and k not in exclude_keys]
+
+    merged_frames = []
+    for key in keys_to_merge:
+        df = st.session_state.get(key)
+        if df is not None and not df.empty:
+            df_copy = df.copy()
+            if annotate_source:
+                df_copy["SourceKey"] = key
+
+            # Optional filtering by valid date range
+            if valid_dates is not None and "Date" in df_copy.columns:
+                df_copy = df_copy.copy()
+                df_copy["Date"] = pd.to_datetime(df_copy["Date"], errors="coerce")
+                df_copy = df_copy[df_copy["Date"].dt.date.isin(valid_dates)]
+
+            # Optional place to use `utils` for preprocessing (e.g., utils.normalize_task_df(df_copy))
+            # Example:
+            # if utils and hasattr(utils, "normalize_task_df"):
+            #     df_copy = utils.normalize_task_df(df_copy)
+
+            merged_frames.append(df_copy)
+
+    if not merged_frames:
+        st.warning("⚠️ No schedule DataFrames found to merge.")
+        return pd.DataFrame()
+
+    combined_df = pd.concat(merged_frames, ignore_index=True)
+
+    if deduplicate and dedup_fields:
+        before = len(combined_df)
+        combined_df = combined_df.drop_duplicates(subset=dedup_fields)
+        after = len(combined_df)
+        if before > after:
+            st.info(f"🧹 Removed {before - after} duplicate task entries.")
+
+
+    if show_summary and "SourceKey" in combined_df.columns and st.session_state.get("enable_debug_mode", False):
+        st.subheader("📊 Schedule Source Summary")
+        summary_df = (
+            combined_df.groupby("SourceKey")
+            .agg(
+                TaskCount=("clean_task", "count"),
+                UniqueDates=("Date", lambda x: pd.to_datetime(x, errors="coerce").dt.date.nunique()),
+                UniqueTaskTypes=("task_type", lambda x: x.nunique())
+            )
+            .reset_index()
+        )
+        st.dataframe(summary_df)
+
+    if save_to_session:
+        st.session_state[output_key] = combined_df
+
+    return combined_df
+
+
