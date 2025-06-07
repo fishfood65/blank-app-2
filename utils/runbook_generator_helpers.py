@@ -278,28 +278,7 @@ def generate_docx_from_prompt_blocks(
     schedule_sources = get_schedule_placeholder_mapping()
 
     if use_llm:
-        client = Mistral(api_key=api_key)
-        for i, block in enumerate(blocks):
-            if not block.strip():
-                continue
-
-            if debug:
-                st.markdown(f"### 🧱 Prompt Block {i+1}")
-                st.code(block, language="markdown")
-
-            try:
-                st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
-                completion = client.chat.complete(
-                    model=model,
-                    messages=[SystemMessage(content=block)],
-                    max_tokens=2048,
-                    temperature=0.5,
-                )
-                response_text = completion.choices[0].message.content.strip()
-            except Exception as e:
-                response_text = f"❌ LLM error: {e}"
-
-            markdown_output.append(response_text)
+        markdown_output = generate_llm_responses(blocks, api_key, model, debug)
         final_output = "\n\n".join(markdown_output)
 
     else:
