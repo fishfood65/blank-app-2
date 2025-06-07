@@ -156,15 +156,15 @@ def main():
     # === Routing ===
     handler = get_handler(section)
     if callable(handler):
-        if st.session_state.get("enable_debug_mode"):
-            st.markdown("### 🧪 Debug: Section Key")
-            st.write("🔍 Current section key:", section)
-            st.write("📦 Available sections:", list(SECTION_METADATA.keys()))
-            st.write("✅ Calling handler for:", section)
+        #if st.session_state.get("enable_debug_mode"):
+        #    st.markdown("### 🧪 Debug: Section Key")
+        #    st.write("🔍 Current section key:", section)
+        #    st.write("📦 Available sections:", list(SECTION_METADATA.keys()))
+        #    st.write("✅ Calling handler for:", section)
         handler()
-    else:
-        if st.session_state.get("enable_debug_mode"):
-            st.warning("⚠️ Section handler not defined.")
+    #else:
+        #if st.session_state.get("enable_debug_mode"):
+        #    st.warning("⚠️ Section handler not defined.")
 
     # Limit access to Level 1 until completed
     #if not st.session_state["level_progress"]["home"]:
@@ -186,9 +186,9 @@ def main():
     #if "task_inputs" in st.session_state:
      #   st.session_state["task_inputs"] = []
 
-    if st.session_state.get("enable_debug_mode"): # DEBUG
-        st.markdown("### 🧪 Debug: Section Key")
-        st.write("🔍 Current section key:", section)
+    #if st.session_state.get("enable_debug_mode"): # DEBUG
+    #    st.markdown("### 🧪 Debug: Section Key")
+    #    st.write("🔍 Current section key:", section)
 
     if "current_page" in st.session_state:
         nav_page = st.session_state.pop("current_page")

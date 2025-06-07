@@ -5,8 +5,9 @@ from typing import List, Optional
 from .data_helpers import sanitize, get_answer, sanitize_label
 from config.sections import SECTION_METADATA
 from .runbook_generator_helpers import runbook_preview_dispatcher
-from .common_helpers import get_schedule_placeholder_mapping
-from utils.task_schedule_utils_updated import extract_and_schedule_all_tasks, extract_unscheduled_tasks_from_inputs_with_category, display_enriched_task_preview, save_task_schedules_by_type, load_label_map, normalize_label
+from .common_helpers import get_schedule_placeholder_mapping, get_schedule_utils
+from utils.task_schedule_utils_updated import extract_and_schedule_all_tasks, extract_unscheduled_tasks_from_inputs_with_category, display_enriched_task_preview, save_task_schedules_by_type, load_label_map, normalize_label, infer_relevant_days_from_text, format_answer_as_bullets, humanize_task
+from utils.debug_scheduler_input import debug_schedule_task_input
 
 DEFAULT_COMMON_SECTIONS = set(SECTION_METADATA.keys())
 
@@ -43,7 +44,18 @@ def debug_task_input_capture_with_answers_tabs(section: str):
     entries = st.session_state.get("task_inputs", [])
     input_data = st.session_state.get("input_data", {}).get(section, [])
     st.markdown(f"## 🔍 Debug for Section: `{section}`")
-    tabs = st.tabs(["🧾 Input Records", "📬 get_answer() Results", "📖 Runbook Preview", "🧠 Session State", "🧪 Enriched Diff","📆 Scheduled Tasks"])
+    tabs = st.tabs([
+        "🧾 Input Records", 
+        "📬 get_answer() Results", 
+        "📖 Runbook Preview", 
+        "🧠 Session State", 
+        "🧪 Enriched Diff",
+        "📆 Scheduled Tasks", 
+        "🧱 Raw Extracted Tasks", 
+        "📦 Raw _schedule_df Snapshots",
+        "🔍 Merge Debug Tools",
+        "🔗 Task vs Schedule Trace"
+        ])
 
     with tabs[0]:
         st.subheader("📌 task_inputs")
@@ -51,6 +63,10 @@ def debug_task_input_capture_with_answers_tabs(section: str):
 
         st.subheader("📎 input_data")
         st.dataframe(input_data)
+        
+        from utils.debug_utils import log_section_input_debug
+        counts = log_section_input_debug(section, min_entries=8)
+        st.write("🔍 Returned counts object:", counts)
 
     with tabs[1]:
         st.subheader("🔍 get_answer() Lookup Results")
@@ -85,8 +101,155 @@ def debug_task_input_capture_with_answers_tabs(section: str):
         render_enrichment_debug_view(section)
     
     with tabs[5]:  # 📆 Scheduled Tasks tab
+        st.subheader("📆 Combined Schedule Debug")
+
+        extracted_df = extract_unscheduled_tasks_from_inputs_with_category()
+        enriched_rows = []
+        skipped_rows = []
+
+        valid_dates = st.session_state.get("valid_dates", [])
+        utils = get_schedule_utils()
+        label_map = load_label_map()
+
+        # Enrich & track skipped
+        for row in extracted_df.to_dict("records"):
+            answer = row.get("answer", "") or ""
+            row["inferred_days"] = infer_relevant_days_from_text(answer)
+            row["formatted_answer"] = format_answer_as_bullets(answer)
+            row["clean_task"] = humanize_task(row, include_days=False, label_map=label_map)
+
+            if not row["clean_task"] or not row["inferred_days"]:
+                reason = []
+                if not row["clean_task"]:
+                    reason.append("❌ Missing clean_task")
+                if not row["inferred_days"]:
+                    reason.append("❌ No inferred_days")
+                row["skip_reason"] = ", ".join(reason)
+                skipped_rows.append(row)
+            else:
+                enriched_rows.append(row)
+
+        # Show scheduling input debug
+        debug_schedule_task_input(enriched_rows, valid_dates)
+
+        # Show skipped tasks
+        if skipped_rows:
+            st.markdown("### ⚠️ Skipped Tasks")
+            st.warning(f"{len(skipped_rows)} tasks were skipped and not scheduled:")
+            skipped_df = pd.DataFrame(skipped_rows)
+            st.dataframe(skipped_df[["question", "answer", "clean_task", "inferred_days", "skip_reason"]])
+        else:
+            st.success("✅ No skipped tasks. All enrichments passed!")
+
+        # Show final scheduled output
         combined_df = st.session_state.get("combined_home_schedule_df")
         render_schedule_debug_info(combined_df, section="combined_home_schedule_df")
+
+    with tabs[6]:  # 🧱 Raw Extracted Tasks
+        st.subheader("🧱 Raw Extracted Tasks (from task_inputs)")
+        df = extract_unscheduled_tasks_from_inputs_with_category()
+        debug_summary = log_extracted_tasks_debug(df, section=section)
+
+        st.markdown("### 📊 Summary Stats Returned")
+        st.json(debug_summary)
+
+        if not df.empty:
+            st.download_button(
+                "📥 Download Extracted Tasks as CSV",
+                data=df.to_csv(index=False),
+                file_name=f"{section}_extracted_tasks.csv",
+                mime="text/csv"
+            )
+    with tabs[7]:  # 📦 Raw _schedule_df Snapshots
+        st.subheader("📦 Raw *_schedule_df DataFrames")
+
+        # 🔍 Show placeholder mappings
+        placeholder_map = get_schedule_placeholder_mapping()
+
+        if placeholder_map:
+            st.markdown("### 🔗 Placeholder Mapping")
+            st.json(placeholder_map)
+        else:
+            st.warning("⚠️ No placeholder mappings found.")
+
+        # 📋 Show all *_schedule_df DataFrames
+        keys = [k for k in st.session_state if k.endswith("_schedule_df")]
+        if not keys:
+            st.warning("⚠️ No *_schedule_df keys found.")
+        else:
+            for key in sorted(keys):
+                df = st.session_state.get(key)
+                if isinstance(df, pd.DataFrame):
+                    # Find matching placeholder, if any
+                    matching_placeholder = next((p for p, v in placeholder_map.items() if v == key), None)
+                    if matching_placeholder:
+                        st.markdown(f"#### 🔹 `{key}` → {len(df)} rows  \n📌 Placeholder: `{matching_placeholder}`")
+                    else:
+                        st.markdown(f"#### 🔹 `{key}` → {len(df)} rows")
+
+                    st.dataframe(df)
+                else:
+                    st.error(f"❌ `{key}` is not a DataFrame")
+
+    
+    with tabs[8]:  # 🔍 Merge Debug Tools
+        st.subheader("🔍 Merge Context Debug")
+
+        from utils.debug_utils import debug_schedule_df_presence, debug_session_keys
+
+        st.markdown("#### ✅ Detected *_schedule_df presence:")
+        debug_schedule_df_presence()
+
+        st.markdown("#### 🧠 Full Session Keys + Types")
+        debug_session_keys()
+    
+    with tabs[9]:  # 🔗 Task vs Schedule Trace
+        st.subheader("🔗 Task Inputs vs Scheduled Tasks")
+
+        task_inputs = st.session_state.get("task_inputs", [])
+        section_tasks = [t for t in task_inputs if t.get("section") == section]
+        task_df = pd.DataFrame(section_tasks)
+
+        schedule_dfs = {
+            k: v for k, v in st.session_state.items()
+            if k.endswith("_schedule_df") and isinstance(v, pd.DataFrame)
+        }
+
+        # Combine all scheduled rows
+        if schedule_dfs:
+            scheduled_df = pd.concat(schedule_dfs.values(), ignore_index=True)
+        else:
+            scheduled_df = pd.DataFrame()
+
+        if not task_df.empty and "question" in task_df.columns and "clean_task" in scheduled_df.columns:
+            task_df["match_key"] = task_df["question"].str.lower().str.strip()
+            scheduled_df["match_key"] = scheduled_df["clean_task"].str.lower().str.strip()
+
+            merged = task_df.merge(
+                scheduled_df[["match_key", "Date", "task_type", "SourceKey"]],
+                on="match_key",
+                how="left",
+                indicator=True
+            )
+
+            st.markdown("### 🔍 Trace Comparison")
+            st.dataframe(merged)
+
+            missing = merged[merged["_merge"] == "left_only"]
+            if not missing.empty:
+                st.warning(f"⚠️ {len(missing)} task_inputs were NOT scheduled")
+                st.dataframe(missing)
+            else:
+                st.success("✅ All task_inputs appear in scheduled outputs.")
+        else:
+            st.warning("⚠️ Missing required columns ('question' or 'clean_task') for comparison.")
+
+            st.markdown("#### 🧾 Available columns in task_df")
+            st.write(task_df.columns.tolist())
+            
+            st.markdown("#### 🧾 Available columns in scheduled_df")
+            st.write(scheduled_df.columns.tolist())
+
 
 def debug_single_get_answer(section: str, key: str):
     st.markdown(f"### 🧪 Debug `get_answer(section='{section}', key='{key}')`")
@@ -286,5 +449,129 @@ def render_schedule_debug_info(
         )
         st.dataframe(summary)
 
+def log_section_input_debug(section: str, min_entries: int = 1) -> dict:
+    """
+    Displays debugging stats for inputs collected from a given section,
+    and returns a dictionary of counts for deeper introspection.
 
+    Returns:
+        dict: {
+            "count_regular": int,
+            "count_tasks": int,
+            "total": int,
+            "meets_threshold": bool
+        }
+    """
+    input_data = st.session_state.get("input_data", {}).get(section, [])
+    count_regular = sum(
+        1 for entry in input_data 
+        if str(entry.get("answer", "")).strip().lower() not in ["", "⚠️ not provided", "none"]
+    )
 
+    task_inputs = st.session_state.get("task_inputs", [])
+    count_tasks = sum(
+        1 for entry in task_inputs
+        if entry.get("section") == section and str(entry.get("answer", "")).strip()
+    )
+
+    total = count_regular + count_tasks
+    meets_threshold = total >= min_entries
+
+    # Debug UI output
+    st.markdown(f"""### 🧪 Debug: `{section}` input summary
+- Regular inputs (`input_data`): **{count_regular}**
+- Task inputs (`task_inputs`): **{count_tasks}**
+- ✅ Total counted inputs: **{total}**
+- Minimum required: **{min_entries}**
+- ✅ Meets threshold: **{meets_threshold}**
+""")
+
+    return {
+        "count_regular": count_regular,
+        "count_tasks": count_tasks,
+        "total": total,
+        "meets_threshold": meets_threshold
+    }
+
+def log_extracted_tasks_debug(df: pd.DataFrame, section: str = None) -> dict:
+    """
+    Visualize and summarize the output from extract_unscheduled_tasks_from_inputs_with_category().
+
+    Args:
+        df (pd.DataFrame): The extracted task dataframe.
+        section (str, optional): If provided, filters tasks to just that section.
+
+    Returns:
+        dict: Summary statistics.
+    """
+    if df.empty:
+        st.warning("⚠️ No tasks extracted.")
+        return {"total_tasks": 0}
+
+    # Optional filter
+    if section:
+        df = df[df["section"] == section]
+
+    st.markdown(f"### 📋 Extracted Tasks{' for `' + section + '`' if section else ''}")
+    st.dataframe(df)
+
+    # Summary stats
+    summary = {
+        "total_tasks": len(df),
+        "distinct_sections": df["section"].nunique() if "section" in df.columns else None,
+        "distinct_task_types": df["task_type"].nunique() if "task_type" in df.columns else None,
+        "empty_answers": df["answer"].isna().sum() if "answer" in df.columns else None,
+        "missing_keys": df["key"].isna().sum() if "key" in df.columns else None,
+    }
+
+    st.markdown("### 🧮 Task Extraction Summary")
+    for k, v in summary.items():
+        st.markdown(f"- **{k.replace('_', ' ').title()}**: `{v}`")
+
+    return summary
+
+def debug_schedule_df_presence():
+    schedule_keys = [k for k in st.session_state if k.endswith("_schedule_df")]
+    if not schedule_keys:
+        st.warning("❌ No *_schedule_df keys found.")
+    else:
+        for key in schedule_keys:
+            df = st.session_state.get(key)
+            if isinstance(df, pd.DataFrame):
+                st.success(f"✅ `{key}`: {len(df)} rows")
+            else:
+                st.error(f"🚫 `{key}` is not a DataFrame")
+
+def debug_session_keys():
+    for k in sorted(st.session_state.keys()):
+        v = st.session_state[k]
+        st.write(f"- `{k}` → `{type(v).__name__}`", f"(len={len(v)})" if hasattr(v, "__len__") else "")
+
+def log_all_schedule_dfs_from_session(show_dataframes=True):
+    st.markdown("### 📦 All *_schedule_df in session_state")
+    keys = [k for k in st.session_state if k.endswith("_schedule_df")]
+    if not keys:
+        st.warning("⚠️ No *_schedule_df found.")
+        return []
+
+    for k in keys:
+        df = st.session_state[k]
+        st.markdown(f"#### 🔹 `{k}` → {len(df)} rows")
+        if show_dataframes:
+            st.dataframe(df)
+    return keys
+
+def debug_schedule_task_input(tasks: list, valid_dates: list):
+    st.markdown("### 🧪 Task Scheduling Input Debug")
+
+    if not tasks:
+        st.warning("⚠️ No tasks passed to scheduler.")
+        return  # Exit early so you don't try to render empty data
+
+    st.markdown(f"- Total tasks passed: `{len(tasks)}`")
+    st.markdown(f"- Valid dates: `{[d.isoformat() for d in valid_dates]}`")
+
+    sample = tasks[:3]
+    st.markdown("#### 📋 Task Preview (first 3)")
+    for i, task in enumerate(sample):
+        st.json(task, expanded=False)

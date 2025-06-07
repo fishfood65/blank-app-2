@@ -689,18 +689,21 @@ def sanitize_label(label: str) -> str:
 
 def section_has_valid_input(section: str, min_entries: int = 1) -> bool:
     """
-    Check if a given section has at least `min_entries` valid task inputs in session state.
-
-    Args:
-        section (str): The section name to filter by (e.g. "mail_trash").
-        min_entries (int): Minimum number of entries required to consider the section valid.
-
-    Returns:
-        bool: True if section has enough inputs, False otherwise.
+    Checks whether a section has enough inputs across input_data and task_inputs.
+    Returns True/False but defers logging to a separate debug function.
     """
-    inputs = st.session_state.get("task_inputs", [])
-    valid = [item for item in inputs if item.get("section") == section and item.get("answer") not in ("", None)]
-    return len(valid) >= min_entries
+    input_data = st.session_state.get("input_data", {}).get(section, [])
+    count_regular = sum(1 for entry in input_data if entry.get("answer", "").strip())
+
+    task_inputs = st.session_state.get("task_inputs", [])
+    count_tasks = sum(
+        1 for entry in task_inputs
+        if entry.get("section") == section and entry.get("answer", "").strip()
+    )
+
+    total = count_regular + count_tasks
+    return total >= min_entries
+
 
 
 

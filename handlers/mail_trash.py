@@ -22,6 +22,7 @@ from utils.debug_utils import debug_all_sections_input_capture_with_summary, cle
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook, render_runbook_preview_inline, display_user_friendly_schedule_table
 from utils.common_helpers import get_schedule_utils, debug_saved_schedule_dfs, get_schedule_placeholder_mapping, merge_all_schedule_dfs
 from utils.task_schedule_utils_updated import extract_and_schedule_all_tasks, extract_unscheduled_tasks_from_inputs_with_category, display_enriched_task_preview, save_task_schedules_by_type, load_label_map, normalize_label
+from utils.debug_utils import log_extracted_tasks_debug, debug_schedule_df_presence
 from prompts.templates import utility_provider_lookup_prompt
 from config.section_router import get_handler
 from old.old_code import maybe_generate_prompt, render_prompt_preview
@@ -325,40 +326,62 @@ def mail_trash():
     with st.expander("🗑️ Trash Handling", expanded=False):
         trash(section)
 # ----------------------------------
+    #st.write("🧪 input_data[mail_trash]:", st.session_state.get("input_data", {}).get("mail_trash"))
+    #st.write("🧪 task_inputs[mail_trash]:", [
+    #t for t in st.session_state.get("task_inputs", []) if t.get("section") == "mail_trash"
+    #])
+
     if section_has_valid_input("mail_trash", min_entries=8):
         st.subheader("🧐 Customize, Review and Reward")
 
-    # Customize date range
+    # # Step 1: Get valid dates from user
     choice, start_date, end_date, valid_dates = select_runbook_date_range()
 
     if start_date and end_date:
-        # Step 2–3: Store dates in session
+        # Step 2: Save date info
         st.session_state.update({
             "start_date": start_date,
             "end_date": end_date,
             "valid_dates": valid_dates
         })
         st.markdown("---")
-        # Step 4: Load scheduling utilities
+        # Step 3: Load scheduling utilities
         utils = get_schedule_utils()
 
-        # Step 5: Extract raw tasks from input
+        # Step 4: Extract raw tasks from session and input
         df = extract_unscheduled_tasks_from_inputs_with_category()
+        if st.session_state.get("enable_debug_mode", False):
+            debug_summary = log_extracted_tasks_debug(df, section="mail_trash")
 
-        # Step 6: UI toggles
+        # Step 5: Schedule tasks (for your only section)
+        schedule_df = extract_and_schedule_all_tasks(
+            valid_dates=valid_dates,
+            utils=utils,
+            df=df,  # 👈 use the extracted tasks
+            section="mail_trash",
+            output_key="mail_trash_schedule_df"  # 👈 optional, also stored to session
+        )
+
+        # Step 6: Optional preview toggle
         refresh_preview = st.checkbox("🔄 Refresh Preview", value=True)
 
         # Step 7: Schedule and merge all available *_schedule_df entries
+        debug_schedule_df_presence() # optional log
         combined_df = merge_all_schedule_dfs(
             valid_dates=valid_dates,
             utils=utils,
             output_key="combined_home_schedule_df",  # optional deduplication protection
             deduplicate=True,
-            annotate_source=True
+            annotate_source=True,
+            group_keys={
+            "trash_schedule_df": ["indoor_trash_schedule_df", "outdoor_trash_schedule_df"]
+        }
         )
-        st.session_state["combined_home_schedule_df"] = combined_df  # Step 13
 
-        # Step 8: Show user preview
+        # Step 8: Save merged version to session
+        st.session_state["combined_home_schedule_df"] = combined_df
+
+        # Step 9: Show user preview
         if refresh_preview and combined_df is not None:
             st.subheader("📆 Review & Update Scheduled Tasks:")
             display_enriched_task_preview(combined_df)

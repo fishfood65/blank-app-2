@@ -8,6 +8,7 @@ import streamlit as st
 import json
 import os
 import spacy
+from utils.debug_scheduler_input import debug_schedule_task_input
 
 def generate_category_keywords_from_labels(input_data):
     keyword_freq = defaultdict(int)
@@ -689,42 +690,57 @@ def enrich_task_dataframe(df: pd.DataFrame, label_map: Optional[dict] = None) ->
 
     return pd.DataFrame(enriched_rows)
 
-def extract_and_schedule_all_tasks(valid_dates: List, utils: Dict = None) -> pd.DataFrame:
+def extract_and_schedule_all_tasks(
+    valid_dates: List,
+    utils: Dict = None,
+    df: Optional[pd.DataFrame] = None,
+    section: str = None,
+    output_key: str = None
+) -> pd.DataFrame:
     """
     Extracts and schedules tasks using enrichment and inference:
     - Applies human-readable labels
     - Infers day mentions
     - Formats answers
     - Defers scheduling if no day match is found
+    Optionally filters by section and stores result in a specific session key.
     """
     if utils is None:
         utils = get_schedule_utils()
 
-    label_map = load_label_map()  # 🆕 dynamically reload label map
+    # 🧪 If no df passed in, extract all
+    if df is None:
+        df = extract_unscheduled_tasks_from_inputs_with_category()
 
+    label_map = load_label_map()
     raw_df = extract_unscheduled_tasks_from_inputs_with_category()
-    enriched_rows = []
 
+    # Optional section filtering
+    if section:
+        raw_df = raw_df[raw_df["section"] == section]
+
+    enriched_rows = []
     for row in raw_df.to_dict(orient="records"):
         question = row.get("question", "")
         answer = row.get("answer", "")
 
-        # Coerce boolean to Yes/No early
         if isinstance(answer, bool):
             answer = "Yes" if answer else "No"
         elif answer is None:
             answer = ""
 
-        # Safe enrichments
         row["inferred_days"] = infer_relevant_days_from_text(answer)
         row["formatted_answer"] = format_answer_as_bullets(answer)
         row["clean_task"] = humanize_task(row, include_days=False, label_map=label_map)
 
-        enriched_rows.append(row)  # ✅ Don't explode here
+        enriched_rows.append(row)
 
     enriched_df = pd.DataFrame(enriched_rows)
-    
-    # 🆕 Use schedule_tasks_from_templates but preserve enriched metadata
+
+    # Debug: visualize tasks being scheduled
+    if st.session_state.get("enable_debug_mode", False):
+        debug_schedule_task_input(enriched_df.to_dict(orient="records"), valid_dates)
+
     final_rows = []
     base_schedule = schedule_tasks_from_templates(
         tasks=enriched_df.to_dict(orient="records"),
@@ -738,13 +754,16 @@ def extract_and_schedule_all_tasks(valid_dates: List, utils: Dict = None) -> pd.
              if e["question"] == scheduled_row.get("question")
              and e["answer"] == scheduled_row.get("answer")), None
         )
-        if matched:
-            combined = {**scheduled_row, **matched}
-            final_rows.append(combined)
-        else:
-            final_rows.append(scheduled_row)
+        combined = {**scheduled_row, **matched} if matched else scheduled_row
+        final_rows.append(combined)
 
-    return pd.DataFrame(final_rows)
+    final_df = pd.DataFrame(final_rows)
+
+    # ✅ Optionally store result in session
+    if output_key:
+        st.session_state[output_key] = final_df
+
+    return final_df
 
 def save_task_schedules_by_type(combined_df: pd.DataFrame):
     """

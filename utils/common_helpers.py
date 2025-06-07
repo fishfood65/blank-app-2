@@ -1,6 +1,6 @@
 #shared logic across apps
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 import pandas as pd
 import streamlit as st
 import re
@@ -502,37 +502,54 @@ def debug_saved_schedule_dfs():
 
 def merge_all_schedule_dfs(
     valid_dates: Optional[List[datetime.date]] = None,
-    utils=None,  # ✅ added for future extension
+    utils=None,
     output_key: str = "combined_home_schedule_df",
     exclude_keys: Optional[List[str]] = None,
     dedup_fields: Optional[List[str]] = None,
-    deduplicate: bool = True, 
+    deduplicate: bool = True,
     annotate_source: bool = True,
     save_to_session: bool = True,
     show_summary: bool = True,
+    group_keys: Optional[Dict[str, List[str]]] = None  # New grouping param
 ) -> pd.DataFrame:
-    """
-    Merges all *_schedule_df DataFrames in st.session_state with optional:
-    - Date filtering (valid_dates)
-    - Key exclusion
-    - Deduplication by specified fields
-    - Source annotation
-    - Schedule summary display
-    - Session state persistence
-
-    `utils` can be optionally passed for future extensibility (e.g., date parsing or metadata injection).
-    """
     if exclude_keys is None:
         exclude_keys = []
     if dedup_fields is None:
         dedup_fields = ["Date", "Day", "clean_task", "task_type"]
+    if group_keys is None:
+        group_keys = {
+            "trash_schedule_df": ["indoor_trash_schedule_df", "outdoor_trash_schedule_df"]
+        }
 
     all_keys = [
         k for k in st.session_state
         if k.endswith("_schedule_df") and isinstance(st.session_state[k], pd.DataFrame)
     ]
 
-    keys_to_merge = [k for k in all_keys if k != output_key and k not in exclude_keys]
+    seen_keys = set()
+    keys_to_merge = []
+
+    # Merge grouped schedule DFs
+    for combined_key, parts in group_keys.items():
+        dfs = []
+        for key in parts:
+            if key in seen_keys or key in exclude_keys:
+                continue
+            df = st.session_state.get(key)
+            if isinstance(df, pd.DataFrame) and not df.empty:
+                df = df.copy()
+                df["SourceKey"] = key
+                dfs.append(df)
+                seen_keys.add(key)
+        if dfs:
+            combined_df = pd.concat(dfs, ignore_index=True)
+            st.session_state[combined_key] = combined_df
+            keys_to_merge.append(combined_key)
+
+    # Include any remaining schedule DFs not already grouped
+    for key in all_keys:
+        if key not in seen_keys and key != output_key and key not in exclude_keys:
+            keys_to_merge.append(key)
 
     merged_frames = []
     for key in keys_to_merge:
@@ -543,7 +560,6 @@ def merge_all_schedule_dfs(
                 df_copy["SourceKey"] = key
 
             if valid_dates is not None and "Date" in df_copy.columns:
-                df_copy = df_copy.copy()
                 df_copy["Date"] = pd.to_datetime(df_copy["Date"], errors="coerce")
                 df_copy = df_copy[df_copy["Date"].dt.date.isin(valid_dates)]
 
@@ -559,23 +575,18 @@ def merge_all_schedule_dfs(
                     df_copy["WeekdayMentions"] = df_copy["clean_task"].apply(
                         lambda x: utils["extract_weekday_mentions"](x) if isinstance(x, str) else []
                     )
-
                     df_copy["FrequencyTag"] = df_copy["clean_task"].apply(
                         lambda x: utils["determine_frequency_tag"](x, valid_dates or []) if isinstance(x, str) else ""
                     )
-
                     df_copy["DateMentions"] = df_copy["clean_task"].apply(
                         lambda x: utils["extract_dates"](x) if isinstance(x, str) else []
                     )
-
                     df_copy["WeekInterval"] = df_copy["clean_task"].apply(
                         lambda x: utils["extract_week_interval"](x) if isinstance(x, str) else None
                     )
-
                     df_copy["AnnualDates"] = df_copy["clean_task"].apply(
                         lambda x: utils["extract_annual_dates"](x) if isinstance(x, str) else []
                     )
-
                     df_copy["OrdinalPatterns"] = df_copy["clean_task"].apply(
                         lambda x: utils["extract_ordinal_patterns"](x) if isinstance(x, str) else []
                     )
@@ -583,94 +594,20 @@ def merge_all_schedule_dfs(
             merged_frames.append(df_copy)
 
     if not merged_frames:
-        st.warning("⚠️ No schedule DataFrames found to merge.")
+        st.warning("\u26a0\ufe0f No schedule DataFrames found to merge.")
         return pd.DataFrame()
 
     combined_df = pd.concat(merged_frames, ignore_index=True)
-
-    if utils and valid_dates:
-        expanded_rows = []
-        for _, row in combined_df.iterrows():
-            weekdays = row.get("WeekdayMentions", [])
-            interval = row.get("WeekInterval")
-            freq_tag = row.get("FrequencyTag", "")
-            one_time_dates = [utils["normalize_date"](d) for d in row.get("DateMentions", [])]
-            annual_tuples = row.get("AnnualDates", [])
-            ordinal_patterns = row.get("OrdinalPatterns", [])
-
-            if "Daily" in freq_tag:
-                weekdays = list(utils["weekday_to_int"].keys())
-
-            for date in valid_dates:
-                if one_time_dates and date in one_time_dates:
-                    new_row = row.copy()
-                    new_row["Date"] = date
-                    new_row["Day"] = date.strftime("%A")
-                    expanded_rows.append(new_row)
-                    continue
-
-                if any((date.month, date.day) == tup for tup in annual_tuples):
-                    new_row = row.copy()
-                    new_row["Date"] = date
-                    new_row["Day"] = date.strftime("%A")
-                    expanded_rows.append(new_row)
-                    continue
-
-                if "Quarterly" in freq_tag and (date.month, date.day) in [(1, 1), (4, 1), (7, 1), (10, 1)]:
-                    new_row = row.copy()
-                    new_row["Date"] = date
-                    new_row["Day"] = date.strftime("%A")
-                    expanded_rows.append(new_row)
-                    continue
-
-                if "Bi-Annually" in freq_tag and (date.month, date.day) in [(1, 1), (7, 1)]:
-                    new_row = row.copy()
-                    new_row["Date"] = date
-                    new_row["Day"] = date.strftime("%A")
-                    expanded_rows.append(new_row)
-                    continue
-
-                if weekdays:
-                    weekday_numbers = [utils["weekday_to_int"].get(day) for day in weekdays]
-                    if date.weekday() not in weekday_numbers:
-                        continue
-
-                    if interval and interval > 1:
-                        ref_date = valid_dates[0]
-                        delta_weeks = (date - ref_date).days // 7
-                        if delta_weeks % interval != 0:
-                            continue
-
-                    if "Monthly" in freq_tag and date.day != valid_dates[0].day:
-                        continue
-
-                    new_row = row.copy()
-                    new_row["Date"] = date
-                    new_row["Day"] = date.strftime("%A")
-                    expanded_rows.append(new_row)
-                    continue
-
-                for ordinal_day, weekday in ordinal_patterns:
-                    nth_weekday = utils["resolve_nth_weekday"](date.year, date.month, weekday, ordinal_day)
-                    if date == nth_weekday:
-                        new_row = row.copy()
-                        new_row["Date"] = date
-                        new_row["Day"] = date.strftime("%A")
-                        expanded_rows.append(new_row)
-                        break
-
-        if expanded_rows:
-            combined_df = pd.DataFrame(expanded_rows)
 
     if deduplicate and dedup_fields:
         before = len(combined_df)
         combined_df = combined_df.drop_duplicates(subset=dedup_fields)
         after = len(combined_df)
         if before > after:
-            st.info(f"🧹 Removed {before - after} duplicate task entries.")
+            st.info(f"\U0001f9f9 Removed {before - after} duplicate task entries.")
 
     if show_summary and "SourceKey" in combined_df.columns and st.session_state.get("enable_debug_mode", False):
-        st.subheader("📊 Schedule Source Summary")
+        st.subheader("\U0001f4ca Schedule Source Summary")
         summary_df = (
             combined_df.groupby("SourceKey")
             .agg(
@@ -686,6 +623,7 @@ def merge_all_schedule_dfs(
         st.session_state[output_key] = combined_df
 
     return combined_df
+
 
 
 
