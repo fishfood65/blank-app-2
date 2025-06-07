@@ -226,6 +226,52 @@ def add_table_from_schedule_to_markdown(schedule_df: pd.DataFrame, section: str,
 
     return "\n".join(output_md)
 
+def add_table_from_schedule_to_html(schedule_df: pd.DataFrame, section: str, include_priority: bool = True, include_heading: bool = False) -> str:
+    if schedule_df.empty:
+        return "<p><em>No schedule data available.</em></p>"
+
+    schedule_df = schedule_df.copy()
+    schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
+    schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
+    schedule_df["DateStr"] = schedule_df["Date"].dt.strftime("%Y-%m-%d")
+
+    schedule_df["Priority"] = schedule_df["task_type"].apply(
+        lambda t: PRIORITY_ORDER.index(t) if t in PRIORITY_ORDER else len(PRIORITY_ORDER)
+    )
+    schedule_df["Task Type"] = schedule_df["task_type"].apply(
+        lambda t: f"{TASK_TYPE_EMOJI.get(t, '')} {t}" if t else "❓"
+    )
+
+    schedule_df = schedule_df.sort_values(by=["Date", "Priority", "clean_task"])
+
+    html_output = []
+    if include_heading:
+        html_output.append("<h2>📆 Complete Schedule Summary</h2>")
+
+
+    for date, group in schedule_df.groupby("Date"):
+        day_str = date.strftime("%A, %Y-%m-%d")
+        html_output.append(f"<h3>📅 {day_str}</h3>")
+        html_output.append("<table border='1' cellspacing='0' cellpadding='4' style='border-collapse: collapse;'>")
+
+        # Headers
+        columns = ["📝 Task", "🔖 Type"]
+        if include_priority:
+            columns.insert(1, "🔢 Priority")
+        html_output.append("<thead><tr>" + "".join(f"<th>{col}</th>" for col in columns) + "</tr></thead>")
+
+        # Rows
+        html_output.append("<tbody>")
+        for _, row in group.iterrows():
+            cells = [row.get("clean_task", ""), row.get("Task Type", "")]
+            if include_priority:
+                cells.insert(1, str(row.get("Priority", "")))
+            html_output.append("<tr>" + "".join(f"<td>{str(cell)}</td>" for cell in cells) + "</tr>")
+        html_output.append("</tbody></table><br>")
+
+    return "\n".join(html_output)
+
+
 def generate_llm_responses(blocks: List[str], api_key: str, model: str, debug: bool) -> List[str]:
     client = Mistral(api_key=api_key)
     markdown_output = []
@@ -252,7 +298,8 @@ def generate_llm_responses(blocks: List[str], api_key: str, model: str, debug: b
 
         markdown_output.append(response_text)
 
-    return markdown_output
+    return 
+
 
 def generate_docx_from_prompt_blocks(
     section: str,
@@ -264,7 +311,7 @@ def generate_docx_from_prompt_blocks(
     debug: bool = False,
     insert_main_heading: bool = True,
     include_priority: bool = False, 
-) -> Tuple[io.BytesIO, str]:
+) -> Tuple[io.BytesIO, str, str]:
     from docx import Document
     from docx.shared import Pt
 
@@ -367,7 +414,11 @@ def generate_docx_from_prompt_blocks(
                 st.markdown(f"### 🔎 Debug: `{key}`", unsafe_allow_html=True)
                 st.dataframe(st.session_state[key])
 
-    return buffer, "\n\n---\n\n".join(markdown_output).strip()
+    html_output = ""
+    if isinstance(combined_schedule, pd.DataFrame) and not combined_schedule.empty:
+        html_output = "<h2>📆 Complete Schedule Summary</h2>\n" + add_table_from_schedule_to_html(combined_schedule, section)
+    
+    return buffer, "\n\n---\n\n".join(markdown_output).strip(), html_output
 
 def preview_runbook_output(section: str, runbook_text: str, label: str = "📖 Preview Runbook"): ### depreciated ####
     """
@@ -484,10 +535,12 @@ def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
     """
     buffer_key = f"{section}_runbook_buffer"
     text_key = f"{section}_runbook_text"
+    html_key = f"{section}_runbook_html"
     preview_toggle_key = f"{section}_show_preview"
 
     buffer = st.session_state.get(buffer_key)
     runbook_text = st.session_state.get(text_key)
+    html_output = st.session_state.get(html_key)
     doc_heading = f"{section.replace('_', ' ').title()} Emergency Runbook"
 
     if not filename:
@@ -503,8 +556,7 @@ def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
             st.session_state[preview_toggle_key] = True
 
     with col2:
-        if runbook_text:
-            html_output = f"<html><body><h1>{doc_heading}</h1>\n{markdown.markdown(runbook_text)}\n</body></html>"
+        if html_output:
             html_filename = filename.replace(".docx", ".html")
             st.download_button(
                 label="🌐 Download as HTML",
@@ -528,7 +580,7 @@ def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
 
     with col4:
         if st.button(f"♻️ Reset {section.title()} Runbook Cache", key=f"{section}_reset_preview"):
-            for key in [buffer_key, text_key, f"{section}_runbook_ready", preview_toggle_key]:
+            for key in [buffer_key, text_key, html_key, f"{section}_runbook_ready", preview_toggle_key]:
                 st.session_state.pop(key, None)
             st.success(f"🔄 Cleared session state for {section} runbook.")
             st.stop()
@@ -545,10 +597,9 @@ def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
 
     return bool(buffer)
 
-
 def maybe_generate_runbook(
     section: str,
-    generator_fn: Callable[[], tuple[io.BytesIO, str]],
+    generator_fn: Callable[[], tuple[io.BytesIO, str, str]],
     *,
     doc_heading: str = "",
     button_label: str = "📥 Generate Runbook",
@@ -559,7 +610,7 @@ def maybe_generate_runbook(
 
     Args:
         section (str): e.g., 'emergency_kit'
-        generator_fn: returns (buffer, markdown_text)
+        generator_fn: returns (buffer, markdown_text, html_output)
         doc_heading (str): Optional heading for display.
         button_label (str): Button text.
         filename (str): Optional download filename.
@@ -576,11 +627,12 @@ def maybe_generate_runbook(
 
     if not st.session_state.get(ready_key):
         # Not ready yet, try generating
-        buffer, markdown_text = generator_fn()
+        buffer, markdown_text, html_output = generator_fn()
 
         # Store in session
         st.session_state[buffer_key] = buffer
         st.session_state[text_key] = markdown_text
+        st.session_state[f"{section}_runbook_html"] = html_output
         st.session_state[ready_key] = True
 
         if st.session_state.get("enable_debug_mode"):
