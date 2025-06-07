@@ -341,7 +341,7 @@ def home_caretaker_prompt_template(data: dict) -> str:
 
     return "\n\n---\n\n".join(blocks).strip()
 
-def mail_runbook_prompt(section: str = "mail", debug: bool = False) -> str:
+def mail_runbook_prompt(section: str = "mail_trash", debug: bool = False) -> str:
     """
     Builds a structured mail handling prompt block without LLM.
 

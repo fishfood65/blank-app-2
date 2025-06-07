@@ -32,7 +32,7 @@ def debug_all_sections_input_capture_with_summary(sections: List[str]):
         }
         st.download_button(
             "⬇️ Download JSON",
-            data=json.dumps(export_data, indent=2),
+            data=json.dumps(export_data, indent=2, default=str),
             file_name="debug_snapshot.json",
             mime="application/json"
         )

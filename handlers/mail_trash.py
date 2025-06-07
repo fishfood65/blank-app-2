@@ -366,7 +366,9 @@ def mail_trash():
         refresh_preview = st.checkbox("🔄 Refresh Preview", value=True)
 
         # Step 7: Schedule and merge all available *_schedule_df entries
-        debug_schedule_df_presence() # optional log
+        if st.session_state.get("enable_debug_mode"):
+            debug_schedule_df_presence() # optional log
+        
         combined_df = merge_all_schedule_dfs(
             valid_dates=valid_dates,
             utils=utils,

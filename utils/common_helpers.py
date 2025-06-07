@@ -603,8 +603,9 @@ def merge_all_schedule_dfs(
         before = len(combined_df)
         combined_df = combined_df.drop_duplicates(subset=dedup_fields)
         after = len(combined_df)
-        if before > after:
-            st.info(f"\U0001f9f9 Removed {before - after} duplicate task entries.")
+        if st.session_state.get("enable_debug_mode"):
+            if before > after:
+                st.info(f"\U0001f9f9 Removed {before - after} duplicate task entries.")
 
     if show_summary and "SourceKey" in combined_df.columns and st.session_state.get("enable_debug_mode", False):
         st.subheader("\U0001f4ca Schedule Source Summary")
