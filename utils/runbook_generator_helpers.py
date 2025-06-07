@@ -226,6 +226,34 @@ def add_table_from_schedule_to_markdown(schedule_df: pd.DataFrame, section: str,
 
     return "\n".join(output_md)
 
+def generate_llm_responses(blocks: List[str], api_key: str, model: str, debug: bool) -> List[str]:
+    client = Mistral(api_key=api_key)
+    markdown_output = []
+
+    for i, block in enumerate(blocks):
+        if not block.strip():
+            continue
+
+        if debug:
+            st.markdown(f"### 🧱 Prompt Block {i+1}")
+            st.code(block, language="markdown")
+
+        try:
+            st.info("⚙️ Calling LLM...")
+            completion = client.chat.complete(
+                model=model,
+                messages=[SystemMessage(content=block)],
+                max_tokens=2048,
+                temperature=0.5,
+            )
+            response_text = completion.choices[0].message.content.strip()
+        except Exception as e:
+            response_text = f"❌ LLM error: {e}"
+
+        markdown_output.append(response_text)
+
+    return markdown_output
+
 def generate_docx_from_prompt_blocks(
     section: str,
     blocks: List[str],
