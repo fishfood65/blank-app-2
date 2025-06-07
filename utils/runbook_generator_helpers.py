@@ -280,10 +280,11 @@ def generate_docx_from_prompt_blocks(
     if use_llm:
         markdown_output = generate_llm_responses(blocks, api_key, model, debug)
         final_output = "\n\n".join(markdown_output)
-
     else:
-        for block in blocks:
+        for i, block in enumerate(blocks):
             if not block.strip():
+                if debug:
+                    st.markdown((f"🔍 Skipping empty block {i+1}"))
                 continue
             markdown_output.append(block)
         final_output = "\n\n".join(markdown_output)
