@@ -335,8 +335,8 @@ def mail_trash():
         st.subheader("🧐 Customize, Review and Reward")
 
     # # Step 1: Get valid dates from user
-        check_for_date_change(section="mail_trash")  # or "mail_trash", "pet_sitting", etc.
-        choice, start_date, end_date, valid_dates = select_runbook_date_range(section="mail_trash")
+       # check_for_date_change()  # or "mail_trash", "pet_sitting", etc.
+        choice, start_date, end_date, valid_dates = select_runbook_date_range()
 
         if start_date and end_date:
             # Step 2: Save date info

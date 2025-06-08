@@ -327,15 +327,18 @@ def daterange(start, end):
 
 def get_filtered_dates(start_date, end_date, selected_days):
     if not selected_days:
-        return []  # or raise an error depending on your logic
+        return []
+
     selected_days = [d.lower() for d in selected_days]
     all_dates = pd.date_range(start=start_date, end=end_date).to_list()
+
     return [
-        d for d in all_dates
+        d.date()  # ✅ Convert Timestamp to datetime.date
+        for d in all_dates
         if d.strftime("%A").lower() in selected_days
     ]
 
-def select_runbook_date_range(section: str):
+def select_runbook_date_range():
     """
     Displays a compact runbook date selector with presets, date inputs, and confirmation.
     Returns: choice, start_date, end_date, valid_dates
@@ -344,20 +347,19 @@ def select_runbook_date_range(section: str):
 
     today = datetime.now().date()
     default_end = today + timedelta(days=7)
-    prefix = f"{section}_"
 
     # 🔄 Reset confirmation if inputs have changed
-    check_for_date_change(section)
+    check_for_date_change()
 
-    with st.form(key=f"{prefix}confirm_dates_form"):
+    with st.form(key="confirm_dates_form"):
         # Row 1: Range Type + Dates
         col0, col1, col2 = st.columns([1.1, 1, 1])
         with col0:
-            choice = st.radio("⏱️ Range", ["Pick Dates", "General"], key=f"{prefix}date_choice", horizontal=True)
+            choice = st.radio("⏱️ Range", ["Pick Dates", "General"], key="date_choice", horizontal=True)
         with col1:
-            start_date = st.date_input("📅 Start", today, key=f"{prefix}start_date_input")
+            start_date = st.date_input("📅 Start", today, key="start_date_input")
         with col2:
-            end_date = st.date_input("📆 End", default_end, key=f"{prefix}end_date_input")
+            end_date = st.date_input("📆 End", default_end, key="end_date_input")
 
         # Row 2: Weekday Filter + Display Settings
         col3, col4 = st.columns([1.2, 1.8])
@@ -366,12 +368,12 @@ def select_runbook_date_range(section: str):
                 label="📆 Select Days",
                 options=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
                 selection_mode="multi",
-                key=f"{prefix}selected_days",
+                key="selected_days",
                 default=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]  # Optional sensible default
             )
 
         with col4:
-            show_priority = st.checkbox("🔢 Show priority & emoji labels", value=True, key=f"{prefix}show_priority_checkbox")
+            show_priority = st.checkbox("🔢 Show priority & emoji labels", value=True, key="show_priority_checkbox")
             st.caption("✅ Highlights urgent tasks • 🗑️ Trash, 📬 Mail, 💡 Utilities")
 
             # Submit
@@ -386,35 +388,34 @@ def select_runbook_date_range(section: str):
         else:
             valid_dates = get_filtered_dates(start_date, end_date, selected_days)
             st.session_state.update({
-                f"{prefix}runbook_dates_confirmed": True,
-                f"{prefix}start_date": start_date,
-                f"{prefix}end_date": end_date,
-                f"{prefix}valid_dates": valid_dates,
-                f"{prefix}include_priority": show_priority,
+                "runbook_dates_confirmed": True,
+                "start_date": start_date,
+                "end_date": end_date,
+                "valid_dates": valid_dates,
+                "include_priority": show_priority,
             })
             st.success(f"📆 Dates confirmed! {len(valid_dates)} valid days selected.")
 
     # Final return
     return (
-        st.session_state.get(f"{prefix}date_choice"),
-        st.session_state.get(f"{prefix}start_date"),
-        st.session_state.get(f"{prefix}end_date"),
-        st.session_state.get(f"{prefix}valid_dates", [])
+        st.session_state.get("date_choice"),
+        st.session_state.get("start_date"),
+        st.session_state.get("end_date"),
+        st.session_state.get("valid_dates", [])
     )
 
 
-def check_runbook_dates_confirmed(section:str) -> bool:
+def check_runbook_dates_confirmed() -> bool:
     """
     Returns True if the user confirmed date selection for the given section.
     """
-    return st.session_state.get(f"{section}_confirmed", False)
+    return st.session_state.get("runbook_dates_confirmed", False)
 
-def check_for_date_change(section:str):
+def check_for_date_change():
     """
-    Auto-reset session_state[f"{section}_runbook_dates_confirmed"] to False
+    Auto-reset session_state.set("runbook_dates_confirmed") to False
     if start date, end date, or refinement selection changes after confirmation.
     """
-    prefix = f"{section}_"
 
     confirmed = st.session_state.get("runbook_dates_confirmed", False)
     if not confirmed:
