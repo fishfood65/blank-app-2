@@ -396,14 +396,15 @@ def select_runbook_date_range(section="runbook_date_range"):
         valid_dates = get_filtered_dates(start_date, end_date, "All Days")
         st.info(f"🗓️ 1-week schedule starting **{start_date}**")
 
-    # ✅ Confirmation button
-    if start_date and end_date:
-        confirmed = st.button("✅ Confirm Runbook Dates")
-        if confirmed:
-            st.session_state["runbook_dates_confirmed"] = True
-            st.success("✅ Dates confirmed! You may now proceed.")
-        else:
-            st.session_state["runbook_dates_confirmed"] = False
+    # ✅ Confirmation button to explicity lock dates
+    if st.button("✅ Confirm Runbook Dates"):
+        st.session_state["runbook_dates_confirmed"] = True
+        st.session_state.update({
+            "start_date": start_date,
+            "end_date": end_date,
+            "valid_dates": valid_dates,
+        })
+        st.success("📆 Runbook dates confirmed.")
 
     return choice, start_date, end_date, valid_dates
 
