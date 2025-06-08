@@ -335,7 +335,7 @@ def mail_trash():
         st.subheader("🧐 Customize, Review and Reward")
 
     # # Step 1: Get valid dates from user
-       # check_for_date_change()  # or "mail_trash", "pet_sitting", etc.
+        check_for_date_change()  
         choice, start_date, end_date, valid_dates = select_runbook_date_range()
 
         if start_date and end_date:
@@ -399,12 +399,6 @@ def mail_trash():
                 show_legend=True,              # ✅ Enables emoji legend in expander
                 enable_task_filter=True        # ✅ Enables collapsible task type filter
             )
-            include_priority = st.checkbox("🔢 Show priority and emoji in schedule tables", value=True)
-            st.session_state["include_priority"] = include_priority
-            if include_priority:
-                st.caption("✅ Showing tasks with priority and emoji labels")
-            else:
-                st.caption("📄 Basic task view (no priority/emoji)")
 
             # Step 14: Redundant update (keep for consistency)
             st.session_state.update({
@@ -428,6 +422,7 @@ def mail_trash():
         st.session_state[f"{section}_runbook_blocks"] = blocks
 
         #Step 2: Generate DOCX
+        include_priority = st.session_state["include_priority"] # Ensure default for include_priority
 
         def generate_kit_docx():
             blocks = generate_all_prompt_blocks(section)

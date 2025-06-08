@@ -47,6 +47,13 @@ def display_user_friendly_schedule_table(
 
     df = df.copy()
 
+    # ✅ Optional task type filter (applied early)
+    if enable_task_filter and "task_type" in df.columns:
+        with st.expander("🎛️ Filter by Task Type", expanded=False):
+            unique_types = sorted(df["task_type"].dropna().unique())
+            selected_types = st.multiselect("Show only these task types:", unique_types, default=unique_types)
+            df = df[df["task_type"].isin(selected_types)]
+
     # 🏷️ Add emoji and readable label
     if "task_type" in df.columns:
         df["emoji"] = df["task_type"].map(TASK_TYPE_EMOJI).fillna("❓")
@@ -89,21 +96,6 @@ def display_user_friendly_schedule_table(
         st.subheader(heading_text)
 
     st.dataframe(user_friendly_df, use_container_width=True)
-
-    # 📖 Emoji legend in expander wrapped by columns
-    col1, col2 = st.columns(2)
-    with col1:
-        if show_legend:
-            with st.expander("🗂️ Show Emoji Legend", expanded=False):
-                legend_lines = [f"{emoji} = {task}" for task, emoji in TASK_TYPE_EMOJI.items()]
-                st.markdown("  \n".join(legend_lines))
-    with col2:
-        # ✅ Filter by task type if enabled
-        if enable_task_filter and "task_type" in df.columns:
-            with st.expander("🎛️ Filter by Task Type", expanded=False):
-                unique_types = sorted(df["task_type"].dropna().unique())
-                selected_types = st.multiselect("Show only these task types:", unique_types, default=unique_types)
-                df = df[df["task_type"].isin(selected_types)]
 
 def add_table_from_schedule(doc, schedule_df, section: str, include_priority: bool = True, include_heading: bool = False, heading_text: Optional[str] = None):
     from docx.shared import Inches

@@ -361,23 +361,17 @@ def select_runbook_date_range():
         with col2:
             end_date = st.date_input("📆 End", default_end, key="end_date_input")
 
-        # Row 2: Weekday Filter + Display Settings
-        col3, col4 = st.columns([1.2, 1.8])
-        with col3:
-            selected_days = st.pills(
-                label="📆 Select Days",
-                options=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-                selection_mode="multi",
-                key="selected_days",
-                default=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]  # Optional sensible default
-            )
+        # Row 2: Full-with Pills
+        selected_days = st.pills(
+            label="📆 Select Days",
+            options=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+            selection_mode="multi",
+            key="selected_days",
+            default=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]  # Optional sensible default
+        )
 
-        with col4:
-            show_priority = st.checkbox("🔢 Show priority & emoji labels", value=True, key="show_priority_checkbox")
-            st.caption("✅ Highlights urgent tasks • 🗑️ Trash, 📬 Mail, 💡 Utilities")
-
-            # Submit
-            submitted = st.form_submit_button("✅ Confirm Runbook Dates")
+        # Row 3: Submit button
+        submitted = st.form_submit_button("✅ Confirm Runbook Dates")
 
     # Handle submission
     if submitted:
@@ -392,7 +386,7 @@ def select_runbook_date_range():
                 "start_date": start_date,
                 "end_date": end_date,
                 "valid_dates": valid_dates,
-                "include_priority": show_priority,
+                #"include_priority": show_priority,
             })
             st.success(f"📆 Dates confirmed! {len(valid_dates)} valid days selected.")
 
