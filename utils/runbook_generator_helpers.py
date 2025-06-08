@@ -331,69 +331,54 @@ def generate_docx_from_prompt_blocks(
 
     doc = Document()
     doc.add_heading(doc_heading, level=0)
-    markdown_output = []
     debug_warnings = []
 
-    # Step 1: LLM or Manual Markdown generation
+    # Step 1: LLM or manual markdown generation
     if use_llm:
-        markdown_output = generate_llm_responses(blocks, api_key, model, debug)
+        markdown_blocks = generate_llm_responses(blocks, api_key, model, debug)
     else:
-        for i, block in enumerate(blocks):
-            if not block.strip():
-                if debug:
-                    st.markdown(f"🔍 Skipping empty block {i+1}")
-                continue
-            markdown_output.append(block)
+        markdown_blocks = [block for block in blocks if block.strip()]
 
-    # Step 2: Placeholder substitution for markdown/html (but preserve placeholders for DOCX)
-    placeholder_map = get_schedule_placeholder_mapping()
-    markdown_output_for_export = markdown_output.copy()
-    for i, line in enumerate(markdown_output_for_export):
-        placeholder = line.strip()
-        if placeholder in placeholder_map:
-            df_key = placeholder_map[placeholder]
-            schedule_df = st.session_state.get(df_key)
-            if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
-                markdown_output_for_export[i] = add_table_from_schedule_to_markdown(schedule_df, section)
-            else:
-                markdown_output_for_export[i] = f"⚠️ No schedule data found for `{df_key}`"
+    raw_markdown = "\n\n".join(markdown_blocks)
+    final_markdown = raw_markdown
+    final_html = markdown.markdown(raw_markdown)
 
-    # Step 3: Generate final markdown and HTML
-    markdown_text = "\n\n".join(markdown_output_for_export).strip()
-    full_html_blocks = "\n".join([markdown.markdown(block) for block in markdown_output_for_export])
+    # Step 2: Replace placeholders for markdown and HTML
+    placeholder_to_df_map = {}
+    for placeholder, df_key in schedule_sources.items():
+        df = st.session_state.get(df_key)
+        heading_text = SCHEDULE_HEADING_MAP.get(placeholder)
 
-    combined_df = st.session_state.get("combined_home_schedule_df")
-    if isinstance(combined_df, pd.DataFrame) and not combined_df.empty:
-        full_html_blocks += "<h2>📆 Complete Schedule Summary</h2>\n"
-        full_html_blocks += add_table_from_schedule_to_html(combined_df, section, include_priority=True)
-    else:
-        if debug:
-            debug_warnings.append("⚠️ No schedule data found in [`combined_home_schedule_df`](#debug-combined_home_schedule_df). Skipping 📆 Complete Schedule Summary.")
+        if isinstance(df, pd.DataFrame) and not df.empty:
+            markdown_table = add_table_from_schedule_to_markdown(
+                df, section, include_priority=include_priority, include_heading=True, heading_text=heading_text
+            )
+            html_table = add_table_from_schedule_to_html(
+                df, section, include_priority=include_priority, include_heading=True, heading_text=heading_text
+            )
 
-    html_output = f"<html><body><h1>{doc_heading}</h1>\n{full_html_blocks}\n</body></html>"
+            final_markdown = final_markdown.replace(placeholder, markdown_table)
+            final_html = final_html.replace(placeholder, html_table)
+            placeholder_to_df_map[markdown_table.strip()] = (df, heading_text)
+        else:
+            warning = f"⚠️ No data found for `{df_key}`."
+            final_markdown = final_markdown.replace(placeholder, warning)
+            final_html = final_html.replace(placeholder, f"<p>{warning}</p>")
+            if debug:
+                debug_warnings.append(f"Missing data for {df_key} (placeholder: {placeholder})")
 
-    # Step 4: DOCX rendering
-    for line in markdown_output:
+    # Step 3: Generate DOCX from parsed lines
+    for line in final_markdown.splitlines():
         line = line.strip()
         if not line:
             continue
 
-        if line in schedule_sources:
-            df_key = schedule_sources[line]
-            schedule_df = st.session_state.get(df_key)
-            if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
-                heading_text = SCHEDULE_HEADING_MAP.get(
-                    line,
-                    f"📆 {line.replace('<<INSERT_', '').replace('_SCHEDULE_TABLE>>', '').replace('_', ' ').title()} Schedule"
-                )
-                add_table_from_schedule(doc, schedule_df, section=section, include_heading=True, heading_text=heading_text)
-            else:
-                if debug:
-                    section_hint = df_key.replace("_schedule_df", "").replace("_", " ").title()
-                    debug_warnings.append(
-                        f"⚠️ Skipping **{section_hint}** schedule placeholder `{line}` — no data found in [`st.session_state['{df_key}']`](#debug-{df_key})."
-                    )
-            doc.add_paragraph("")
+        # If this line is a known table inserted in markdown, convert to real DOCX table
+        if line in placeholder_to_df_map:
+            df, heading_text = placeholder_to_df_map[line]
+            add_table_from_schedule(
+                doc, df, section=section, include_heading=True, heading_text=heading_text
+            )
             continue
 
         if line.startswith("##### "):
@@ -423,38 +408,19 @@ def generate_docx_from_prompt_blocks(
                 para.add_run(line[cursor:])
             para.style.font.size = Pt(11)
 
-    # Step 5: Append final summary table (DOCX only)
-    if isinstance(combined_df, pd.DataFrame) and not combined_df.empty:
-        add_table_from_schedule(
-            doc,
-            combined_df,
-            section=section,
-            include_heading=True,
-            heading_text="📆 Complete Schedule Summary"
-        )
     doc.add_page_break()
 
-    # Step 6: Finalize buffer
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
 
-    # Step 7: Debug rendering
+    # Debug: render warnings
     if debug and debug_warnings:
-        with st.expander("⚠️ Missing Schedules (Debug)", expanded=True):
-            for msg in debug_warnings:
-                st.markdown(f"- {msg}", unsafe_allow_html=True)
+        st.markdown("## ⚠️ Debug Warnings")
+        for w in debug_warnings:
+            st.markdown(f"- {w}")
 
-        for key in ["combined_home_schedule_df", "trash_schedule_df", "mail_schedule_df"]:
-            if key in st.session_state:
-                st.markdown(f"<a name='debug-{key}'></a>", unsafe_allow_html=True)
-                st.markdown(f"### 🔎 Debug: `{key}`", unsafe_allow_html=True)
-                st.dataframe(st.session_state[key])
-
-    return buffer, markdown_text, html_output
-
-
-
+    return buffer, final_markdown.strip(), f"<html><body><h1>{doc_heading}</h1>{final_html}</body></html>"
 
 def preview_runbook_output(section: str, runbook_text: str, label: str = "📖 Preview Runbook"): ### depreciated ####
     """
@@ -643,7 +609,7 @@ def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
 
 def maybe_generate_runbook(
     section: str,
-    generator_fn: Callable[[], tuple[io.BytesIO, str, str]],
+    generator_fn: Callable[[], tuple[io.BytesIO, str, list[str]]],
     *,
     doc_heading: str = "",
     button_label: str = "📥 Generate Runbook",
@@ -663,6 +629,7 @@ def maybe_generate_runbook(
     ready_key = f"{section}_runbook_ready"
     buffer_key = f"{section}_runbook_buffer"
     text_key = f"{section}_runbook_text"
+    debug = st.session_state.get("enable_debug_mode", False)
 
     st.subheader("🎉 Reward")
     if st.button("📤 Generate Runbook", key=generate_key):
@@ -671,9 +638,15 @@ def maybe_generate_runbook(
 
     if not st.session_state.get(ready_key):
         # Not ready yet, try generating
-        buffer, markdown_text, html_output = generator_fn()
+        buffer, markdown_text, html_output, debug_warnings = generator_fn()
+        debug = st.session_state.get("enable_debug_mode", False)
+        if debug and debug_warnings:
+            st.markdown("### ⚠️ Missing Schedule Warnings")
+            for msg in debug_warnings:
+                st.markdown(f"- {msg}", unsafe_allow_html=True)
         if not markdown_text.strip():
             st.warning("⚠️ Runbook generation did not produce any content.")
+
 
         # Store in session
         st.session_state[buffer_key] = buffer
