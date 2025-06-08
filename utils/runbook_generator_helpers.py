@@ -420,7 +420,7 @@ def generate_docx_from_prompt_blocks(
         for w in debug_warnings:
             st.markdown(f"- {w}")
 
-    return buffer, final_markdown.strip(), f"<html><body><h1>{doc_heading}</h1>{final_html}</body></html>"
+    return buffer, final_markdown.strip(), f"<html><body><h1>{doc_heading}</h1>{final_html}</body></html>", debug_warnings
 
 def preview_runbook_output(section: str, runbook_text: str, label: str = "📖 Preview Runbook"): ### depreciated ####
     """
