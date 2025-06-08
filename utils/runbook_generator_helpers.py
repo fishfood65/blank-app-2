@@ -318,6 +318,8 @@ def generate_docx_from_prompt_blocks(
     use_llm: bool = False,
     debug: bool = False,
     include_priority: bool = True,
+    insert_main_heading: bool = False,
+    include_heading: bool = False,
 ) -> tuple[io.BytesIO, str, str]:
     import io
     import markdown

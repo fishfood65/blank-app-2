@@ -21,6 +21,7 @@ from utils.data_helpers import register_task_input, get_answer, extract_provider
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
 from prompts.templates import utility_provider_lookup_prompt
+from utils.common_helpers import get_schedule_placeholder_mapping
 
 # --- Generate the AI prompt ---
 api_key = os.getenv("MISTRAL_TOKEN")
@@ -198,7 +199,8 @@ def emergency_kit_utilities():
         #st.session_state["utility_providers_saved"] = True
         return generate_docx_from_prompt_blocks(
             section=section,
-            blocks=blocks,  
+            blocks=blocks, 
+            schedule_sources=get_schedule_placeholder_mapping(),   
             include_heading=True,
             use_llm=True,
             api_key=os.getenv("MISTRAL_TOKEN"),

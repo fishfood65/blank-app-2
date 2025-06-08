@@ -427,14 +427,14 @@ def mail_trash():
         st.session_state[f"{section}_runbook_blocks"] = blocks  # ✅ Store for debug
         return generate_docx_from_prompt_blocks(
             section=section,
-            blocks=blocks,  
+            blocks=blocks,
+            schedule_sources=get_schedule_placeholder_mapping(),
             include_heading=True,
             include_priority=include_priority,
             use_llm=False,
             api_key=os.getenv("MISTRAL_TOKEN"),
             doc_heading="📬 Mail and 🗑️ Trash Runbook",
             debug=st.session_state.get("enable_debug_mode", False),
-            include_priority=include_priority #include schedule priority 
         )
 
     maybe_generate_runbook(
