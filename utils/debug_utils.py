@@ -93,6 +93,45 @@ def debug_task_input_capture_with_answers_tabs(section: str):
             show_schedule_snapshot=True
         )
 
+        debug_blocks = st.session_state.get(f"{section}_debug_blocks", [])
+        debug_md_output = st.session_state.get(f"{section}_debug_markdown_output", [])
+
+        if debug_blocks or debug_md_output:
+            st.markdown("---")
+            st.markdown("### 🧪 Prompt Debug")
+
+            with st.markdown("🔹 Raw Prompt Blocks"):
+                for i, block in enumerate(debug_blocks):
+                    st.markdown(f"**Block {i+1}**")
+                    blocks = st.session_state.get(f"{section}_runbook_blocks", [])
+                    if not blocks:
+                        st.warning("⚠️ No prompt blocks found in session_state.")
+                    else:
+                        for i, block in enumerate(blocks):
+                            st.markdown(f"**Block {i+1}**")
+                            st.code(block, language="markdown")
+
+
+            with st.markdown("🔹 Markdown Output"):
+                for i, md in enumerate(debug_md_output):
+                    st.markdown(f"**Markdown Block {i+1}**")
+                    st.code(md, language="markdown")
+        st.subheader("📖 Prompt Blocks")
+        blocks = st.session_state.get(f"{section}_debug_blocks", [])
+        if blocks:
+            for i, block in enumerate(blocks):
+                st.code(block, language="markdown")
+        else:
+            st.warning("⚠️ No prompt blocks found in session_state.")
+
+        st.subheader("🧾 Markdown Output")
+        markdown_output = st.session_state.get(f"{section}_debug_markdown_output", [])
+        if markdown_output:
+            for i, md in enumerate(markdown_output):
+                st.markdown(md)
+        else:
+            st.warning("⚠️ No markdown output found in session_state.")
+
     with tabs[3]:
         st.subheader("🧠 Raw `st.session_state`")
         st.json(dict(st.session_state))

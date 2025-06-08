@@ -418,11 +418,13 @@ def mail_trash():
     st.session_state.get("runbook_dates_confirmed") is True
     ):
         blocks = generate_all_prompt_blocks(section)
+        st.session_state[f"{section}_runbook_blocks"] = blocks
 
     #Step 2: Generate DOCX
 
     def generate_kit_docx():
         blocks = generate_all_prompt_blocks(section)
+        st.session_state[f"{section}_runbook_blocks"] = blocks  # ✅ Store for debug
         return generate_docx_from_prompt_blocks(
             section=section,
             blocks=blocks,  

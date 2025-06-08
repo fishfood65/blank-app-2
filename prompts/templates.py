@@ -466,7 +466,7 @@ def trash_runbook_prompt(section: str = "trash_handling", debug: bool = False) -
     if wm_block:
         sections.extend(["### Waste Management Contact", wm_block])
 
-    sections.extend(["### 📆 Trash and Recycling Pickup Schedule", "<<INSERT_COMBINED_HOME_SCHEDULE_TABLE>>"])
+    sections.extend(["### 📆 Trash and Recycling Pickup Schedule", "<<INSERT_TRASH_SCHEDULE_TABLE>>"])
 
     markdown = "\n\n".join(sections)
 
