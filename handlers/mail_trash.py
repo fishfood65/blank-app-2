@@ -17,7 +17,7 @@ import uuid
 import json
 from docx.shared import Inches
 from utils.preview_helpers import get_active_section_label
-from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs, select_runbook_date_range, sanitize_label, sanitize, section_has_valid_input, check_runbook_dates_confirmed
+from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs, select_runbook_date_range, sanitize_label, sanitize, section_has_valid_input, check_runbook_dates_confirmed, check_for_date_change
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook, render_runbook_preview_inline, display_user_friendly_schedule_table
 from utils.common_helpers import get_schedule_utils, debug_saved_schedule_dfs, get_schedule_placeholder_mapping, merge_all_schedule_dfs
@@ -335,112 +335,119 @@ def mail_trash():
         st.subheader("🧐 Customize, Review and Reward")
 
     # # Step 1: Get valid dates from user
-    choice, start_date, end_date, valid_dates = select_runbook_date_range()
+        check_for_date_change(section="mail_trash")  # or "mail_trash", "pet_sitting", etc.
+        choice, start_date, end_date, valid_dates = select_runbook_date_range(section="mail_trash")
 
-    if start_date and end_date:
-        # Step 2: Save date info
-        st.session_state.update({
-            "start_date": start_date,
-            "end_date": end_date,
-            "valid_dates": valid_dates
-        })
-        st.markdown("---")
-        # Step 3: Load scheduling utilities
-        utils = get_schedule_utils()
+        if start_date and end_date:
+            # Step 2: Save date info
+            st.session_state.update({
+                "start_date": start_date,
+                "end_date": end_date,
+                "valid_dates": valid_dates
+            })
+            st.markdown("---")
+            # Step 3: Load scheduling utilities
+            utils = get_schedule_utils()
 
-        # Step 4: Extract raw tasks from session and input
-        df = extract_unscheduled_tasks_from_inputs_with_category()
-        if st.session_state.get("enable_debug_mode", False):
-            debug_summary = log_extracted_tasks_debug(df, section="mail_trash")
+            # Step 4: Extract raw tasks from session and input
+            df = extract_unscheduled_tasks_from_inputs_with_category()
+            if st.session_state.get("enable_debug_mode", False):
+                debug_summary = log_extracted_tasks_debug(df, section="mail_trash")
 
-        # Step 5: Schedule tasks (for your only section)
-        schedule_df = extract_and_schedule_all_tasks(
-            valid_dates=valid_dates,
-            utils=utils,
-            df=df,  # 👈 use the extracted tasks
-            section="mail_trash",
-            output_key="mail_trash_schedule_df"  # 👈 optional, also stored to session
-        )
+            # Step 5: Schedule tasks (for your only section)
+            schedule_df = extract_and_schedule_all_tasks(
+                valid_dates=valid_dates,
+                utils=utils,
+                df=df,  # 👈 use the extracted tasks
+                section="mail_trash",
+                output_key="mail_trash_schedule_df"  # 👈 optional, also stored to session
+            )
 
-        # Step 6: Optional preview toggle
-        refresh_preview = st.checkbox("🔄 Refresh Preview", value=True)
+            # Step 6: Optional preview toggle
+            refresh_preview = st.checkbox("🔄 Refresh Preview", value=True)
 
-        # Step 7: Schedule and merge all available *_schedule_df entries
-        if st.session_state.get("enable_debug_mode"):
-            debug_schedule_df_presence() # optional log
-        
-        combined_df = merge_all_schedule_dfs(
-            valid_dates=valid_dates,
-            utils=utils,
-            output_key="combined_home_schedule_df",  # optional deduplication protection
-            deduplicate=True,
-            annotate_source=True,
-            group_keys={
-            "trash_schedule_df": ["indoor_trash_schedule_df", "outdoor_trash_schedule_df"]
-        }
-        )
+            # Step 7: Schedule and merge all available *_schedule_df entries
+            if st.session_state.get("enable_debug_mode"):
+                debug_schedule_df_presence() # optional log
+            
+            combined_df = merge_all_schedule_dfs(
+                valid_dates=valid_dates,
+                utils=utils,
+                output_key="combined_home_schedule_df",  # optional deduplication protection
+                deduplicate=True,
+                annotate_source=True,
+                group_keys={
+                "trash_schedule_df": ["indoor_trash_schedule_df", "outdoor_trash_schedule_df"]
+            }
+            )
 
-        # Step 8: Save merged version to session
-        st.session_state["combined_home_schedule_df"] = combined_df
+            # Step 8: Save merged version to session
+            st.session_state["combined_home_schedule_df"] = combined_df
 
-        # Step 9: Show user preview
-        if refresh_preview and combined_df is not None:
-            st.subheader("📆 Review & Update Scheduled Tasks:")
-            display_enriched_task_preview(combined_df)
+            # Step 9: Show user preview
+            if refresh_preview and combined_df is not None:
+                st.subheader("📆 Review & Update Scheduled Tasks:")
+                display_enriched_task_preview(combined_df)
 
-        # Step 10: Save split schedules for mail/trash/etc
-        save_task_schedules_by_type(combined_df)
+            # Step 10: Save split schedules for mail/trash/etc
+            save_task_schedules_by_type(combined_df)
 
-        display_user_friendly_schedule_table(
-            df=combined_df,
-            heading_text="🧹 Task Schedule",
-            show_heading=True,             # Optional, defaults to True
-            show_legend=True,              # ✅ Enables emoji legend in expander
-            enable_task_filter=True        # ✅ Enables collapsible task type filter
-        )
-        include_priority = st.checkbox("🔢 Show priority and emoji in schedule tables", value=True)
-        st.session_state["include_priority"] = include_priority
-        if include_priority:
-            st.caption("✅ Showing tasks with priority and emoji labels")
-        else:
-            st.caption("📄 Basic task view (no priority/emoji)")
+            display_user_friendly_schedule_table(
+                df=combined_df,
+                heading_text="🧹 Task Schedule",
+                show_heading=True,             # Optional, defaults to True
+                show_legend=True,              # ✅ Enables emoji legend in expander
+                enable_task_filter=True        # ✅ Enables collapsible task type filter
+            )
+            include_priority = st.checkbox("🔢 Show priority and emoji in schedule tables", value=True)
+            st.session_state["include_priority"] = include_priority
+            if include_priority:
+                st.caption("✅ Showing tasks with priority and emoji labels")
+            else:
+                st.caption("📄 Basic task view (no priority/emoji)")
 
-        # Step 14: Redundant update (keep for consistency)
-        st.session_state.update({
-            "combined_home_schedule_df": combined_df
-        })
+            # Step 14: Redundant update (keep for consistency)
+            st.session_state.update({
+                "combined_home_schedule_df": combined_df
+            })
     st.markdown("---")
-    
+
+    if st.button("🔄 Reset Runbook Prerequisites (for testing)"):
+        for key in ["mail_locked", "trash_locked", "runbook_dates_confirmed"]:
+            st.session_state.pop(key, None)
+        st.success("🧹 Reset complete. You can re-test lock and confirm flow.")
+        st.stop()
+
     # ✅ Automatically generate prompt blocks once providers are saved
     if (
-    st.session_state.get("mail_locked") is True and
-    st.session_state.get("trash_locked") is True and
-    st.session_state.get("runbook_dates_confirmed") is True
+        st.session_state.get("mail_locked") is True and
+        st.session_state.get("trash_locked") is True and
+        st.session_state.get("runbook_dates_confirmed") is True
     ):
         blocks = generate_all_prompt_blocks(section)
         st.session_state[f"{section}_runbook_blocks"] = blocks
 
-    #Step 2: Generate DOCX
+        #Step 2: Generate DOCX
 
-    def generate_kit_docx():
-        blocks = generate_all_prompt_blocks(section)
-        st.session_state[f"{section}_runbook_blocks"] = blocks  # ✅ Store for debug
-        return generate_docx_from_prompt_blocks(
+        def generate_kit_docx():
+            blocks = generate_all_prompt_blocks(section)
+            st.session_state[f"{section}_runbook_blocks"] = blocks  # ✅ Store for debug
+            return generate_docx_from_prompt_blocks(
+                section=section,
+                blocks=blocks,
+                schedule_sources=get_schedule_placeholder_mapping(),
+                include_heading=True,
+                include_priority=include_priority,
+                use_llm=False,
+                api_key=os.getenv("MISTRAL_TOKEN"),
+                doc_heading="📬 Mail and 🗑️ Trash Runbook",
+                debug=st.session_state.get("enable_debug_mode", False),
+            )
+
+        maybe_generate_runbook(
             section=section,
-            blocks=blocks,
-            schedule_sources=get_schedule_placeholder_mapping(),
-            include_heading=True,
-            include_priority=include_priority,
-            use_llm=False,
-            api_key=os.getenv("MISTRAL_TOKEN"),
+            generator_fn=generate_kit_docx,
             doc_heading="📬 Mail and 🗑️ Trash Runbook",
-            debug=st.session_state.get("enable_debug_mode", False),
+            filename="utilities_emergency_kit.docx",
+            button_label="📥 Generate Runbook"
         )
-
-    maybe_generate_runbook(
-        section=section,
-        generator_fn=generate_kit_docx,
-        doc_heading="📬 Mail and 🗑️ Trash Runbook",
-        filename="utilities_emergency_kit.docx",
-        button_label="📥 Generate Runbook"
-    )

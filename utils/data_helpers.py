@@ -333,86 +333,131 @@ def get_filtered_dates(start_date, end_date, refinement):
     else:  # All Days
         return list(daterange(start_date, end_date))
     
-def select_runbook_date_range(section="runbook_date_range"):
+def select_runbook_date_range(section: str):
     """
-    Displays a user-friendly runbook date selector with presets, date inputs, and confirmation.
-    Stores confirmation status in session state to control downstream flow.
+    Displays a compact runbook date selector with presets, date inputs, and confirmation.
     Returns: choice, start_date, end_date, valid_dates
     """
-    st.markdown("### 🗓️ Customize Your Runbook Date Range")
+    st.subheader("🗓️ Customize Runbook Dates")
 
-    options = ["Pick Dates", "General"]
-    choice = register_task_input(
-        label="Runbook Timeframe Option",
-        input_fn=st.radio,
-        section=section,
-        options=options,
-        index=0,
-        key="runbook_timeframe_option"
+    today = datetime.now().date()
+    default_end = today + timedelta(days=7)
+    prefix = f"{section}_"
+
+    # 🔄 Reset confirmation if inputs have changed
+    check_for_date_change(section)
+
+    with st.form(key=f"{prefix}confirm_dates_form"):
+        # Row 1: Range Type + Dates
+        col0, col1, col2 = st.columns([1.1, 1, 1])
+        with col0:
+            choice = st.radio("⏱️ Range", ["Pick Dates", "General"], key=f"{prefix}date_choice", horizontal=True)
+        with col1:
+            start_date = st.date_input("📅 Start", today, key=f"{prefix}start_date_input")
+        with col2:
+            end_date = st.date_input("📆 End", default_end, key=f"{prefix}end_date_input")
+
+        # Row 2: Filter and Display Settings
+        col3, col4 = st.columns([1.2, 1.8])
+        with col3:
+            refinement_map = {
+                "📆 All Days": "All Days",
+                "🏢 Weekdays": "Weekdays Only",
+                "🎉 Weekends": "Weekend Only"
+            }
+            refinement_icon = st.radio(
+                "📊 Filter",
+                options=list(refinement_map.keys()),
+                horizontal=True,
+                key=f"{prefix}date_refinement_icon"
+            )
+            refinement = refinement_map[refinement_icon]
+
+            with st.expander("ℹ️ Date Filter Legend", expanded=False):
+                st.markdown("""
+                - 📆 **All Days**: Includes all days in the selected range  
+                - 🏢 **Weekdays**: Monday through Friday  
+                - 🎉 **Weekends**: Saturday and Sunday only
+                """)
+
+        with col4:
+            show_priority = st.checkbox("🔢 Show priority & emoji labels", value=True, key=f"{prefix}show_priority_checkbox")
+            st.caption("✅ Highlights urgent tasks • 🗑️ Trash, 📬 Mail, 💡 Utilities")
+
+            # Submit
+            submitted = st.form_submit_button("✅ Confirm Runbook Dates")
+
+    # Handle submission
+    if submitted:
+        if start_date >= end_date:
+            st.error("⚠️ Start date must be before end date.")
+        elif (end_date - start_date).days > 31:
+            st.error("⚠️ Selected period must be no longer than 1 month.")
+        else:
+            valid_dates = get_filtered_dates(start_date, end_date, refinement)
+            st.session_state.update({
+                f"{prefix}runbook_dates_confirmed": True,
+                f"{prefix}start_date": start_date,
+                f"{prefix}end_date": end_date,
+                f"{prefix}valid_dates": valid_dates,
+                f"{prefix}refinement": refinement,
+                f"{prefix}include_priority": show_priority,
+                f"{prefix}date_choice": choice
+            })
+            st.success(f"📆 Dates confirmed! {len(valid_dates)} valid days selected.")
+
+    # Final return
+    return (
+        st.session_state.get(f"{prefix}date_choice"),
+        st.session_state.get(f"{prefix}start_date"),
+        st.session_state.get(f"{prefix}end_date"),
+        st.session_state.get(f"{prefix}valid_dates", [])
     )
 
-    start_date, end_date, valid_dates, refinement = None, None, [], "All Days"
-    today = datetime.now().date()
 
-    if choice == "Pick Dates":
-        col1, col2 = st.columns(2)
-        with col1:
-            start_date = register_task_input(
-                label="Start Date",
-                input_fn=st.date_input,
-                section=section,
-                value=today,
-                key="start_date_input"
-            )
-        with col2:
-            end_date = register_task_input(
-                label="End Date",
-                input_fn=st.date_input,
-                section=section,
-                value=today + timedelta(days=7),
-                key="end_date_input"
-            )
-
-        if start_date >= end_date:
-            st.error("\u26a0\ufe0f Start date must be before end date.")
-            return None, None, None, []
-
-        refinement = register_task_input(
-            label="Date Range Refinement",
-            input_fn=st.radio,
-            section=section,
-            options=["All Days", "Weekdays Only", "Weekend Only"],
-            index=0,
-            horizontal=True,
-            key="refinement_option"
-        )
-
-        valid_dates = get_filtered_dates(start_date, end_date, refinement)
-        st.info(f"🗓️ Using dates from **{start_date}** to **{end_date}** ({refinement})")
-
-    elif choice == "General":
-        start_date = today
-        end_date = today + timedelta(days=7)
-        valid_dates = get_filtered_dates(start_date, end_date, "All Days")
-        st.info(f"🗓️ 1-week schedule starting **{start_date}**")
-
-    # ✅ Confirmation button to explicity lock dates
-    if st.button("✅ Confirm Runbook Dates"):
-        st.session_state["runbook_dates_confirmed"] = True
-        st.session_state.update({
-            "start_date": start_date,
-            "end_date": end_date,
-            "valid_dates": valid_dates,
-        })
-        st.success("📆 Runbook dates confirmed.")
-
-    return choice, start_date, end_date, valid_dates
-
-def check_runbook_dates_confirmed(section: str = "runbook_date_range") -> bool:
+def check_runbook_dates_confirmed(section:str) -> bool:
     """
     Returns True if the user confirmed date selection for the given section.
     """
     return st.session_state.get(f"{section}_confirmed", False)
+
+def check_for_date_change(section:str):
+    """
+    Auto-reset session_state[f"{section}_runbook_dates_confirmed"] to False
+    if start date, end date, or refinement selection changes after confirmation.
+    """
+    prefix = f"{section}_"
+
+    confirmed = st.session_state.get("runbook_dates_confirmed", False)
+    if not confirmed:
+        return  # Nothing to do
+
+    stored_start = st.session_state.get("start_date")
+    stored_end = st.session_state.get("end_date")
+    stored_refinement = st.session_state.get("refinement")
+
+    current_start = st.session_state.get("start_date_input")
+    current_end = st.session_state.get("end_date_input")
+    current_refinement = st.session_state.get("date_refinement_icon")
+
+    # Only apply this logic if using "Pick Dates"
+    if st.session_state.get("date_choice") == "Pick Dates":
+        if current_start and stored_start and current_start != stored_start:
+            st.session_state["runbook_dates_confirmed"] = False
+            st.warning("🔁 Start date changed — reconfirm needed.")
+        elif current_end and stored_end and current_end != stored_end:
+            st.session_state["runbook_dates_confirmed"] = False
+            st.warning("🔁 End date changed — reconfirm needed.")
+        elif current_refinement and stored_refinement:
+            refinement_map = {
+                "📆 All Days": "All Days",
+                "🏢 Weekdays": "Weekdays Only",
+                "🎉 Weekends": "Weekend Only"
+            }
+            current_clean = refinement_map.get(current_refinement)
+            if current_clean != stored_refinement:
+                st.session_state["runbook_dates_confirmed"] = False
+                st.warning("🔁 Filter changed — reconfirm needed.")
 
 def preview_interaction_log():
     """Display a log of all user interactions."""
