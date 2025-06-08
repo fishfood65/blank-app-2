@@ -325,14 +325,16 @@ def daterange(start, end):
     for n in range((end - start).days + 1):
         yield start + timedelta(n)
 
-def get_filtered_dates(start_date, end_date, refinement):
-    if refinement == "Weekdays Only":
-        return [d for d in daterange(start_date, end_date) if d.weekday() < 5]
-    elif refinement == "Weekend Only":
-        return [d for d in daterange(start_date, end_date) if d.weekday() >= 5]
-    else:  # All Days
-        return list(daterange(start_date, end_date))
-    
+def get_filtered_dates(start_date, end_date, selected_days):
+    if not selected_days:
+        return []  # or raise an error depending on your logic
+    selected_days = [d.lower() for d in selected_days]
+    all_dates = pd.date_range(start=start_date, end=end_date).to_list()
+    return [
+        d for d in all_dates
+        if d.strftime("%A").lower() in selected_days
+    ]
+
 def select_runbook_date_range(section: str):
     """
     Displays a compact runbook date selector with presets, date inputs, and confirmation.
@@ -357,28 +359,16 @@ def select_runbook_date_range(section: str):
         with col2:
             end_date = st.date_input("📆 End", default_end, key=f"{prefix}end_date_input")
 
-        # Row 2: Filter and Display Settings
+        # Row 2: Weekday Filter + Display Settings
         col3, col4 = st.columns([1.2, 1.8])
         with col3:
-            refinement_map = {
-                "📆 All Days": "All Days",
-                "🏢 Weekdays": "Weekdays Only",
-                "🎉 Weekends": "Weekend Only"
-            }
-            refinement_icon = st.radio(
-                "📊 Filter",
-                options=list(refinement_map.keys()),
-                horizontal=True,
-                key=f"{prefix}date_refinement_icon"
+            selected_days = st.pills(
+                label="📆 Select Days",
+                options=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+                selection_mode="multi",
+                key=f"{prefix}selected_days",
+                default=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]  # Optional sensible default
             )
-            refinement = refinement_map[refinement_icon]
-
-            with st.expander("ℹ️ Date Filter Legend", expanded=False):
-                st.markdown("""
-                - 📆 **All Days**: Includes all days in the selected range  
-                - 🏢 **Weekdays**: Monday through Friday  
-                - 🎉 **Weekends**: Saturday and Sunday only
-                """)
 
         with col4:
             show_priority = st.checkbox("🔢 Show priority & emoji labels", value=True, key=f"{prefix}show_priority_checkbox")
@@ -394,15 +384,13 @@ def select_runbook_date_range(section: str):
         elif (end_date - start_date).days > 31:
             st.error("⚠️ Selected period must be no longer than 1 month.")
         else:
-            valid_dates = get_filtered_dates(start_date, end_date, refinement)
+            valid_dates = get_filtered_dates(start_date, end_date, selected_days)
             st.session_state.update({
                 f"{prefix}runbook_dates_confirmed": True,
                 f"{prefix}start_date": start_date,
                 f"{prefix}end_date": end_date,
                 f"{prefix}valid_dates": valid_dates,
-                f"{prefix}refinement": refinement,
                 f"{prefix}include_priority": show_priority,
-                f"{prefix}date_choice": choice
             })
             st.success(f"📆 Dates confirmed! {len(valid_dates)} valid days selected.")
 
