@@ -199,7 +199,7 @@ def emergency_kit_utilities():
         return generate_docx_from_prompt_blocks(
             section=section,
             blocks=blocks,  
-            insert_main_heading=True,
+            include_heading=True,
             use_llm=True,
             api_key=os.getenv("MISTRAL_TOKEN"),
             doc_heading="⛑️ Utilities & Emergency Kit Runbook ",

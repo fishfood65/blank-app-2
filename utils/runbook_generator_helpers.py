@@ -19,28 +19,11 @@ from .common_helpers import get_schedule_placeholder_mapping
 from .prompt_block_utils import generate_all_prompt_blocks
 from .task_schedule_utils_updated import export_schedule_to_markdown
 import markdown
+from config.constants import TASK_TYPE_EMOJI, SCHEDULE_HEADING_MAP, PRIORITY_ORDER
 
 from docx import Document
 import pandas as pd
 from datetime import datetime
-
-# Priority order for sorting task types
-PRIORITY_ORDER = [
-    "Mail Handling",
-    "Indoor Trash",
-    "Outdoor Trash",
-    "Recycling",
-    "Compost",
-]
-
-# Emoji map for task type labeling
-TASK_TYPE_EMOJI = {
-    "Mail Handling": "📬",
-    "Indoor Trash": "🗑️",
-    "Outdoor Trash": "🚛",
-    "Recycling": "♻️",
-    "Compost": "🌱",
-}
 
 def display_user_friendly_schedule_table(
     df: pd.DataFrame,
@@ -122,21 +105,16 @@ def display_user_friendly_schedule_table(
                 selected_types = st.multiselect("Show only these task types:", unique_types, default=unique_types)
                 df = df[df["task_type"].isin(selected_types)]
 
-def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame, section: str, include_priority: bool = True):
-    """
-    Adds grouped schedule tables to the DOCX document by date.
-    Supports emoji task types and optional priority column.
-    """
+def add_table_from_schedule(doc, schedule_df, section: str, include_priority: bool = True, include_heading: bool = False, heading_text: Optional[str] = None):
+    from docx.shared import Inches
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
     if schedule_df.empty:
-        doc.add_paragraph("_No schedule data available._")
         return
 
-    # Ensure correct datetime parsing and sorting
+    schedule_df = schedule_df.copy()
     schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
-    schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
-    schedule_df["DateStr"] = schedule_df["Date"].dt.strftime("%Y-%m-%d")
-
-    # Add priority score and emoji task type label
     schedule_df["Priority"] = schedule_df["task_type"].apply(
         lambda t: PRIORITY_ORDER.index(t) if t in PRIORITY_ORDER else len(PRIORITY_ORDER)
     )
@@ -144,90 +122,82 @@ def add_table_from_schedule(doc: Document, schedule_df: pd.DataFrame, section: s
         lambda t: f"{TASK_TYPE_EMOJI.get(t, '')} {t}" if t else "❓"
     )
 
-    # Sort by date and priority
     schedule_df = schedule_df.sort_values(by=["Date", "Priority", "clean_task"])
 
-    # Group by date
-    grouped = schedule_df.groupby("Date")
+    # 🔹 Add main schedule heading (level 2) once before any date blocks
+    if include_heading and heading_text:
+        doc.add_heading(heading_text, level=2)
+        doc.add_paragraph("")  # space after heading
 
-    for date, group in grouped:
+    # 🔹 Add each date block under heading level 3
+    for date, group in schedule_df.groupby("Date"):
         day_str = date.strftime("%A, %Y-%m-%d")
-        doc.add_heading(f"📅 {day_str}", level=2)
+        doc.add_heading(f"📅 {day_str}", level=3)
 
-        # Decide table structure
-        columns = ["📝 Task", "🔖 Category"]
+        table = doc.add_table(rows=1, cols=3 if include_priority else 2)
+        table.style = "Table Grid"
+        hdr_cells = table.rows[0].cells
+
+        hdr_cells[0].text = "📝 Task"
         if include_priority:
-            columns.append("🔢 Priority")
+            hdr_cells[1].text = "🔢 Priority"
+            hdr_cells[2].text = "🔖 Type"
+        else:
+            hdr_cells[1].text = "🔖 Type"
 
-        table = doc.add_table(rows=1, cols=len(columns))
-        table.style = 'Light List'
-        table.autofit = True
-
-        # Set header row
-        for idx, col in enumerate(columns):
-            table.rows[0].cells[idx].text = col
-
-        # Fill rows
         for _, row in group.iterrows():
             cells = table.add_row().cells
             cells[0].text = str(row.get("clean_task", ""))
-            cells[1].text = str(row.get("Task Type", ""))
             if include_priority:
-                cells[2].text = str(row.get("Priority", ""))
+                cells[1].text = str(row.get("Priority", ""))
+                cells[2].text = str(row.get("Task Type", ""))
+            else:
+                cells[1].text = str(row.get("Task Type", ""))
 
-        doc.add_paragraph("")  # spacing between date groups
+        doc.add_paragraph("")
 
-
-def add_table_from_schedule_to_markdown(schedule_df: pd.DataFrame, section: str, include_priority: bool = True) -> str:
-    """
-    Convert a schedule DataFrame into grouped markdown tables by date,
-    with optional priority column and task type emoji indicators.
-    """
+def add_table_from_schedule_to_markdown(schedule_df: pd.DataFrame, section: str, include_priority: bool = True, include_heading: bool = False, heading_text: Optional[str] = None) -> str:
     if schedule_df.empty:
         return "_No schedule data available._"
 
-    # Ensure datetime and formatting
+    schedule_df = schedule_df.copy()
     schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
     schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
     schedule_df["DateStr"] = schedule_df["Date"].dt.strftime("%Y-%m-%d")
-
-    # Assign task priority based on defined order
     schedule_df["Priority"] = schedule_df["task_type"].apply(
         lambda t: PRIORITY_ORDER.index(t) if t in PRIORITY_ORDER else len(PRIORITY_ORDER)
     )
-
-    # Emoji label
     schedule_df["Task Type"] = schedule_df["task_type"].apply(
         lambda t: f"{TASK_TYPE_EMOJI.get(t, '')} {t}" if t else "❓"
     )
-
-    # Sort by Date, then priority, then clean_task
     schedule_df = schedule_df.sort_values(by=["Date", "Priority", "clean_task"])
 
     output_md = []
+
+    if include_heading and heading_text:
+        output_md.append(f"## {heading_text}\n")
+
     for date, group in schedule_df.groupby("Date"):
         day_str = date.strftime("%A, %Y-%m-%d")
         output_md.append(f"### 📅 {day_str}\n")
 
-        # Header
-        header_cols = ["📝 Task", "🔖 Type"]
+        header_cols = ["📜 Task", "🔖 Type"]
         if include_priority:
             header_cols.insert(1, "🔢 Priority")
         output_md.append("| " + " | ".join(header_cols) + " |")
         output_md.append("|" + " --- |" * len(header_cols))
 
-        # Rows
         for _, row in group.iterrows():
             values = [row.get("clean_task", ""), row.get("Task Type", "")]
             if include_priority:
                 values.insert(1, str(row.get("Priority", "")))
             output_md.append("| " + " | ".join(values) + " |")
 
-        output_md.append("")  # Spacer
+        output_md.append("")
 
     return "\n".join(output_md)
 
-def add_table_from_schedule_to_html(schedule_df: pd.DataFrame, section: str, include_priority: bool = True, include_heading: bool = False) -> str:
+def add_table_from_schedule_to_html(schedule_df: pd.DataFrame, section: str, include_priority: bool = True, include_heading: bool = False, heading_text: Optional[str] = None) -> str:
     if schedule_df.empty:
         return "<p><em>No schedule data available.</em></p>"
 
@@ -235,33 +205,29 @@ def add_table_from_schedule_to_html(schedule_df: pd.DataFrame, section: str, inc
     schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
     schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
     schedule_df["DateStr"] = schedule_df["Date"].dt.strftime("%Y-%m-%d")
-
     schedule_df["Priority"] = schedule_df["task_type"].apply(
         lambda t: PRIORITY_ORDER.index(t) if t in PRIORITY_ORDER else len(PRIORITY_ORDER)
     )
     schedule_df["Task Type"] = schedule_df["task_type"].apply(
         lambda t: f"{TASK_TYPE_EMOJI.get(t, '')} {t}" if t else "❓"
     )
-
     schedule_df = schedule_df.sort_values(by=["Date", "Priority", "clean_task"])
 
     html_output = []
-    if include_heading:
-        html_output.append("<h2>📆 Complete Schedule Summary</h2>")
 
+    if include_heading and heading_text:
+        html_output.append(f"<h2>{heading_text}</h2>")
 
     for date, group in schedule_df.groupby("Date"):
         day_str = date.strftime("%A, %Y-%m-%d")
         html_output.append(f"<h3>📅 {day_str}</h3>")
         html_output.append("<table border='1' cellspacing='0' cellpadding='4' style='border-collapse: collapse;'>")
 
-        # Headers
-        columns = ["📝 Task", "🔖 Type"]
+        columns = ["📜 Task", "🔖 Type"]
         if include_priority:
             columns.insert(1, "🔢 Priority")
         html_output.append("<thead><tr>" + "".join(f"<th>{col}</th>" for col in columns) + "</tr></thead>")
 
-        # Rows
         html_output.append("<tbody>")
         for _, row in group.iterrows():
             cells = [row.get("clean_task", ""), row.get("Task Type", "")]
@@ -272,6 +238,46 @@ def add_table_from_schedule_to_html(schedule_df: pd.DataFrame, section: str, inc
 
     return "\n".join(html_output)
 
+def add_table_from_schedule_to_html(schedule_df: pd.DataFrame, section: str, include_priority: bool = True, include_heading: bool = False, heading_text: Optional[str] = None) -> str:
+    if schedule_df.empty:
+        return "<p><em>No schedule data available.</em></p>"
+
+    schedule_df = schedule_df.copy()
+    schedule_df["Date"] = pd.to_datetime(schedule_df["Date"], errors="coerce")
+    schedule_df["Day"] = schedule_df["Date"].dt.strftime("%A")
+    schedule_df["DateStr"] = schedule_df["Date"].dt.strftime("%Y-%m-%d")
+    schedule_df["Priority"] = schedule_df["task_type"].apply(
+        lambda t: PRIORITY_ORDER.index(t) if t in PRIORITY_ORDER else len(PRIORITY_ORDER)
+    )
+    schedule_df["Task Type"] = schedule_df["task_type"].apply(
+        lambda t: f"{TASK_TYPE_EMOJI.get(t, '')} {t}" if t else "❓"
+    )
+    schedule_df = schedule_df.sort_values(by=["Date", "Priority", "clean_task"])
+
+    html_output = []
+
+    if include_heading and heading_text:
+        html_output.append(f"<h2>{heading_text}</h2>")
+
+    for date, group in schedule_df.groupby("Date"):
+        day_str = date.strftime("%A, %Y-%m-%d")
+        html_output.append(f"<h3>📅 {day_str}</h3>")
+        html_output.append("<table border='1' cellspacing='0' cellpadding='4' style='border-collapse: collapse;'>")
+
+        columns = ["📜 Task", "🔖 Type"]
+        if include_priority:
+            columns.insert(1, "🔢 Priority")
+        html_output.append("<thead><tr>" + "".join(f"<th>{col}</th>" for col in columns) + "</tr></thead>")
+
+        html_output.append("<tbody>")
+        for _, row in group.iterrows():
+            cells = [row.get("clean_task", ""), row.get("Task Type", "")]
+            if include_priority:
+                cells.insert(1, str(row.get("Priority", "")))
+            html_output.append("<tr>" + "".join(f"<td>{str(cell)}</td>" for cell in cells) + "</tr>")
+        html_output.append("</tbody></table><br>")
+
+    return "\n".join(html_output)
 
 def generate_llm_responses(blocks: List[str], api_key: str, model: str, debug: bool) -> List[str]:
     client = Mistral(api_key=api_key)
@@ -303,65 +309,69 @@ def generate_llm_responses(blocks: List[str], api_key: str, model: str, debug: b
 
 
 def generate_docx_from_prompt_blocks(
+    blocks: list[str],
     section: str,
-    blocks: List[str],
-    use_llm: bool = False,
+    doc_heading: str,
+    schedule_sources: dict[str, str],
     api_key: Optional[str] = None,
-    doc_heading: str = "Runbook",
-    model: str = "mistral-small-latest",
+    model: Optional[str] = None,
+    use_llm: bool = False,
     debug: bool = False,
-    insert_main_heading: bool = True,
-    include_priority: bool = False, 
-) -> Tuple[io.BytesIO, str, str]:
+    include_priority: bool = True,
+) -> tuple[io.BytesIO, str, str]:
+    import io
+    import markdown
+    import pandas as pd
+    import re
     from docx import Document
     from docx.shared import Pt
+    from config.constants import SCHEDULE_HEADING_MAP
 
     doc = Document()
-    if insert_main_heading:
-        doc.add_heading(doc_heading, 0)
+    doc.add_heading(doc_heading, level=0)
     markdown_output = []
     debug_warnings = []
-    final_output = ""
 
-# Store raw blocks for debug inspection
-    if debug:
-        st.session_state[f"{section}_debug_blocks"] = blocks
-
-    schedule_sources = get_schedule_placeholder_mapping()
-
+    # Step 1: LLM or Manual Markdown generation
     if use_llm:
         markdown_output = generate_llm_responses(blocks, api_key, model, debug)
-        final_output = "\n\n".join(markdown_output)
     else:
         for i, block in enumerate(blocks):
             if not block.strip():
                 if debug:
-                    st.markdown((f"🔍 Skipping empty block {i+1}"))
+                    st.markdown(f"🔍 Skipping empty block {i+1}")
                 continue
             markdown_output.append(block)
 
-    # Step 2: Build final_output from markdown_output
-    final_output = "\n\n".join(markdown_output)
-
-    # Step 3: Replace placeholders in final_output (inline or standalone)
-    for placeholder, df_key in schedule_sources.items():
-        if placeholder in final_output:
+    # Step 2: Placeholder substitution for markdown/html (but preserve placeholders for DOCX)
+    placeholder_map = get_schedule_placeholder_mapping()
+    markdown_output_for_export = markdown_output.copy()
+    for i, line in enumerate(markdown_output_for_export):
+        placeholder = line.strip()
+        if placeholder in placeholder_map:
+            df_key = placeholder_map[placeholder]
             schedule_df = st.session_state.get(df_key)
             if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
-                markdown_table = add_table_from_schedule_to_markdown(schedule_df, section)
-                final_output = final_output.replace(placeholder, markdown_table)
-            elif debug:
-                final_output = final_output.replace(placeholder, f"⚠️ No data found for `{df_key}`")
+                markdown_output_for_export[i] = add_table_from_schedule_to_markdown(schedule_df, section)
+            else:
+                markdown_output_for_export[i] = f"⚠️ No schedule data found for `{df_key}`"
 
-    # ✅ Save debug markdown
-    if debug:
-        st.session_state[f"{section}_debug_markdown_output"] = final_output.split("\n\n")
+    # Step 3: Generate final markdown and HTML
+    markdown_text = "\n\n".join(markdown_output_for_export).strip()
+    full_html_blocks = "\n".join([markdown.markdown(block) for block in markdown_output_for_export])
 
-    # ✅ Save final runbook text for preview tab
-    st.session_state[f"{section}_runbook_text"] = final_output
+    combined_df = st.session_state.get("combined_home_schedule_df")
+    if isinstance(combined_df, pd.DataFrame) and not combined_df.empty:
+        full_html_blocks += "<h2>📆 Complete Schedule Summary</h2>\n"
+        full_html_blocks += add_table_from_schedule_to_html(combined_df, section, include_priority=True)
+    else:
+        if debug:
+            debug_warnings.append("⚠️ No schedule data found in [`combined_home_schedule_df`](#debug-combined_home_schedule_df). Skipping 📆 Complete Schedule Summary.")
 
-    lines = final_output.splitlines()
-    for line in lines:
+    html_output = f"<html><body><h1>{doc_heading}</h1>\n{full_html_blocks}\n</body></html>"
+
+    # Step 4: DOCX rendering
+    for line in markdown_output:
         line = line.strip()
         if not line:
             continue
@@ -369,16 +379,18 @@ def generate_docx_from_prompt_blocks(
         if line in schedule_sources:
             df_key = schedule_sources[line]
             schedule_df = st.session_state.get(df_key)
-            doc.add_paragraph("")
             if isinstance(schedule_df, pd.DataFrame) and not schedule_df.empty:
-                add_table_from_schedule(doc, schedule_df, section=section)
+                heading_text = SCHEDULE_HEADING_MAP.get(
+                    line,
+                    f"📆 {line.replace('<<INSERT_', '').replace('_SCHEDULE_TABLE>>', '').replace('_', ' ').title()} Schedule"
+                )
+                add_table_from_schedule(doc, schedule_df, section=section, include_heading=True, heading_text=heading_text)
             else:
                 if debug:
                     section_hint = df_key.replace("_schedule_df", "").replace("_", " ").title()
                     debug_warnings.append(
                         f"⚠️ Skipping **{section_hint}** schedule placeholder `{line}` — no data found in [`st.session_state['{df_key}']`](#debug-{df_key})."
                     )
-                continue
             doc.add_paragraph("")
             continue
 
@@ -409,41 +421,38 @@ def generate_docx_from_prompt_blocks(
                 para.add_run(line[cursor:])
             para.style.font.size = Pt(11)
 
-    # Step 5: Append final schedule table to DOCX and markdown
-    combined_schedule = st.session_state.get("combined_home_schedule_df")
-    if isinstance(combined_schedule, pd.DataFrame) and not combined_schedule.empty:
-        doc.add_page_break()
-        doc.add_heading("📆 Complete Schedule Summary", level=1)
-        add_table_from_schedule(doc, combined_schedule, section=section, include_priority=include_priority)
-        final_output += "\n\n## 📆 Complete Schedule Summary\n"
-        final_output += add_table_from_schedule_to_markdown(combined_schedule, section)
-    else:
-        if debug:
-            debug_warnings.append(
-                "⚠️ No schedule data found in [`combined_home_schedule_df`](#debug-combined_home_schedule_df). Skipping 📆 Complete Schedule Summary."
-            )
+    # Step 5: Append final summary table (DOCX only)
+    if isinstance(combined_df, pd.DataFrame) and not combined_df.empty:
+        add_table_from_schedule(
+            doc,
+            combined_df,
+            section=section,
+            include_heading=True,
+            heading_text="📆 Complete Schedule Summary"
+        )
+    doc.add_page_break()
 
-    # Step 6: Build DOCX buffer
+    # Step 6: Finalize buffer
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
 
-    # Step 7: Debug output
+    # Step 7: Debug rendering
     if debug and debug_warnings:
         with st.expander("⚠️ Missing Schedules (Debug)", expanded=True):
             for msg in debug_warnings:
                 st.markdown(f"- {msg}", unsafe_allow_html=True)
+
         for key in ["combined_home_schedule_df", "trash_schedule_df", "mail_schedule_df"]:
             if key in st.session_state:
                 st.markdown(f"<a name='debug-{key}'></a>", unsafe_allow_html=True)
                 st.markdown(f"### 🔎 Debug: `{key}`", unsafe_allow_html=True)
                 st.dataframe(st.session_state[key])
 
-    # Step 8: Build HTML output (use final_output!)
-    html_blocks = "\n".join([markdown.markdown(block) for block in final_output.split("\n\n")])
-    html_output = f"<html><body><h1>{doc_heading}</h1>\n{html_blocks}\n</body></html>"
+    return buffer, markdown_text, html_output
 
-    return buffer, final_output.strip(), html_output
+
+
 
 def preview_runbook_output(section: str, runbook_text: str, label: str = "📖 Preview Runbook"): ### depreciated ####
     """

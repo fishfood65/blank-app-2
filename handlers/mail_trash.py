@@ -428,10 +428,11 @@ def mail_trash():
         return generate_docx_from_prompt_blocks(
             section=section,
             blocks=blocks,  
-            insert_main_heading=True,
+            include_heading=True,
+            include_priority=include_priority,
             use_llm=False,
             api_key=os.getenv("MISTRAL_TOKEN"),
-            doc_heading="⛑️ Utilities & Emergency Kit Runbook ",
+            doc_heading="📬 Mail and 🗑️ Trash Runbook",
             debug=st.session_state.get("enable_debug_mode", False),
             include_priority=include_priority #include schedule priority 
         )
@@ -439,7 +440,7 @@ def mail_trash():
     maybe_generate_runbook(
         section=section,
         generator_fn=generate_kit_docx,
-        doc_heading="⛑️ Utilities & Emergency Kit Runbook",
+        doc_heading="📬 Mail and 🗑️ Trash Runbook",
         filename="utilities_emergency_kit.docx",
         button_label="📥 Generate Runbook"
     )
