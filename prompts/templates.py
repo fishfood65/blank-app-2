@@ -478,3 +478,16 @@ def trash_runbook_prompt(section: str = "trash_handling", debug: bool = False) -
         section=section  # ✅ Explicitly passed to support tracing/debugging
     )
 
+def mail_trash_combined_schedule_prompt(section: str = "mail_trash", debug: bool = False) -> str:
+    markdown = (
+        "### 📆 Combined Mail and Trash Handling Schedule\n\n"
+        "<<INSERT_MAIL_TRASH_SCHEDULE_TABLE>>"
+    )
+
+    return wrap_prompt_block(
+        content=markdown,
+        title="", # Omit if you're already setting a heading inside content
+        instructions=None,
+        debug=debug,
+        section=section  # Pass explicitly to wrap_prompt_block
+    )

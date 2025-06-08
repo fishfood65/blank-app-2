@@ -303,7 +303,6 @@ def generate_llm_responses(blocks: List[str], api_key: str, model: str, debug: b
 def generate_docx_from_prompt_blocks(
     blocks: list[str],
     section: str,
-    doc_heading: str,
     schedule_sources: dict[str, str],
     api_key: Optional[str] = None,
     model: Optional[str] = None,
@@ -317,14 +316,24 @@ def generate_docx_from_prompt_blocks(
     import markdown
     import pandas as pd
     import re
-    from docx import Document
-    from docx.shared import Pt
     from config.constants import SCHEDULE_HEADING_MAP
 
-    doc = Document()
-    doc.add_heading(doc_heading, level=0)
     debug_warnings = []
 
+    # Step 0: Ensure <<INSERT_MAIL_TRASH_SCHEDULE_TABLE>> is present
+    schedule_placeholder = "<<INSERT_MAIL_TRASH_SCHEDULE_TABLE>>"
+    if not any(schedule_placeholder in block for block in blocks):
+        blocks.append(f"### 📆 Combined Task Schedule\n{schedule_placeholder}")
+
+    # Step 1: Generate markdown blocks (LLM or manual)
+    if use_llm:
+        markdown_blocks = generate_llm_responses(blocks, api_key, model, debug)
+    else:
+        markdown_blocks = [block for block in blocks if block.strip()]
+
+    raw_markdown = "\n\n".join(markdown_blocks)
+    final_markdown = raw_markdown
+    
     # Step 1: LLM or manual markdown generation
     if use_llm:
         markdown_blocks = generate_llm_responses(blocks, api_key, model, debug)
@@ -333,7 +342,6 @@ def generate_docx_from_prompt_blocks(
 
     raw_markdown = "\n\n".join(markdown_blocks)
     final_markdown = raw_markdown
-    final_html = markdown.markdown(raw_markdown)
 
     # Step 2: Replace placeholders for markdown and HTML
     placeholder_to_df_map = {}
@@ -345,66 +353,12 @@ def generate_docx_from_prompt_blocks(
             markdown_table = add_table_from_schedule_to_markdown(
                 df, section, include_priority=include_priority, include_heading=True, heading_text=heading_text
             )
-            html_table = add_table_from_schedule_to_html(
-                df, section, include_priority=include_priority, include_heading=True, heading_text=heading_text
-            )
-
             final_markdown = final_markdown.replace(placeholder, markdown_table)
-            final_html = final_html.replace(placeholder, html_table)
-            placeholder_to_df_map[markdown_table.strip()] = (df, heading_text)
         else:
             warning = f"⚠️ No data found for `{df_key}`."
             final_markdown = final_markdown.replace(placeholder, warning)
-            final_html = final_html.replace(placeholder, f"<p>{warning}</p>")
             if debug:
                 debug_warnings.append(f"Missing data for {df_key} (placeholder: {placeholder})")
-
-    # Step 3: Generate DOCX from parsed lines
-    for line in final_markdown.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-
-        # If this line is a known table inserted in markdown, convert to real DOCX table
-        if line in placeholder_to_df_map:
-            df, heading_text = placeholder_to_df_map[line]
-            add_table_from_schedule(
-                doc, df, section=section, include_heading=True, heading_text=heading_text
-            )
-            continue
-
-        if line.startswith("##### "):
-            doc.add_heading(line[6:].strip(), level=4)
-        elif line.startswith("#### "):
-            doc.add_heading(line[5:].strip(), level=3)
-        elif line.startswith("### "):
-            doc.add_heading(line[4:].strip(), level=2)
-        elif line.startswith("## "):
-            doc.add_heading(line[3:].strip(), level=1)
-        elif line.startswith("# "):
-            doc.add_heading(line[2:].strip(), level=0)
-        elif line.startswith("- ") or line.startswith("* "):
-            doc.add_paragraph(line[2:].strip(), style="List Bullet")
-        elif re.match(r"^\d+\.\s", line):
-            doc.add_paragraph(re.sub(r"^\d+\.\s+", "", line), style="List Number")
-        else:
-            para = doc.add_paragraph()
-            cursor = 0
-            for match in re.finditer(r"(\*\*.*?\*\*)", line):
-                start, end = match.span()
-                if start > cursor:
-                    para.add_run(line[cursor:start])
-                para.add_run(match.group(1)[2:-2]).bold = True
-                cursor = end
-            if cursor < len(line):
-                para.add_run(line[cursor:])
-            para.style.font.size = Pt(11)
-
-    doc.add_page_break()
-
-    buffer = io.BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
 
     # Debug: render warnings
     if debug and debug_warnings:
@@ -412,7 +366,7 @@ def generate_docx_from_prompt_blocks(
         for w in debug_warnings:
             st.markdown(f"- {w}")
 
-    return buffer, final_markdown.strip(), f"<html><body><h1>{doc_heading}</h1>{final_html}</body></html>", debug_warnings
+    return final_markdown.strip(), debug_warnings
 
 def preview_runbook_output(section: str, runbook_text: str, label: str = "📖 Preview Runbook"): ### depreciated ####
     """

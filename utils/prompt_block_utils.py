@@ -103,6 +103,7 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
         "mail_trash": [
             ("Mail Instructions", lambda: mail_runbook_prompt(section=section, debug=debug)),
             ("Trash Instructions", lambda: trash_runbook_prompt(section=section, debug=debug)),
+            ("Mail and Trash Combined Schedule", lambda: mail_trash_combined_schedule_prompt(section=section, debug=debug)),
         ],
         "home_security": [
             ("Home Caretaker & Guest Instructions", lambda: home_caretaker_runbook_prompt(section=section)),
