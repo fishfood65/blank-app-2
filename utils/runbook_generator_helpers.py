@@ -524,7 +524,7 @@ def render_runbook_preview_inline(
         else:
             st.info("ℹ️ No scheduled task snapshot available.")
 
-def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
+def maybe_render_download(section: str, filename: Optional[str] = None, doc_heading:Optional[str] = None) -> bool:
     """
     Render preview and download buttons for a runbook generated for a specific section.
 
@@ -543,7 +543,7 @@ def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
     buffer = st.session_state.get(buffer_key)
     runbook_text = st.session_state.get(text_key)
     html_output = st.session_state.get(html_key)
-    doc_heading = doc_heading = st.session_state.get(f"{section}_doc_heading", f"{section.replace('_', ' ').title()} Runbook")
+    doc_heading = st.session_state.get(f"{section}_doc_heading", f"{section.replace('_', ' ').title()} Runbook")
     st.session_state[f"{section}_doc_heading"] = doc_heading
 
     if not filename:
@@ -598,12 +598,13 @@ def maybe_render_download(section: str, filename: Optional[str] = None) -> bool:
             mode="inline",
             show_schedule_snapshot=True
         )
-        return True
+        return False
     
     # ✅ Additional Debug Preview (always shows raw markdown if available)
-    if runbook_text:
-        with st.expander("📝 Raw Markdown Output (Debug)", expanded=False):
-            st.code(runbook_text, language="markdown")
+    if globals().get("debug", False):
+        if runbook_text and st.session_state.get(preview_toggle_key, False):
+            with st.expander("📝 Raw Markdown Output (Debug)", expanded=False):
+                st.code(runbook_text, language="markdown")
 
     return bool(buffer)
 
