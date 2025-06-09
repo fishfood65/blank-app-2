@@ -384,11 +384,6 @@ def mail_trash():
             # Step 8: Save merged version to session
             st.session_state["combined_home_schedule_df"] = combined_df
 
-            # Step 9: Show user preview
-            if refresh_preview and combined_df is not None:
-                st.subheader("📆 Review & Update Scheduled Tasks:")
-                display_enriched_task_preview(combined_df)
-
             # Step 10: Save split schedules for mail/trash/etc
             save_task_schedules_by_type(combined_df)
 

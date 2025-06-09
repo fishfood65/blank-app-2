@@ -59,19 +59,43 @@ def get_handler(section_key: str, subsection_key: str | None = None):
     return None
 
 PAGE_MAP = {
-    "home": "01_Home.py",
-    "mail_trash": "02_Mail_Trash.py",
-    "emergency_kit": "03_Emergency_Kit.py",
-    "bonus_level": "04_Bonus_Level.py",
-    "critical_documents": "05_Critical_Documents.py",
-    "pets_dog": "06_Dogs.py",
-    "pets_cat": "07_Cats.py",
-    "runbook": "Runbook_Generator.py",
-    # You can also map task_type values here:
-    "trash": "02_Mail_Trash.py",
-    "mail": "02_Mail_Trash.py",
+    "home": "01_Home",
+    "mail_trash": "02_Mail_Trash",
+    "emergency_kit": "03_Emergency_Kit",
+    "bonus_level": "04_Bonus_Level",
+    "critical_documents": "05_Critical_Documents",
+    "pets_dog": "06_Dogs",
+    "pets_cat": "07_Cats",
+    "runbook": "Runbook_Generator",
+
+    # Task type overrides
+    "trash": "02_Mail_Trash",
+    "mail": "02_Mail_Trash",
+}
+
+
+QUESTION_PAGE_MAP = {
+    # Format: (task_type, normalized_question): page_name
+    "indoor_trash": {
+        "kitchen_garbage_bin": "02_Mail_Trash.py",
+        "indoor_recycling_bins": "02_Mail_Trash.py",
+        "indoor_compost_or_green_waste": "02_Mail_Trash.py",
+        "bathroom_trash_bin": "02_Mail_Trash.py",
+        "other_room_trash_bins": "02_Mail_Trash.py",
+    },
+    "outdoor_trash": {
+        "when_and_where_should_garbage_recycling_and_compost_bins_be_placed_for_pickup": "02_Mail_Trash.py",
+        "when_and_where_should_bins_be_brought_back_in": "02_Mail_Trash.py",
+    },
+    "mail_handling": {
+        "mail_pick_up_schedule": "02_Mail_Trash.py",
+    },
 }
 
 def get_page_map():
     """Returns a mapping of section/task_type to valid Streamlit handler key."""
     return PAGE_MAP
+
+def get_question_page_map():
+    return QUESTION_PAGE_MAP
+

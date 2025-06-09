@@ -2,8 +2,8 @@
 import streamlit as st
 import re
 import pandas as pd
-from config.sections import SECTION_METADATA
-from config.section_router import get_page_map
+from config.sections import SECTION_METADATA 
+from config.section_router import get_page_map, get_question_page_map, QUESTION_PAGE_MAP, PAGE_MAP
 import uuid
 import hashlib
 import json
@@ -69,28 +69,19 @@ def edit_button_redirect(row, _rendered_keys, i=None, page_map=None, fallback_se
         page_map: Section/task_type → page map
         fallback_section: Default section if missing
     """
-    if page_map is None:
-        from section_router import get_page_map
-        page_map = get_page_map()
-
     if not isinstance(row, dict):
         row = row.to_dict()
 
     label = str(row.get("question", "")).strip()
     clean_task = str(row.get("clean_task", "")).strip()
-
-    # 🚫 Skip if this is a group/header row or has suspicious label content
-    if (
-        not label
-        or not clean_task
-        or "—" in label  # e.g., "mail_trash — Monday Jun 09"
-        or re.match(r"^\s*[\w\-]+ — \w+", label)  # matches similar group headings
-    ):
+    
+    # 🚫 Skip group/heading rows
+    if not label or not clean_task:
         return
 
-
     section = row.get("section") or fallback_section
-    task_type = row.get("task_type", "generic")
+    task_type = normalize_for_map(row.get("task_type", "generic"))
+    question = normalize_for_map(str(row.get("question", "")))
 
     # 🔐 Create a consistent key from row contents
     row_fingerprint = json.dumps(row, sort_keys=True, default=str)
@@ -103,24 +94,26 @@ def edit_button_redirect(row, _rendered_keys, i=None, page_map=None, fallback_se
     _rendered_keys.add(key_suffix)
     button_key = f"edit_{key_suffix}"
 
-    # 🧼 Optional: Sanitize label for readability
-    short_label = label if len(label) <= 80 else label[:77] + "..."
+    # 🔁 Load routing maps
+    page_map = page_map or get_page_map()
+    question_page_map = get_question_page_map()
 
-    if st.button(f"✏️ Edit '{short_label}'", key=button_key):
+    # 🧭 Routing resolution
+    dest_page = (
+        QUESTION_PAGE_MAP.get((task_type, question)) or
+        PAGE_MAP.get(section) or
+        PAGE_MAP.get(task_type) or
+        PAGE_MAP.get(fallback_section) or
+        "01_Home.py"
+    )
+
+    if st.button(f"✏️ Edit '{label}'", key=button_key):
         st.session_state["edit_mode"] = {
             "row_index": i,
             "section": section,
             "task_type": task_type,
         }
-
-        # 🔁 Redirect to mapped page
-        dest_page = (
-            page_map.get(section)
-            or page_map.get(task_type)
-            or page_map.get(fallback_section)
-            or "01_Home.py"
-        )
-        st.switch_page(dest_page)
+        st.switch_page(f"/{dest_page}")
 
 
 def list_saved_llm_outputs():
@@ -133,3 +126,14 @@ def list_saved_llm_outputs():
     st.markdown("### 💾 Stored LLM Outputs")
     for key in sorted(keys):
         st.markdown(f"- `{key}`")
+
+def normalize_question(text):
+    """Simplify question string to a mapping-friendly key."""
+    return text.lower().replace(" ", "_").strip()
+
+def normalize_for_map(text):
+    """Normalize text for consistent dictionary keys."""
+    text = text.lower().strip()
+    text = re.sub(r'\(.*?\)', '', text)  # remove parentheses and contents
+    text = re.sub(r'[^a-z0-9_]+', '_', text)  # replace non-alphanumeric with underscore
+    return text.strip('_')  # remove leading/trailing underscores
