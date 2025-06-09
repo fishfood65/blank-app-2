@@ -3,19 +3,14 @@ from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
 import re
 from mistralai import Mistral, UserMessage, SystemMessage
-from dotenv import load_dotenv
 import os
 import pandas as pd
 from datetime import datetime, timedelta
-from docx import Document
-from docx.text.run import Run
 import re
 import time
-from PIL import Image
 import io
 import uuid
 import json
-from docx.shared import Inches
 from utils.preview_helpers import get_active_section_label
 from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs 
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer

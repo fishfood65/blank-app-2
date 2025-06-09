@@ -3,19 +3,14 @@ from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
 import re
 from mistralai import Mistral, UserMessage, SystemMessage
-from dotenv import load_dotenv
 import os
 import pandas as pd
 from datetime import datetime, timedelta
-from docx import Document
-from docx.text.run import Run
 import re
 import time
-from PIL import Image
 import io
 import uuid
 import json
-from docx.shared import Inches
 from utils.preview_helpers import get_active_section_label, edit_button_redirect, display_enriched_task_preview
 from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs, select_runbook_date_range, sanitize_label, sanitize, section_has_valid_input, check_runbook_dates_confirmed, check_for_date_change
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer
@@ -25,7 +20,6 @@ from utils.task_schedule_utils_updated import extract_and_schedule_all_tasks, ex
 from utils.debug_utils import log_extracted_tasks_debug, debug_schedule_df_presence
 from prompts.templates import utility_provider_lookup_prompt
 from config.section_router import get_handler
-from old.old_code import maybe_generate_prompt, render_prompt_preview
 
 # --- Generate the AI prompt ---
 api_key = os.getenv("MISTRAL_TOKEN")
