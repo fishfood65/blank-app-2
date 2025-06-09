@@ -36,8 +36,7 @@ from utils.task_schedule_utils_updated import (
     save_task_schedules_by_type,
     extract_unscheduled_tasks_from_inputs_with_category,
     load_label_map,
-    normalize_label,
-    display_enriched_task_preview
+    normalize_label
 )
 from utils.preview_helpers import (
     display_enriched_task_preview, 
@@ -101,67 +100,50 @@ st.markdown(
 # Main entry point of the app
 
 def main():
-    # 🛑 Intercept redirect BEFORE widget rendering
-    if st.session_state.get("go_home"):
-        st.session_state["selected_level"] = "🏠 Home Setup"
-        st.session_state["section"] = "home"
-        del st.session_state["go_home"]
-        st.rerun()
+    # 🛑 Redirect to a specific page if triggered elsewhere (e.g., edit buttons)
+    if "current_page" in st.session_state:
+        section = st.session_state["current_page"]
+        del st.session_state["current_page"]
+    else:
+        # 🧭 Initialize default section based on sidebar selection
+        selected_label = st.sidebar.radio(
+            "Choose a Level:",
+            list(LABEL_TO_KEY.keys()),
+            key="selected_level"
+        )
+        section = LABEL_TO_KEY[selected_label]
+        st.session_state["section"] = section
 
-    # Initialize default state
-    if "selected_level" not in st.session_state:
-        first_label = next(iter(LABEL_TO_KEY))
-        st.session_state["selected_level"] = first_label
-        st.session_state["section"] = LABEL_TO_KEY[first_label]
-
-    # Sidebar navigation
-    selected = st.sidebar.radio(
-        "Choose a Level:",
-        list(LABEL_TO_KEY.keys()),
-        key="selected_level"
-    )
-
-    # Sync selected label → internal section key
-    new_section = LABEL_TO_KEY[st.session_state["selected_level"]]
-    if new_section != st.session_state.get("section"):
-        st.session_state["section"] = new_section
-
-    section = st.session_state["section"]
-
+    # 📦 Progress tracking
     st.markdown("#### 🧭 Progress")
-   
-   #Get current progress
     if "level_progress" not in st.session_state:
         st.session_state["level_progress"] = {key: False for key in LEVEL_LABELS}
-
-    # Show progress
     percent_complete, completed_levels = check_home_progress(st.session_state["level_progress"])
     total_levels = len(st.session_state["level_progress"])
     num_completed = len(completed_levels)
-
     friendly_labels = [LEVEL_LABELS.get(level, level) for level in completed_levels]
+
     st.progress(percent_complete)
     st.markdown(
-        f"""
-        🏆 **Completed {num_completed} out of {total_levels} levels** - {', '.join(friendly_labels) if friendly_labels else 'None'}
-        """
+        f"🏆 **Completed {num_completed} out of {total_levels} levels** - {', '.join(friendly_labels) if friendly_labels else 'None'}"
     )
-    # 🗂️ **Completed Levels:** {', '.join(friendly_labels) if friendly_labels else 'None'}
-    #percent_complete, completed = check_home_progress(st.session_state["level_progress"])
-   # st.write("✅ Completed:", completed)
-   # st.write("✅ Percent:", percent_complete)
-    
+
+    # ⬇️ Optional export for debugging or preview
     export_input_data_as_csv()
 
-    # === Routing ===
+    # ✅ Set runtime flags (e.g., for prompt generation)
+    st.session_state["include_priority"] = True
+
+    # 🧭 Route to the selected handler
     handler = get_handler(section)
     if callable(handler):
-        #if st.session_state.get("enable_debug_mode"):
-        #    st.markdown("### 🧪 Debug: Section Key")
-        #    st.write("🔍 Current section key:", section)
-        #    st.write("📦 Available sections:", list(SECTION_METADATA.keys()))
-        #    st.write("✅ Calling handler for:", section)
         handler()
+    else:
+        # 🔁 Fallback if section is invalid or handler is missing
+        st.warning(f"Section `{section}` not found. Redirecting to Home.")
+        st.session_state["section"] = "home"
+        st.rerun()
+
     #else:
         #if st.session_state.get("enable_debug_mode"):
         #    st.warning("⚠️ Section handler not defined.")

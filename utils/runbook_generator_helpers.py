@@ -303,6 +303,7 @@ def generate_llm_responses(blocks: List[str], api_key: str, model: str, debug: b
 def generate_docx_from_prompt_blocks(
     blocks: list[str],
     section: str,
+    doc_heading: Optional[str],
     schedule_sources: dict[str, str],
     api_key: Optional[str] = None,
     model: Optional[str] = None,
@@ -324,6 +325,10 @@ def generate_docx_from_prompt_blocks(
     schedule_placeholder = "<<INSERT_MAIL_TRASH_SCHEDULE_TABLE>>"
     if not any(schedule_placeholder in block for block in blocks):
         blocks.append(f"### 📆 Combined Task Schedule\n{schedule_placeholder}")
+
+    # Step 0.1: Add top-level heading if provided
+    if doc_heading:
+        blocks.insert(0, f"# {doc_heading}")
 
     # Step 1: Generate markdown blocks (LLM or manual)
     if use_llm:
@@ -351,7 +356,7 @@ def generate_docx_from_prompt_blocks(
 
         if isinstance(df, pd.DataFrame) and not df.empty:
             markdown_table = add_table_from_schedule_to_markdown(
-                df, section, include_priority=include_priority, include_heading=True, heading_text=heading_text
+                df, section, include_priority=include_priority, include_heading=False, heading_text=heading_text
             )
             final_markdown = final_markdown.replace(placeholder, markdown_table)
         else:
@@ -424,7 +429,7 @@ def runbook_preview_dispatcher(
         schedule_md = add_table_from_schedule_to_markdown(schedule_df)
         runbook_text = runbook_text.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
 
-    preview_label = "🧠 Runbook Preview (Debug)" if mode == "debug" else "📖 Runbook Preview"
+    preview_label = "🧠 Runbook Preview (Debug)" if mode == "debug" else "📖 Runbook"
     show_tabs = show_schedule_snapshot and schedule_available
 
     # Always use tabs to avoid nested expander errors
@@ -470,95 +475,55 @@ def render_runbook_preview_inline(
         else:
             st.info("ℹ️ No scheduled task snapshot available.")
 
-def maybe_render_download(section: str, filename: Optional[str] = None, doc_heading:Optional[str] = None) -> bool:
+def maybe_render_download(section: str) -> bool:
     """
-    Render preview and download buttons for a runbook generated for a specific section.
-
-    Parameters:
-    - section (str): The section key used for retrieving runbook content from session state.
-    - filename (Optional[str]): Optional override for the DOCX filename.
-
-    Returns:
-    - bool: True if a download buffer was presented, False otherwise.
+    Render a minimal markdown-only runbook preview with a horizontal download + reset row.
     """
-    buffer_key = f"{section}_runbook_buffer"
     text_key = f"{section}_runbook_text"
-    html_key = f"{section}_runbook_html"
-    preview_toggle_key = f"{section}_show_preview"
+    preview_key = f"{section}_show_preview"
 
-    buffer = st.session_state.get(buffer_key)
     runbook_text = st.session_state.get(text_key)
-    html_output = st.session_state.get(html_key)
-    doc_heading = st.session_state.get(f"{section}_doc_heading", f"{section.replace('_', ' ').title()} Runbook")
-    st.session_state[f"{section}_doc_heading"] = doc_heading
 
-    if not filename:
-        filename = f"{section}_emergency_runbook.docx"
+    if not runbook_text:
+        return False
 
-    st.subheader(f"📤 Export Options: {doc_heading}")
+    if "<<" in runbook_text and ">>" in runbook_text:
+        st.warning("⚠️ Some schedule placeholders may not have been replaced.")
 
-    # Row of buttons (columns)
-    col1, col2, col3, col4 = st.columns(4)
+    runbook_preview_dispatcher(
+        section=section,
+        runbook_text=runbook_text,
+        mode="inline",
+        show_schedule_snapshot=True
+    )
+
+    # 📥 Download + ♻️ Reset buttons in a row
+    col1, col2 = st.columns([1, 1])
 
     with col1:
-        if st.button("📖 Preview Runbook", key=f"Preview_Runbook_{section}"):
-            st.session_state[preview_toggle_key] = True
+        st.download_button(
+            label="📥 Download as Markdown (.md)",
+            data=runbook_text,
+            file_name=f"{section}_runbook.md",
+            mime="text/markdown",
+            key=f"Download_MD_{section}"
+        )
 
     with col2:
-        if html_output:
-            html_filename = filename.replace(".docx", ".html")
-            st.download_button(
-                label="🌐 Download as HTML",
-                data=html_output.encode("utf-8"),
-                file_name=html_filename,
-                mime="text/html",
-                key=f"HTML_Runbook_{section}"
-            )
-
-    with col3:
-        if buffer:
-            st.download_button(
-                label="📄 Download DOCX",
-                data=buffer,
-                file_name=filename,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                key=f"DOCX_Runbook_{section}"
-            )
-        else:
-            st.warning(f"⚠️ DOCX runbook buffer not found for {section}. Markdown/HTML export still available.")
-
-    with col4:
-        if st.button(f"♻️ Reset {section.title()} Runbook Cache", key=f"{section}_reset_preview"):
-            for key in [buffer_key, text_key, html_key, f"{section}_runbook_ready", preview_toggle_key]:
-                st.session_state.pop(key, None)
-            st.success(f"🔄 Cleared session state for {section} runbook.")
+        if st.button("♻️ Reset Cache", key=f"reset_{section}"):
+            for k in [text_key, preview_key]:
+                st.session_state.pop(k, None)
+            st.success(f"🔄 Cleared runbook preview for `{section}`.")
             st.stop()
 
-    # ✅ Full-width preview area outside the column row
-    if runbook_text and st.session_state.get(preview_toggle_key):
-        if "<<" in runbook_text and ">>" in runbook_text:
-            st.warning("⚠️ Some schedule placeholders may not have been replaced in the runbook preview.")
-        runbook_preview_dispatcher(
-            section=section,
-            runbook_text=runbook_text,
-            mode="inline",
-            show_schedule_snapshot=True
-        )
-        return False
-    
-    # ✅ Additional Debug Preview (always shows raw markdown if available)
-    if globals().get("debug", False):
-        if runbook_text and st.session_state.get(preview_toggle_key, False):
-            with st.expander("📝 Raw Markdown Output (Debug)", expanded=False):
-                st.code(runbook_text, language="markdown")
+    return True
 
-    return bool(buffer)
 
 def maybe_generate_runbook(
     section: str,
-    generator_fn: Callable[[], tuple[io.BytesIO, str, list[str]]],
+    generator_fn: Callable[[], tuple[str, list[str]]],
     *,
-    doc_heading: str = "",
+    doc_heading: Optional[str] = None,
     button_label: str = "📥 Generate Runbook",
     filename: Optional[str] = None
 ):
@@ -585,7 +550,7 @@ def maybe_generate_runbook(
 
     if not st.session_state.get(ready_key):
         # Not ready yet, try generating
-        buffer, markdown_text, html_output, debug_warnings = generator_fn()
+        markdown_text, debug_warnings = generator_fn()
         debug = st.session_state.get("enable_debug_mode", False)
         if debug and debug_warnings:
             st.markdown("### ⚠️ Missing Schedule Warnings")
@@ -596,9 +561,7 @@ def maybe_generate_runbook(
 
 
         # Store in session
-        st.session_state[buffer_key] = buffer
         st.session_state[text_key] = markdown_text
-        st.session_state[f"{section}_runbook_html"] = html_output
         st.session_state[ready_key] = True
 
         if st.session_state.get("enable_debug_mode"):
@@ -608,7 +571,7 @@ def maybe_generate_runbook(
 
     # Show download
     if st.session_state.get(ready_key):
-        maybe_render_download(section=section, filename=filename or f"{section}_runbook.docx")
+        maybe_render_download(section=section)
         st.session_state.setdefault("level_progress", {})[section] = True
     else:
         st.info("ℹ️ Click the button above to generate your runbook.")

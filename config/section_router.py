@@ -58,3 +58,20 @@ def get_handler(section_key: str, subsection_key: str | None = None):
 
     return None
 
+PAGE_MAP = {
+    "home": "01_Home.py",
+    "mail_trash": "02_Mail_Trash.py",
+    "emergency_kit": "03_Emergency_Kit.py",
+    "bonus_level": "04_Bonus_Level.py",
+    "critical_documents": "05_Critical_Documents.py",
+    "pets_dog": "06_Dogs.py",
+    "pets_cat": "07_Cats.py",
+    "runbook": "Runbook_Generator.py",
+    # You can also map task_type values here:
+    "trash": "02_Mail_Trash.py",
+    "mail": "02_Mail_Trash.py",
+}
+
+def get_page_map():
+    """Returns a mapping of section/task_type to valid Streamlit handler key."""
+    return PAGE_MAP

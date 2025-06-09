@@ -1,5 +1,4 @@
-# prompts/templates.py
-import streamlit as st 
+import streamlit as st
 
 def wrap_prompt_block(
     content: str,
@@ -14,6 +13,9 @@ def wrap_prompt_block(
     Wraps a content block with optional title, guidance, and section metadata.
     Useful for both LLM prompts and export-ready documentation.
     """
+    if debug:
+        st.markdown("### 🧱 DEBUG WRAP: Raw Content")
+        st.code(content, language="markdown")
 
     # 🛡️ Normalize input types
     if isinstance(content, list):
@@ -33,22 +35,22 @@ def wrap_prompt_block(
     if title:
         block.append(f"# {title}")
 
-    # Instructions block
-    if instructions:
+    # Optional instructions (only if non-empty)
+    if instructions and instructions.strip():
         if for_llm:
-            block.append(f"_Instructions: {instructions}_")  # LLM-friendly
+            block.append(f"_Instructions: {instructions}_")
         else:
-            block.append(f"**Instructions:** {instructions}")  # User-facing
+            block.append(f"**Instructions:** {instructions}")
+        block.append("")
 
-    # Content itself
-    block.append(content)
+    # ✅ Append main content
+    block.append(content.strip())
 
     # Join and return
     final = "\n\n".join(block).strip()
 
     if debug:
-        import streamlit as st
-        st.markdown("### 🧱 Debug: Wrapped Prompt Block")
+        st.markdown(f"### 🧱 DEBUG WRAP: Final Wrapped Block ('{title}')")
         st.code(final, language="markdown")
 
     return final
@@ -72,12 +74,16 @@ def emergency_kit_utilities_prompt_template(
     medications_info: str,
     mask_info: str,
     maps_contacts_info: str,
-    fire_extinguisher_info: str
+    fire_extinguisher_info: str,
+    *,
+    section: str = "emergency_kit",
+    debug: bool = False
 ) -> str:
-    def render_recommended(*items):
-        return "".join(f"- {i}\n" for i in items if i and i.strip())
 
-    return f"""
+    def render_recommended(*items):
+        return "".join(f"- {i.strip()}\n" for i in items if i and i.strip())
+
+    body = f"""
 City: {city}
 Zip: {zip_code}
 Internet Provider: {internet}
@@ -89,22 +95,25 @@ Please retrieve:
 - Company Description
 - Contact Info
 - Emergency Steps
+
 ---
 
 # 🧰 Emergency Kit Summary
 
 ## Emergency Kit:
-- {kit_summary_line}."
+- {kit_summary_line or "_(no summary provided)_"}
 
-## Kit Inventory:  
-{selected_md or "_(none selected)_"}  
-## ⚠️ Missing Kit Items (consider adding): 
-{missing_md or "_(none missing)_"}  
+## Kit Inventory:
+{selected_md or "_(none selected)_"}
 
-## Additional User-Added Items: 
-{additional_md or "_(none added)_"}  
+## ⚠️ Missing Kit Items (consider adding):
+{missing_md or "_(none missing)_"}
+
+## Additional User-Added Items:
+{additional_md or "_(none added)_"}
 
 ---
+
 # 🏡 Emergency Utilities Overview
 
 ## ⚡ Electricity – {electricity}
@@ -145,12 +154,36 @@ Please retrieve:
 ### Recommended Kit Items:
 {render_recommended(radio_info, maps_contacts_info, important_docs_info)}
 
+---
+
 Ensure the run book is clearly formatted using Markdown, with bold headers and bullet points. Use ⚠️ to highlight missing kit items.
 """.strip()
 
-def utilities_emergency_prompt_template(city: str, zip_code: str, internet: str, electricity: str, gas: str, water: str) -> str:
-    return f"""
+    return wrap_prompt_block(
+        content=body,
+        title="🧰 Emergency Utilities & Kit Overview",
+        instructions="Summarize each utility and kit component clearly. Do not invent information. Emphasize missing or critical kit items.",
+        debug=debug,
+        for_llm=True,
+        section=section
+    )
 
+def utilities_emergency_prompt_template(
+    city: str,
+    zip_code: str,
+    internet: str,
+    electricity: str,
+    gas: str,
+    water: str,
+    *,
+    section: str = "home",
+    debug: bool = False
+) -> str:
+    """
+    Generates a structured LLM-safe markdown prompt block for utility and emergency provider instructions.
+    """
+
+    body = f"""
 City: {city}
 Zip: {zip_code}
 Internet Provider: {internet}
@@ -196,8 +229,17 @@ Please retrieve:
 
 ---
 
-Ensure the run book is clearly formatted using Markdown, with bold headers and bullet points. 
+Ensure the runbook is clearly formatted using Markdown, with bold headers and bullet points.
 """.strip()
+
+    return wrap_prompt_block(
+        content=body,
+        title="🚨 Utility and Emergency Provider Instructions",
+        instructions="Fill in the missing utility company details and summarize emergency response steps using clear bullet points. Do not invent information.",
+        debug=debug,
+        for_llm=True,
+        section=section
+    )
 
 def utility_provider_lookup_prompt(city: str, zip_code: str) -> str:
     return f"""
@@ -372,7 +414,6 @@ def mail_runbook_prompt(section: str = "mail_trash", debug: bool = False) -> str
     ]))
 
     markdown = f"""
-## 📬 Mail Handling Instructions
 
 {mail_block}
 
@@ -384,34 +425,31 @@ def mail_runbook_prompt(section: str = "mail_trash", debug: bool = False) -> str
     return wrap_prompt_block(
         content=markdown,
         title="📬 Mail Handling Instructions",
-        instructions=None,
-        debug=debug,
+        instructions="",
+        debug=True,
         section=section  # Pass explicitly to wrap_prompt_block
     )
 
 def trash_runbook_prompt(section: str = "trash_handling", debug: bool = False) -> str:
     """
     Builds a structured trash handling prompt block without LLM.
-
-    Args:
-        section (str): Section name used to retrieve input_data.
-        debug (bool): Whether to show debug output in Streamlit.
-
-    Returns:
-        str: A markdown-formatted prompt block.
+    Returns an empty string if no content is provided.
     """
+    import streamlit as st
+
     input_data = st.session_state.get("input_data", {})
     trash_entries = input_data.get(section, [])
 
     trash_info = {entry["question"]: entry["answer"] for entry in trash_entries}
 
-    def safe_line(label, value):
-        return f"- **{label}**: {value}" if value and str(value).strip().lower() != "no" else None
+    if debug:
+        st.markdown("### 🧱 trash_info contents")
+        st.json(trash_info)
 
-    def safe_yes_no(label, flag, detail_label, detail_value):
-        if flag:
-            return f"- **{label}**: Yes\n  - **{detail_label}**: {detail_value or 'N/A'}"
-        return ""
+    def safe_line(label, value):
+        if value and str(value).strip().lower() not in ["no", "⚠️ not provided", ""]:
+            return f"- **{label}**: {value.strip()}"
+        return None
 
     # Indoor Trash Instructions
     indoor_block = "\n".join(filter(None, [
@@ -422,47 +460,47 @@ def trash_runbook_prompt(section: str = "trash_handling", debug: bool = False) -
         safe_line("Other Room Trash", trash_info.get("🪑 Other Room Trash Bins")),
     ]))
 
-    # Outdoor Trash Instructions
-    outdoor_block = "\n".join(filter(None, [
-        safe_line("Location of outside trash, recycling, and compost bins:", trash_info.get("📍 Bin Storage Location")),
-        safe_line("Outdoor bins are marked as follows:", trash_info.get("🏷️ How are bins marked?")),
-        safe_line("Important steps to follow before putting recycling or compost in the bins:", trash_info.get("📋 What to know before recycling or composting")),
+    # Outdoor Trash Instructions with Single-Family Merge
+    outdoor_lines = list(filter(None, [
+        safe_line("Location of outside trash, recycling, and compost bins", trash_info.get("📍 Bin Storage Location")),
+        safe_line("Outdoor bins are marked as follows", trash_info.get("🏷️ How are bins marked?")),
+        safe_line("Important steps to follow before putting recycling or compost in the bins", trash_info.get("📋 What to know before recycling or composting")),
     ]))
 
-    # Single Family Disposal Instruction
-    single_family_disposal = trash_info.get("Is a Single-family home?", False)
-    single_family_block = ""
+    flag_raw = trash_info.get("🏠 Is a Single-family home?", "")
+    single_family_disposal = str(flag_raw).strip().lower() in ["yes", "true"]
     if single_family_disposal:
-        single_family_instr = "\n".join(filter(None, [
-            safe_line("When and where to place bins for pickup", trash_info.get("When and where should garbage, recycling, and compost bins be placed for pickup?")),
-            safe_line("When and where to bring bins back in", trash_info.get("When and where should garbage, recycling, and compost bins be brought back in after pickup?")),
+        outdoor_lines.append("**This is a single-family home.**")
+        outdoor_lines.extend(filter(None, [
+            safe_line("When and where to place bins for pickup", trash_info.get("🛻 When and where should garbage, recycling, and compost bins be placed for pickup?")),
+            safe_line("When and where to bring bins back in", trash_info.get("🗑️ When and where should bins be brought back in?")),
         ]))
-        single_family_block = safe_yes_no(
-            label="Is a Single-family home.",
-            flag=True,
-            detail_label="Single-family home instructions",
-            detail_value=single_family_instr
-        )
+
+    outdoor_block = "\n".join(outdoor_lines)
 
     # Waste Management Contact
     wm_block = "\n".join(filter(None, [
-        safe_line("Company", trash_info.get("Waste Management Company Name")),
-        safe_line("Phone", trash_info.get("Contact Phone Number")),
-        safe_line("When to Contact", trash_info.get("When to Contact")),
+        safe_line("Company", trash_info.get("🏢 Waste Management Company Name")),
+        safe_line("Phone", trash_info.get("📞 Contact Phone Number")),
+        safe_line("When to Contact", trash_info.get("📝 When to Contact")),
     ]))
 
-    # Combine all sections
-    sections = ["## 🗑️ Trash, Recycling, and Compost Instructions"]
+    if debug:
+        st.markdown("### 🧱 DEBUG Trash Prompt Blocks")
+        st.write("Indoor block present?", bool(indoor_block))
+        st.write("Outdoor block present?", bool(outdoor_block))
+        st.write("WM block present?", bool(wm_block))
+
+    # 🧹 Build prompt content only if there is meaningful info
+    if not any([indoor_block, outdoor_block, wm_block]):
+        return ""  # ✂️ Return nothing if all content is empty
+
+    sections = []
 
     if indoor_block:
         sections.extend(["### Indoor Trash", indoor_block])
-
     if outdoor_block:
         sections.extend(["### Outdoor Bins", outdoor_block])
-
-    if single_family_block:
-        sections.extend(["### Single Family Home Instructions", single_family_block])
-
     if wm_block:
         sections.extend(["### Waste Management Contact", wm_block])
 
@@ -473,14 +511,13 @@ def trash_runbook_prompt(section: str = "trash_handling", debug: bool = False) -
     return wrap_prompt_block(
         content=markdown,
         title="🗑️ Trash, Recycling and Compost Instructions",
-        instructions="Use the provided information for clarity.",
+        instructions="",  # Omit instructions completely
         debug=debug,
-        section=section  # ✅ Explicitly passed to support tracing/debugging
+        section=section
     )
 
 def mail_trash_combined_schedule_prompt(section: str = "mail_trash", debug: bool = False) -> str:
     markdown = (
-        "### 📆 Combined Mail and Trash Handling Schedule\n\n"
         "<<INSERT_MAIL_TRASH_SCHEDULE_TABLE>>"
     )
 

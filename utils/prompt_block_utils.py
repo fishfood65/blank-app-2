@@ -1,4 +1,4 @@
-# utils/prompt_block_utils.py
+import streamlit as st
 
 from prompts.templates import (
     wrap_prompt_block, 
@@ -11,7 +11,7 @@ from prompts.templates import (
 from .data_helpers import get_answer  
 import streamlit as st 
 from typing import List, Optional, Callable
-from prompts.templates import mail_runbook_prompt, trash_runbook_prompt
+from prompts.templates import mail_runbook_prompt, trash_runbook_prompt, mail_trash_combined_schedule_prompt
 
 SECTION_ALIASES = {
     "Mail & Packages": "mail",
@@ -76,12 +76,7 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
     Collects and wraps prompt content blocks based on the current section.
     Returns a list of structured prompt strings, excluding empty or placeholder-only blocks.
     """
-    blocks = []
-
-    def maybe_add_block(title: str, content_fn: Callable[[], str]):
-        content = content_fn()
-        if is_content_meaningful(content):
-            blocks.append(build_prompt_block(title, content, section=section))
+    blocks = [] # Expecting prompt functions to return pre-wrapped blocks using wrap_prompt_block()
 
     debug = st.session_state.get("enable_debug_mode", False)
 
@@ -118,9 +113,11 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
 
     if section in prompt_registry:
         for title, fn in prompt_registry[section]:
-            maybe_add_block(title, fn)
+            block = fn()
+            if is_content_meaningful(block):
+                blocks.append(block)
     else:
-        blocks.append(build_prompt_block(
+        blocks.append(wrap_prompt_block(
             title=f"⚠️ No prompt defined for section: {section}",
             content="This section currently has no associated prompt logic.",
             section=section

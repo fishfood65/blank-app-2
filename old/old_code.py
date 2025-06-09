@@ -58,8 +58,7 @@ from utils.task_schedule_utils_updated import (
     save_task_schedules_by_type,
     extract_unscheduled_tasks_from_inputs_with_category,
     load_label_map,
-    normalize_label,
-    display_enriched_task_preview
+    normalize_label
 )
 from utils.preview_helpers import (
     display_enriched_task_preview, 

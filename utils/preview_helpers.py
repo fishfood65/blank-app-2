@@ -3,6 +3,10 @@ import streamlit as st
 import re
 import pandas as pd
 from config.sections import SECTION_METADATA
+from config.section_router import get_page_map
+import uuid
+import hashlib
+import json
 
 def get_active_section_label(section_key: str) -> str:
     """
@@ -14,36 +18,39 @@ def get_active_section_label(section_key: str) -> str:
 
 def display_enriched_task_preview(combined_df: pd.DataFrame, section: str = "home"):
     """
-    Show grouped enriched & scheduled task preview with edit buttons.
-    Groups by (question, answer, clean_task) and lists associated scheduled dates.
-
-    Args:
-        combined_df: The enriched task dataframe
-        section: Used for fallback if row['section'] is missing
+    Show enriched & scheduled tasks grouped by (question, answer, clean_task),
+    with inline edit buttons for each.
     """
-    st.markdown(f"## 📋 Enriched & Scheduled Task Preview ({get_active_section_label(section)})")
+    #st.markdown(f"## 📋 Enriched & Scheduled Task Preview ({get_active_section_label(section)})")
 
     if combined_df.empty:
         st.info("⚠️ No enriched tasks to preview.")
         return
 
-    grouped = combined_df.groupby(["question", "answer", "clean_task"], dropna=False)
+    # 🧼 Clean and filter valid tasks
+    df = combined_df.copy()
+    df["question"] = df["question"].fillna("").astype(str).str.strip()
+    df["clean_task"] = df["clean_task"].fillna("").astype(str).str.strip()
+    df = df[(df["question"] != "") & (df["clean_task"] != "")]
+    if df.empty:
+        st.info("⚠️ No valid enriched tasks to preview.")
+        return
 
-    for (question, answer, clean_task), group in grouped:
+    _rendered_keys = set()
+    page_map = get_page_map()
+
+    # ✅ Group by question/answer/clean_task for clarity
+    grouped = df.groupby(["question", "answer", "clean_task"], dropna=False)
+    for i, ((question, answer, clean_task), group_df) in enumerate(grouped):
         with st.expander(f"📝 {clean_task}", expanded=False):
             st.markdown(f"**Question**: {question}")
             st.markdown(f"**Answer**: {answer}")
             st.markdown(f"**Task Summary**: {clean_task}")
-
             st.markdown("**Scheduled Occurrences:**")
             st.dataframe(
-                group[["Date", "Day", "task_type"]].sort_values("Date").reset_index(drop=True)
+                group_df[["Date", "Day", "task_type"]].sort_values("Date").reset_index(drop=True)
             )
-
-            # Optional: Show metadata for debugging
-            # st.write(group[["section", "task_type", "inferred_days", "formatted_answer"]])
-
-            edit_button_redirect(group.iloc[0], fallback_section=section)
+            edit_button_redirect(row=group_df.iloc[0], i=i, page_map=page_map, _rendered_keys=_rendered_keys)
 
 
 def sanitize_key(text: str) -> str:
@@ -51,34 +58,69 @@ def sanitize_key(text: str) -> str:
     return re.sub(r'[^a-zA-Z0-9_]', '', text.replace(" ", "_"))
 
 
-def edit_button_redirect(row, key_prefix="edit", i=None, page_map=None, fallback_section: str = "home"):
+def edit_button_redirect(row, _rendered_keys, i=None, page_map=None, fallback_section: str = "home"):
     """
     Displays a row-level edit button. Sets session_state['current_page'] on click.
 
     Args:
-        row (dict or pd.Series): A row from enriched_df.
-        key_prefix (str): Streamlit key prefix to avoid duplicate keys.
-        i (int): Optional unique row index fallback.
-        page_map (dict): Optional mapping from section/task_type to filename.
-        fallback_section (str): Used if section/task_type cannot be resolved from row.
+        row: Single task row (Series or dict)
+        _rendered_keys: Set tracking previously rendered buttons
+        i: Optional unique row index
+        page_map: Section/task_type → page map
+        fallback_section: Default section if missing
     """
-    label = str(row.get("question", "Edit"))
-    task_type = str(row.get("task_type", "")).lower()
-    section = str(row.get("section", "")).lower() or fallback_section
+    if page_map is None:
+        from section_router import get_page_map
+        page_map = get_page_map()
 
-    destination = section or task_type or fallback_section
-    if page_map and destination in page_map:
-        destination = page_map[destination]
+    if not isinstance(row, dict):
+        row = row.to_dict()
 
-    # Ensure unique and clean Streamlit key
-    safe_label = sanitize_key(label)
-    safe_date = str(row.get("Date", ""))
-    suffix = f"_{i}" if i is not None else ""
-    button_key = f"{key_prefix}_{safe_label}_{safe_date}{suffix}"
+    label = str(row.get("question", "")).strip()
+    clean_task = str(row.get("clean_task", "")).strip()
 
-    if st.button(f"✏️ Edit '{label}'", key=button_key):
-        st.session_state["current_page"] = destination
-        st.experimental_rerun()
+    # 🚫 Skip if this is a group/header row or has suspicious label content
+    if (
+        not label
+        or not clean_task
+        or "—" in label  # e.g., "mail_trash — Monday Jun 09"
+        or re.match(r"^\s*[\w\-]+ — \w+", label)  # matches similar group headings
+    ):
+        return
+
+
+    section = row.get("section") or fallback_section
+    task_type = row.get("task_type", "generic")
+
+    # 🔐 Create a consistent key from row contents
+    row_fingerprint = json.dumps(row, sort_keys=True, default=str)
+    hash_part = hashlib.sha1(row_fingerprint.encode()).hexdigest()[:12]
+    key_suffix = f"{hash_part}_{i or 'na'}"
+
+    if key_suffix in _rendered_keys:
+        return  # 🚫 Prevent duplicate key
+
+    _rendered_keys.add(key_suffix)
+    button_key = f"edit_{key_suffix}"
+
+    # 🧼 Optional: Sanitize label for readability
+    short_label = label if len(label) <= 80 else label[:77] + "..."
+
+    if st.button(f"✏️ Edit '{short_label}'", key=button_key):
+        st.session_state["edit_mode"] = {
+            "row_index": i,
+            "section": section,
+            "task_type": task_type,
+        }
+
+        # 🔁 Redirect to mapped page
+        dest_page = (
+            page_map.get(section)
+            or page_map.get(task_type)
+            or page_map.get(fallback_section)
+            or "01_Home.py"
+        )
+        st.switch_page(dest_page)
 
 
 def list_saved_llm_outputs():
@@ -91,4 +133,3 @@ def list_saved_llm_outputs():
     st.markdown("### 💾 Stored LLM Outputs")
     for key in sorted(keys):
         st.markdown(f"- `{key}`")
-
