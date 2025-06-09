@@ -48,13 +48,11 @@ from config.sections import (
     LLM_SECTIONS,
     check_home_progress
 )
-from old.old_code import render_prompt_preview
 from config.section_router import get_handler, critical_documents_flow
 from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
 import re
 from mistralai import Mistral, UserMessage, SystemMessage
-from dotenv import load_dotenv
 import os
 import pandas as pd
 from datetime import datetime, timedelta
@@ -64,7 +62,6 @@ from PIL import Image
 import io
 import uuid
 import json
-from docx.shared import Inches
 
 # Only include sections that have a numeric level
 LEVEL_LABELS = {
