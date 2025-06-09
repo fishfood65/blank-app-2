@@ -12,9 +12,22 @@ import io
 import uuid
 import json
 from utils.preview_helpers import get_active_section_label
-from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs 
-from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer
-from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
+from utils.data_helpers import (
+    register_task_input, 
+    get_answer, 
+    extract_providers_from_text, 
+    check_missing_utility_inputs
+)
+from utils.debug_utils import (
+    debug_all_sections_input_capture_with_summary, 
+    clear_all_session_data, 
+    debug_single_get_answer
+)
+from utils.runbook_generator_helpers import (
+    generate_docx_from_prompt_blocks, 
+    maybe_render_download, 
+    maybe_generate_runbook
+)
 from prompts.templates import utility_provider_lookup_prompt
 from utils.common_helpers import get_schedule_placeholder_mapping
 

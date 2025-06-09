@@ -11,12 +11,48 @@ import time
 import io
 import uuid
 import json
-from utils.preview_helpers import get_active_section_label, edit_button_redirect, display_enriched_task_preview
-from utils.data_helpers import register_task_input, get_answer, extract_providers_from_text, check_missing_utility_inputs, select_runbook_date_range, sanitize_label, sanitize, section_has_valid_input, check_runbook_dates_confirmed, check_for_date_change
-from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data, debug_single_get_answer
-from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook, render_runbook_preview_inline, display_user_friendly_schedule_table
-from utils.common_helpers import get_schedule_utils, debug_saved_schedule_dfs, get_schedule_placeholder_mapping, merge_all_schedule_dfs
-from utils.task_schedule_utils_updated import extract_and_schedule_all_tasks, extract_unscheduled_tasks_from_inputs_with_category, save_task_schedules_by_type, load_label_map, normalize_label
+from utils.preview_helpers import (
+    get_active_section_label, 
+    edit_button_redirect, 
+    display_enriched_task_preview
+)
+from utils.data_helpers import ( 
+    register_task_input, 
+    get_answer, 
+    extract_providers_from_text, 
+    check_missing_utility_inputs, 
+    select_runbook_date_range, 
+    sanitize_label, 
+    sanitize, 
+    section_has_valid_input, 
+    check_runbook_dates_confirmed, 
+    check_for_date_change
+)
+from utils.debug_utils import(
+    debug_all_sections_input_capture_with_summary, 
+    clear_all_session_data, 
+    debug_single_get_answer
+)
+from utils.runbook_generator_helpers import(
+    generate_docx_from_prompt_blocks, 
+    maybe_render_download, 
+    maybe_generate_runbook, 
+    render_runbook_preview_inline, 
+    display_user_friendly_schedule_table
+)
+from utils.common_helpers import (
+    get_schedule_utils, 
+    debug_saved_schedule_dfs, 
+    get_schedule_placeholder_mapping, 
+    merge_all_schedule_dfs
+)
+from utils.task_schedule_utils_updated import (
+    extract_and_schedule_all_tasks, 
+    extract_unscheduled_tasks_from_inputs_with_category, 
+    save_task_schedules_by_type, 
+    load_label_map, 
+    normalize_label
+)
 from utils.debug_utils import log_extracted_tasks_debug, debug_schedule_df_presence
 from prompts.templates import utility_provider_lookup_prompt
 from config.section_router import get_handler
