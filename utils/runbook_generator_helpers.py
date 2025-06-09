@@ -4,11 +4,8 @@ import csv
 from io import BytesIO, StringIO
 import io
 from datetime import datetime, timedelta
-from docx import Document
 from collections import defaultdict
 import json
-from docx.shared import Inches, Pt
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 import os
 import pandas as pd
 import re
@@ -20,8 +17,6 @@ from .prompt_block_utils import generate_all_prompt_blocks
 from .task_schedule_utils_updated import export_schedule_to_markdown
 import markdown
 from config.constants import TASK_TYPE_EMOJI, SCHEDULE_HEADING_MAP, PRIORITY_ORDER
-
-from docx import Document
 import pandas as pd
 from datetime import datetime
 

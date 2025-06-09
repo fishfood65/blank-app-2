@@ -14,11 +14,8 @@ import csv
 import io
 from io import BytesIO
 from datetime import datetime, timedelta, date
-from docx import Document
 from collections import defaultdict
 import json
-from docx.shared import Inches, Pt
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 import os
 import pandas as pd
 import re

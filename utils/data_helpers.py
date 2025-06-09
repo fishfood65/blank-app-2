@@ -4,7 +4,6 @@ import json
 import csv
 import io
 from datetime import datetime, timedelta, date
-from docx import Document
 import pandas as pd
 import plotly.express as px
 from uuid import uuid4

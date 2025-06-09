@@ -58,8 +58,6 @@ from dotenv import load_dotenv
 import os
 import pandas as pd
 from datetime import datetime, timedelta
-from docx import Document
-from docx.text.run import Run
 import re
 import time
 from PIL import Image

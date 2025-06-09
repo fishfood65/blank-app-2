@@ -2,7 +2,6 @@ import streamlit as st
 import csv
 import io
 from datetime import datetime
-from docx import Document
 
 # --------------------------- #
 # INITIALIZATION

@@ -3,10 +3,7 @@ import streamlit as st
 #from langchain_huggingface import HuggingFaceEndpoint
 import os
 import pandas as pd
-import PyPDF2
 from datetime import datetime, timedelta
-from fpdf import FPDF
-from docx import Document
 import re
 
 st.title("🐾 Pet Sitting Runbook Generator with Mistral")
