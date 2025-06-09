@@ -467,10 +467,14 @@ def trash_runbook_prompt(section: str = "trash_handling", debug: bool = False) -
         safe_line("Important steps to follow before putting recycling or compost in the bins", trash_info.get("📋 What to know before recycling or composting")),
     ]))
 
+    # 🚩 Conditional additions for single-family homes
     flag_raw = trash_info.get("🏠 Is a Single-family home?", "")
     single_family_disposal = str(flag_raw).strip().lower() in ["yes", "true"]
     if single_family_disposal:
-        outdoor_lines.append("**This is a single-family home.**")
+        outdoor_lines.extend([
+            "",  # Blank line for spacing
+            "**This is a single-family home.**"
+        ])
         outdoor_lines.extend(filter(None, [
             safe_line("When and where to place bins for pickup", trash_info.get("🛻 When and where should garbage, recycling, and compost bins be placed for pickup?")),
             safe_line("When and where to bring bins back in", trash_info.get("🗑️ When and where should bins be brought back in?")),
