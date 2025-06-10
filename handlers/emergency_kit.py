@@ -187,6 +187,7 @@ def emergency_kit_utilities():
     blocks = generate_all_prompt_blocks(section)
     st.success("✅ All required utility inputs are complete.")
     st.session_state["utility_providers_saved"] = True
+    st.session_state[f"{section}_runbook_blocks"] = blocks
 
     #Debug preview
     if st.session_state.get("enable_debug_mode"):
@@ -198,8 +199,9 @@ def emergency_kit_utilities():
         st.write(debug_single_get_answer(key="emergency_kit_status", section="emergency_kit"))
         st.write(debug_single_get_answer(key="emergency_kit_location", section="emergency_kit"))
         st.write(debug_single_get_answer(key="additional_kit_items", section="emergency_kit"))
-
+    
     #Step 2: Generate DOCX
+    include_priority = st.session_state.get("include_priority", True) # Ensure default for include_priority
 
     def generate_kit_docx():
         blocks = generate_all_prompt_blocks(section)
@@ -209,12 +211,12 @@ def emergency_kit_utilities():
             blocks=blocks, 
             schedule_sources=get_schedule_placeholder_mapping(),   
             include_heading=True,
+            include_priority=include_priority
             use_llm=True,
             api_key=os.getenv("MISTRAL_TOKEN"),
             doc_heading="⛑️ Utilities & Emergency Kit Runbook ",
             debug=st.session_state.get("enable_debug_mode", False)
-            #include_priority=include_priority
-        )
+            )
 
     maybe_generate_runbook(
         section=section,
