@@ -6,286 +6,7 @@ import streamlit as st
 import re
 from collections import defaultdict
 from config.sections import SECTION_METADATA
-
-def extract_all_trash_tasks_grouped(valid_dates, utils):
-    utils = utils or get_schedule_utils()
-    #st.write("🗑️ [DEBUG] extract_all_trash_tasks_grouped received:", valid_dates)
-    #st.write("🗑️ [DEBUG] input_data:", st.session_state.get("input_data", {}))
-
-    input_data = st.session_state.get("input_data", {})
-    trash_entries = input_data.get("Trash Handling", []) or input_data.get("trash_handling")
-    #st.write("🧪 trash_entries:", trash_entries) -- for Debug
-    label_map = {entry["question"]: entry["answer"] for entry in trash_entries}
-    #st.write("🧪 trash label_map keys:", list(label_map.keys())) -- for Debug
-
-    emoji_tags = utils["emoji_tags"]
-    weekday_to_int = utils["weekday_to_int"]
-    extract_week_interval = utils["extract_week_interval"]
-    extract_weekday_mentions = utils["extract_weekday_mentions"]
-    extract_dates = utils["extract_dates"]
-    normalize_date = utils["normalize_date"]
-
-    def add_task_row(date_obj, label, answer, tag):
-        return {
-            "Date": str(date_obj),
-            "Day": date_obj.strftime("%A"),
-            "Task": f"{label} – {answer}",
-            "Tag": tag,
-            "Category": "Trash Handling",
-            "Area": "home",
-            "Source": "Trash Handling"
-        }
-
-    def schedule_task(label, answer):
-        rows = []
-        interval = extract_week_interval(answer)
-        weekday_mentions = extract_weekday_mentions(answer)
-
-        task_already_scheduled = False
-
-        for ds in extract_dates(answer):
-            parsed_date = normalize_date(ds)
-            if parsed_date and parsed_date in valid_dates:
-                rows.append(add_task_row(parsed_date, label, answer, emoji_tags["[One-Time]"]))
-                task_already_scheduled = True
-
-        if interval:
-            base_date = valid_dates[0]
-            for d in valid_dates:
-                if (d - base_date).days % (interval * 7) == 0:
-                    rows.append(add_task_row(d, label, answer, f"↔️ Every {interval} Weeks"))
-                    task_already_scheduled = True
-
-        if weekday_mentions and not interval:
-            for wd in weekday_mentions:
-                weekday_idx = weekday_to_int.get(wd)
-                for d in valid_dates:
-                    if d.weekday() == weekday_idx:
-                        rows.append(add_task_row(d, label, answer, emoji_tags["[Weekly]"]))
-                        task_already_scheduled = True
-
-        if "monthly" in answer.lower():
-            current_date = pd.to_datetime(valid_dates[0])
-            while current_date.date() <= valid_dates[-1]:
-                if current_date.date() in valid_dates:
-                    rows.append(add_task_row(current_date.date(), label, answer, emoji_tags["[Monthly]"]))
-                    task_already_scheduled = True
-                current_date += pd.DateOffset(months=1)
-
-        if not task_already_scheduled and not weekday_mentions and not extract_dates(answer):
-            for d in valid_dates:
-                rows.append(add_task_row(d, label, answer, emoji_tags["[Daily]"]))
-        return rows
-
-    indoor_task_labels = [
-        "Kitchen Trash Bin Location, Emptying Schedule and Replacement Trash Bags",
-        "Bathroom Trash Bin Emptying Schedule and Replacement Trash Bags",
-        "Other Room Trash Bin Emptying Schedule and Replacement Trash Bags",
-        "Recycling Trash Bin Location and Emptying Schedule (if available) and Sorting Instructions"
-    ]
-
-    indoor_rows = []
-    for label in indoor_task_labels:
-        answer = str(label_map.get(label, "")).strip()
-        if answer:
-            indoor_rows.extend(schedule_task(label, answer))
-
-    outdoor_rows = []
-
-    # Garbage/Recycling combined scheduling
-    pickup_related_labels = {
-        "Garbage Pickup Day": [
-            "Instructions for Placing and Returning Outdoor Bins",
-            "What the Outdoor Trash Bins Look Like",
-            "Specific Location or Instructions for Outdoor Bins"
-        ],
-        "Recycling Pickup Day": [
-            "Instructions for Placing and Returning Outdoor Bins",
-            "What the Outdoor Trash Bins Look Like",
-            "Specific Location or Instructions for Outdoor Bins"
-        ]
-    }
-
-    garbage_day = label_map.get("Garbage Pickup Day", "").strip()
-    recycling_day = label_map.get("Recycling Pickup Day", "").strip()
-
-    weekday_mentions_garbage = extract_weekday_mentions(garbage_day)
-    weekday_mentions_recycling = extract_weekday_mentions(recycling_day)
-
-    shared_days = set(weekday_mentions_garbage).intersection(weekday_mentions_recycling)
-    scheduled_days = set()
-
-    for pickup_type, anchor_labels in pickup_related_labels.items():
-        pickup_day = label_map.get(pickup_type, "").strip()
-        weekday_mentions = extract_weekday_mentions(pickup_day)
-
-        for wd in weekday_mentions:
-            weekday_idx = weekday_to_int.get(wd)
-            for date in valid_dates:
-                if date.weekday() == weekday_idx and wd not in scheduled_days:
-                    tag = "♻️ Shared Pickup Instructions" if wd in shared_days else emoji_tags["[Weekly]"]
-                    for anchor_label in anchor_labels:
-                        answer = label_map.get(anchor_label, "").strip()
-                        if answer:
-                            outdoor_rows.append(add_task_row(
-                                date, f"{pickup_type} - {anchor_label}", answer, tag
-                            ))
-                    scheduled_days.add(wd)
-
-    for pickup_label in ["Garbage Pickup Day", "Recycling Pickup Day"]:
-        answer = str(label_map.get(pickup_label, "")).strip()
-        if answer:
-            outdoor_rows.extend(schedule_task(pickup_label, answer))
-
-    combined_df = pd.DataFrame(indoor_rows + outdoor_rows)
-    if not combined_df.empty:
-        return combined_df.sort_values(by=["Date", "Day", "Category", "Tag", "Task"]).reset_index(drop=True)
-    else:
-        return combined_df
-
-def extract_quality_service_schedule():
-    """
-    Builds a schedule of recurring quality-oriented household services.
-    Returns a list of dicts or a DataFrame for calendar rendering or export.
-    """
-    schedule = []
-    data = st.session_state.get("input_data", {})
-    root = data.get("Quality-Oriented Household Services", {})
-
-    for service, fields in root.items():
-        frequency = fields.get("Frequency")
-        day = fields.get("Day of the Week")
-
-        if frequency and day and day != "Not Specified":
-            task = {
-                "Task": f"{service} Service Visit",
-                "Category": "Quality Service",
-                "Source": "convenience_seeker",
-                "Tag": fields.get("Company Name", ""),
-                "Area": "home",
-                "Frequency": frequency,
-                "Day": day,
-                "Notes": fields.get(f"Post-{service} Procedures", ""),
-            }
-            schedule.append(task)
-
-    return pd.DataFrame(schedule) if schedule else pd.DataFrame(
-        columns=["Task", "Category", "Source", "Tag", "Area", "Frequency", "Day", "Notes"]
-    )
-
-def extract_rent_own_service_schedule():
-    """
-    Builds a schedule of recurring quality-oriented household services.
-    Returns a list of dicts or a DataFrame for calendar rendering or export.
-    """
-    schedule = []
-    data = st.session_state.get("input_data", {})
-    root = data.get("Rent or Own", {})
-
-    for service, fields in root.items():
-        frequency = fields.get("Frequency")
-        day = fields.get("Day of the Week")
-
-        if frequency and day and day != "Not Specified":
-            task = {
-                "Task": f"{service} Service Visit",
-                "Category": "Quality Service",
-                "Source": "convenience_seeker",
-                "Tag": fields.get("Company Name", ""),
-                "Area": "home",
-                "Frequency": frequency,
-                "Day": day,
-                "Notes": fields.get(f"Post-{service} Procedures", ""),
-            }
-            schedule.append(task)
-
-    return pd.DataFrame(schedule) if schedule else pd.DataFrame(
-        columns=["Task", "Category", "Source", "Tag", "Area", "Frequency", "Day", "Notes"]
-    )
-
-def extract_grouped_mail_task(valid_dates):
-    utils = get_schedule_utils()
-
-    input_data = st.session_state.get("input_data", {})
-    mail_entries = input_data.get("mail") or input_data.get("Mail & Packages", [])
-
-    if not mail_entries:
-        st.warning("📬 No mail entries found in session_state.")
-        return []
-
-    label_map = {entry["question"]: entry["answer"] for entry in mail_entries}
-
-    mailbox_location = label_map.get("📍 Mailbox Location", "").strip()
-    mailbox_key = label_map.get("🔑 Mailbox Key (Optional)", "").strip()
-    pick_up_schedule = label_map.get("📆 Mail Pick-Up Schedule", "").strip()
-    mail_handling = label_map.get("📥 What to Do with the Mail", "").strip()
-    package_handling = label_map.get("📦 Packages", "").strip()
-
-    if not (mailbox_location and pick_up_schedule and mail_handling):
-        st.warning("📬 Missing required mail fields.")
-        return []
-
-    tag = utils["determine_frequency_tag"](pick_up_schedule, valid_dates)
-    weekday_mentions = utils["extract_weekday_mentions"](pick_up_schedule)
-    raw_dates = utils["extract_dates"](pick_up_schedule)
-
-    one_time_tasks = defaultdict(list)
-    repeating_tasks = defaultdict(list)
-
-    # Core task lines (shared by all entries)
-    base_lines = [
-        f"📬 Mail should be picked up **{pick_up_schedule}**.",
-        f"📍 Location: {mailbox_location}",
-    ]
-    if mailbox_key:
-        base_lines.append(f"🔑 Key info: {mailbox_key}")
-    base_lines.append(f"📥 Mail handling: {mail_handling}")
-    if package_handling:
-        base_lines.append(f"📦 Package instructions: {package_handling}")
-
-    # One-time tasks
-    for ds in raw_dates:
-        parsed = utils["normalize_date"](ds)
-        if parsed and parsed in valid_dates:
-            one_time_tasks[parsed].extend(base_lines + ["📌 One-Time scheduled pickup."])
-
-    for weekday in weekday_mentions:
-            for d in valid_dates:
-                if d.strftime("%A") == weekday:
-                    repeating_tasks[d].append({
-                        "Task": "Check mailbox",
-                        "Category": "home",
-                        "Area": "mail",
-                        "Source": "user",
-                        "Tag": tag,
-                        "Date": d,
-                        "Day": d.strftime("%A")
-                    })
-
-    # Merge into structured tasks
-    structured_tasks = []
-
-    def make_task(date, task_dicts, kind_tag):
-    # Join the 'Task' strings from each dict
-        task_lines = [d["Task"] for d in task_dicts if "Task" in d]
-        return {
-            "Task": "\n".join(task_lines).strip(),
-            "Category": "home",
-            "Area": "mail",
-            "Source": "user",
-            "Tag": kind_tag,
-            "Date": date,
-            "Day": date.strftime("%A")
-        }
-
-    for date, lines in sorted(one_time_tasks.items()):
-        structured_tasks.append(make_task(date, lines, "📌 One-Time"))
-
-    for date, lines in sorted(repeating_tasks.items()):
-        structured_tasks.append(make_task(date, lines, tag or "🔁 Repeating"))
-
-    #st.write("📬 [DEBUG] Structured Mail Tasks:", structured_tasks)
-    return structured_tasks
+import calendar
 
 def generate_flat_home_schedule_markdown(schedule_df):
     """
@@ -347,8 +68,8 @@ def generate_flat_home_schedule_markdown(schedule_df):
 
 def get_schedule_utils():
     """Shared date parsing, tag generation, and frequency utilities."""
-    print("✨ get_schedule_utils() CALLED")
-    import calendar
+    print("💡 get_schedule_utils() CALLED")
+
     emoji_tags = {
         "[Daily]": "🔁 Daily",
         "[Weekly]": "📅 Weekly",
@@ -367,29 +88,69 @@ def get_schedule_utils():
     def extract_week_interval(text):
         text = text.lower()
         print("🧪 Checking interval in text:", text)
-        if "every week" in text and not re.search(r"every \\d+ week", text):
+
+        if "every week" in text and not re.search(r"every \d+ week", text):
             print("✅ Detected 'every week' → returning 1")
             return 1
-        match = re.search(r"every (\\d+) week", text)
+
+        match = re.search(r"every (\d+) week", text)
         if match:
             print(f"✅ Detected 'every {match.group(1)} weeks'")
             return int(match.group(1))
+
         if "biweekly" in text:
             return 2
+
         return None
 
     def extract_weekday_mentions(text):
-        return [day for day in weekday_to_int if day.lower() in text.lower()]
+        text = text.lower()
+        weekdays = []
+        if "weekend" in text:
+            weekdays.extend(["Saturday", "Sunday"])
+        if "weekday" in text:
+            weekdays.extend(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"])
+        for day in weekday_to_int:
+            if day.lower() in text:
+                weekdays.append(day)
+        return sorted(set(weekdays))
+
+    def extract_ordinal_patterns(text):
+        return re.findall(r"\b(first|second|third|fourth|last)\b", text.lower())
 
     def extract_dates(text):
         patterns = [
-            r"\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\s+\\d{1,2}(?:,\\s*\\d{4})?",
-            r"\\b\\d{1,2}/\\d{1,2}(?:/\\d{2,4})?"
+            r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?",
+            r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?"
         ]
         matches = []
         for pattern in patterns:
             matches += re.findall(pattern, text, flags=re.IGNORECASE)
         return matches
+
+    def extract_annual_dates(text):
+        results = []
+
+        # Textual: "every July 4"
+        month_day_pattern = re.findall(
+            r"(?:every|each)?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2})",
+            text, re.IGNORECASE)
+        for month, day in month_day_pattern:
+            try:
+                parsed_date = pd.to_datetime(f"{month} {day}", format="%b %d")
+                results.append((parsed_date.month, parsed_date.day))
+            except:
+                pass
+
+        # Numeric: "7/4"
+        numeric_pattern = re.findall(r"(?:every|on)?\s*(\d{1,2})/(\d{1,2})", text)
+        for month, day in numeric_pattern:
+            try:
+                results.append((int(month), int(day)))
+            except:
+                pass
+
+        return results
 
     def normalize_date(date_str):
         try:
@@ -397,74 +158,68 @@ def get_schedule_utils():
         except:
             return None
 
-    def extract_annual_dates(text):
-        matches = []
-        for match in re.findall(r"every (\w+ \d{1,2}|\d{1,2}/\d{1,2})", text.lower()):
-            try:
-                dt = pd.to_datetime(match, errors="coerce")
-                if pd.notna(dt):
-                    matches.append((dt.month, dt.day))
-            except:
-                pass
-        return matches
-
-    def extract_ordinal_patterns(text):
-        ordinals = {
-            "first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3,
-            "fourth": 4, "4th": 4, "fifth": 5, "5th": 5
-        }
-        patterns = []
-        for ordinal, num in ordinals.items():
-            for day in weekday_to_int:
-                pattern = rf"{ordinal} {day.lower()}"
-                if re.search(pattern, text.lower()):
-                    patterns.append((num, day))
-        return patterns
-
-    def resolve_nth_weekday(year, month, weekday_name, n):
-        weekday_num = weekday_to_int[weekday_name]
-        count = 0
-        for day in range(1, calendar.monthrange(year, month)[1] + 1):
-            if datetime(year, month, day).weekday() == weekday_num:
-                count += 1
-                if count == n:
-                    return datetime(year, month, day).date()
-        return None
-
     def determine_frequency_tag(text, valid_dates):
-        interval = extract_week_interval(text)
-        weekday_mentions = extract_weekday_mentions(text)
+        text = text.lower()
 
+        # ⏱️ 1-time date detection
         for ds in extract_dates(text):
             parsed_date = normalize_date(ds)
             if parsed_date and parsed_date in valid_dates:
                 return emoji_tags["[One-Time]"]
 
-        if "quarterly" in text.lower():
-            return emoji_tags["[Quarterly]"]
-        if "bi-annual" in text.lower() or "biannually" in text.lower():
-            return emoji_tags["[Bi-Annually]"]
+        # ↔️ Weekly interval
+        interval = extract_week_interval(text)
         if interval:
-            return f"↔️ Every {interval} Weeks"
-        if weekday_mentions and not interval:
+            return emoji_tags.get("[X-Weeks]", "") + f" (Every {interval} Weeks)"
+
+        # 📅 Weekly mention
+        if extract_weekday_mentions(text):
             return emoji_tags["[Weekly]"]
-        if "monthly" in text.lower():
+
+        # 📆 Monthly mention
+        if "monthly" in text or "every month" in text:
             return emoji_tags["[Monthly]"]
+
+        # 🔢 Quarterly
+        if "quarterly" in text or "every 3 months" in text:
+            return emoji_tags["[Quarterly]"]
+
+        # 🌐 Bi-Annually
+        if "twice a year" in text or "every 6 months" in text or "bi-annually" in text:
+            return emoji_tags["[Bi-Annually]"]
+
         return emoji_tags["[Daily]"]
+
+    def resolve_nth_weekday(year, month, weekday_name, n):
+        """
+        Returns the date of the nth occurrence of a weekday in a given month/year.
+        Example: 2nd Tuesday of July 2025 → datetime.date(2025, 7, 8)
+        """
+        weekday_num = weekday_to_int.get(weekday_name)
+        if weekday_num is None:
+            return None
+
+        count = 0
+        for day in range(1, calendar.monthrange(year, month)[1] + 1):
+            date_obj = datetime(year, month, day)
+            if date_obj.weekday() == weekday_num:
+                count += 1
+                if count == n:
+                    return date_obj.date()
+        return None
 
     return {
         "emoji_tags": emoji_tags,
         "weekday_to_int": weekday_to_int,
         "extract_week_interval": extract_week_interval,
         "extract_weekday_mentions": extract_weekday_mentions,
+        "extract_ordinal_patterns": extract_ordinal_patterns,
         "extract_dates": extract_dates,
+        "extract_annual_dates": extract_annual_dates,
         "normalize_date": normalize_date,
         "determine_frequency_tag": determine_frequency_tag,
-        "extract_annual_dates": extract_annual_dates,
-        "extract_ordinal_patterns": extract_ordinal_patterns,
         "resolve_nth_weekday": resolve_nth_weekday
     }
-
 
 def get_schedule_placeholder_mapping() -> dict:
     """
@@ -510,16 +265,24 @@ def merge_all_schedule_dfs(
     annotate_source: bool = True,
     save_to_session: bool = True,
     show_summary: bool = True,
-    group_keys: Optional[Dict[str, List[str]]] = None  # New grouping param
+    group_keys: Optional[Dict[str, List[str]]] = None
 ) -> pd.DataFrame:
+    """
+    Merges all *_schedule_df DataFrames in session_state.
+    Supports task_id-based deduplication and enrichment utilities.
+    """
+    import hashlib
+
     if exclude_keys is None:
         exclude_keys = []
-    if dedup_fields is None:
-        dedup_fields = ["Date", "Day", "clean_task", "task_type"]
     if group_keys is None:
         group_keys = {
             "trash_schedule_df": ["indoor_trash_schedule_df", "outdoor_trash_schedule_df"]
         }
+
+    # Set deduplication fields
+    if dedup_fields is None:
+        dedup_fields = ["task_id", "Date", "clean_task", "task_type"]
 
     all_keys = [
         k for k in st.session_state
@@ -529,7 +292,7 @@ def merge_all_schedule_dfs(
     seen_keys = set()
     keys_to_merge = []
 
-    # Merge grouped schedule DFs
+    # 🧩 Merge grouped schedule DataFrames
     for combined_key, parts in group_keys.items():
         dfs = []
         for key in parts:
@@ -546,7 +309,7 @@ def merge_all_schedule_dfs(
             st.session_state[combined_key] = combined_df
             keys_to_merge.append(combined_key)
 
-    # Include any remaining schedule DFs not already grouped
+    # 📦 Add remaining ungrouped schedule DataFrames
     for key in all_keys:
         if key not in seen_keys and key != output_key and key not in exclude_keys:
             keys_to_merge.append(key)
@@ -556,13 +319,23 @@ def merge_all_schedule_dfs(
         df = st.session_state.get(key)
         if df is not None and not df.empty:
             df_copy = df.copy()
+
+            # ✅ Add SourceKey
             if annotate_source:
                 df_copy["SourceKey"] = key
 
-            if valid_dates is not None and "Date" in df_copy.columns:
+            # 🧠 Ensure task_id is present
+            if "task_id" not in df_copy.columns or df_copy["task_id"].isnull().any():
+                df_copy["task_id"] = df_copy.apply(lambda row: hashlib.sha1(
+                    f"{row.get('question', '')}|{row.get('answer', '')}|{row.get('section', '')}".encode("utf-8")
+                ).hexdigest()[:10], axis=1)
+
+            # 📆 Filter by valid dates
+            if valid_dates and "Date" in df_copy.columns:
                 df_copy["Date"] = pd.to_datetime(df_copy["Date"], errors="coerce")
                 df_copy = df_copy[df_copy["Date"].dt.date.isin(valid_dates)]
 
+            # 🧠 Enrich using schedule utils
             if utils:
                 for col in df_copy.columns:
                     if df_copy[col].dtype == object:
@@ -594,37 +367,40 @@ def merge_all_schedule_dfs(
             merged_frames.append(df_copy)
 
     if not merged_frames:
-        st.warning("\u26a0\ufe0f No schedule DataFrames found to merge.")
+        st.warning("⚠️ No schedule DataFrames found to merge.")
         return pd.DataFrame()
 
     combined_df = pd.concat(merged_frames, ignore_index=True)
 
+    # 🧼 Deduplicate
     if deduplicate and dedup_fields:
         before = len(combined_df)
         combined_df = combined_df.drop_duplicates(subset=dedup_fields)
         after = len(combined_df)
         if st.session_state.get("enable_debug_mode"):
-            if before > after:
-                st.info(f"\U0001f9f9 Removed {before - after} duplicate task entries.")
+            st.info(f"🧹 Removed {before - after} duplicate rows using: {dedup_fields}")
 
+    # 🧮 Summary
     if show_summary and "SourceKey" in combined_df.columns and st.session_state.get("enable_debug_mode", False):
-        st.subheader("\U0001f4ca Schedule Source Summary")
+        st.subheader("📊 Schedule Source Summary")
         summary_df = (
             combined_df.groupby("SourceKey")
             .agg(
                 TaskCount=("clean_task", "count"),
                 UniqueDates=("Date", lambda x: pd.to_datetime(x, errors="coerce").dt.date.nunique()),
-                UniqueTaskTypes=("task_type", lambda x: x.nunique())
+                UniqueTaskTypes=("task_type", lambda x: x.nunique()),
+                UniqueTaskIDs=("task_id", lambda x: x.nunique())
             )
             .reset_index()
         )
         st.dataframe(summary_df)
 
+        missing_ids = combined_df["task_id"].apply(lambda x: not str(x).strip()).sum()
+        if missing_ids > 0:
+            st.warning(f"⚠️ {missing_ids} scheduled tasks are missing a `task_id`.")
+
+    # 💾 Save result
     if save_to_session:
         st.session_state[output_key] = combined_df
 
     return combined_df
-
-
-
-

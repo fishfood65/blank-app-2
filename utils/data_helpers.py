@@ -136,8 +136,8 @@ def register_task_input(
 ):
     """
     Registers a user input and stores it in session state for both tasks and non-tasks.
-    Compatible with get_answer() by storing question/answer metadata in input_data.
-    Prevents duplicate task inputs by checking the key.
+    Prevents duplicate task entries by overwriting old ones based on a unique key.
+    Compatible with get_answer() via consistent key handling.
 
     Args:
         label (str): The input label (used for question and task description).
@@ -158,40 +158,47 @@ def register_task_input(
     }
     kwargs["metadata"] = metadata
 
+    # Generate or reuse key
     if key:
         kwargs["key"] = key
     else:
-        key = f"{section}_{sanitize(label)}"
+        key = f"{section}_{sanitize_label(label)}"
+        kwargs["key"] = key  # Pass into capture_input
 
     value = capture_input(label, input_fn, section=section, *args, **kwargs)
 
     if value not in (None, ""):
         timestamp = datetime.now().isoformat()
 
+        # ✅ Overwrite or insert task entry with same key
         if metadata["is_task"]:
             task_inputs = st.session_state.setdefault("task_inputs", [])
-            if not any(t.get("key") == key for t in task_inputs):
-                task_inputs.append({
-                    "question": label,
-                    "answer": value,
-                    "category": section,
-                    "section": section,
-                    "area": metadata["area"],
-                    "task_type": metadata["task_type"],
-                    "is_freq": metadata["is_freq"],
-                    "key": key,
-                    "timestamp": timestamp,  # ✅ Persist timestamp
-                })
-
-        input_data = st.session_state.setdefault("input_data", {}).setdefault(section, [])
-        if not any(i.get("key") == key for i in input_data):
-            input_data.append({
+            task_inputs = [t for t in task_inputs if t.get("key") != key]  # Remove old
+            task_inputs.append({
                 "question": label,
                 "answer": value,
+                "category": section,
                 "section": section,
+                "area": metadata["area"],
+                "task_type": metadata["task_type"],
+                "is_freq": metadata["is_freq"],
                 "key": key,
-                "timestamp": timestamp,  # ✅ Persist timestamp
+                "timestamp": timestamp,
             })
+            st.session_state["task_inputs"] = task_inputs  # ✅ Reassign updated list
+
+        # ✅ Overwrite or insert input entry with same key
+        input_data = st.session_state.setdefault("input_data", {}).setdefault(section, [])
+        input_data = [i for i in input_data if i.get("key") != key]  # Remove old
+        input_data.append({
+            "question": label,
+            "answer": value,
+            "section": section,
+            "key": key,
+            "timestamp": timestamp,
+        })
+        st.session_state["input_data"][section] = input_data  # ✅ Reassign updated list
+
     return value
 
 def sanitize(text):
@@ -558,25 +565,6 @@ def export_input_data_as_csv(file_name="input_data.csv"):
         file_name=file_name,
         mime="text/csv"
     )
-
-def export_input_data_as_docx(file_name="input_data.docx"):
-    """Export the collected input data as DOCX."""
-    if "input_data" in st.session_state:
-        doc = Document()
-        doc.add_heading("Collected Input Summary", level=1)
-        for section, entries in st.session_state["input_data"].items():
-            doc.add_heading(section, level=2)
-            for item in entries:
-                doc.add_paragraph(f"{item['question']}: {item['answer']} ({item['timestamp']})")
-        buffer = io.BytesIO()
-        doc.save(buffer)
-        buffer.seek(0)
-        st.download_button(
-            label="📝 Download as DOCX",
-            data=buffer,
-            file_name=file_name,
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
 
 def render_lock_toggle(section: str, session_key: Optional[str] = None, label: Optional[str] = None):
     """

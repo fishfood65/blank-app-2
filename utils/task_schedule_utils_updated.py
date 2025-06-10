@@ -49,7 +49,7 @@ def schedule_tasks_from_templates(
 ) -> pd.DataFrame:
     """
     Given a list of task dicts and valid_dates, produce a scheduled DataFrame using known frequency/dates.
-    Returns a DataFrame with full enrichment metadata.
+    Returns a DataFrame with full enrichment metadata including task_id and trace keys.
     """
     if not isinstance(tasks, list):
         raise ValueError("Expected list of task dicts for 'tasks'")
@@ -62,7 +62,6 @@ def schedule_tasks_from_templates(
     extract_weekday_mentions = utils["extract_weekday_mentions"]
     extract_dates = utils["extract_dates"]
     normalize_date = utils["normalize_date"]
-    determine_frequency_tag = utils["determine_frequency_tag"]
 
     all_rows = []
 
@@ -75,92 +74,83 @@ def schedule_tasks_from_templates(
         category = task.get("category", "Uncategorized")
         section = task.get("section", "")
         area = task.get("area", "home")
-        task_type = task.get("task_type", None)
-        source = section or category
+        task_type = task.get("task_type")
+        task_key = task.get("key", label)
+        task_id = task.get("task_id")
+        source_key = task.get("SourceKey", f"{section}::{label}")
+        section_label = task.get("SectionLabel", section)
+        base_row = {
+            "Category": category,
+            "Source": section or category,
+            "Area": area,
+            "task_type": task_type,
+            "question": label,
+            "answer": answer,
+            "clean_task": task.get("clean_task", ""),
+            "formatted_answer": task.get("formatted_answer", ""),
+            "inferred_days": task.get("inferred_days", []),
+            "key": task_key,
+            "task_id": task_id,
+            "SourceKey": source_key,
+            "SectionLabel": section_label,
+        }
 
         if not label or not answer:
             continue
 
-        rows = []  # buffer for deduplication
+        rows = []
         seen_keys = set()
 
-        # 1. One-time explicit dates
+        # 1. Explicit Dates
         for ds in extract_dates(answer):
             d = normalize_date(ds)
             if d and d in valid_dates:
-                row_key = (str(d), label)
+                row_key = (str(d), task_key)
                 if row_key not in seen_keys:
                     seen_keys.add(row_key)
-                    rows.append({
+                    rows.append({**base_row, **{
                         "Date": str(d),
                         "Day": d.strftime("%A"),
                         "Task": f"{label} – {answer}",
                         "Tag": emoji_tags.get("[Explicit]", "📅 One-time"),
-                        "Category": category,
-                        "Source": source,
-                        "Area": area,
-                        "task_type": task_type,
-                        "question": label,
-                        "answer": answer,
-                        "clean_task": task.get("clean_task", ""),
-                        "formatted_answer": task.get("formatted_answer", ""),
-                        "inferred_days": task.get("inferred_days", []),
-                    })
+                    }})
                     if debug:
                         st.write(f"📅 [Explicit Date] {label} → {d}")
 
-        # 2. Repeating intervals
+        # 2. Repeating Intervals
         interval = extract_week_interval(answer)
         if interval:
             base_date = valid_dates[0]
             for d in valid_dates:
                 if (d - base_date).days % (interval * 7) == 0:
-                    row_key = (str(d), label)
+                    row_key = (str(d), task_key)
                     if row_key not in seen_keys:
                         seen_keys.add(row_key)
-                        rows.append({
+                        rows.append({**base_row, **{
                             "Date": str(d),
                             "Day": d.strftime("%A"),
                             "Task": f"{label} – {answer}",
-                            "Tag": emoji_tags.get("[Weekly]", "🔁 Weekly"),
-                            "Category": category,
-                            "Source": source,
-                            "Area": area,
-                            "task_type": task_type,
-                            "question": label,
-                            "answer": answer,
-                            "clean_task": task.get("clean_task", ""),
-                            "formatted_answer": task.get("formatted_answer", ""),
-                            "inferred_days": task.get("inferred_days", []),
-                        })
+                            "Tag": emoji_tags.get("[X-Weeks]", f"↔️ Every {interval} Weeks"),
+                        }})
                         if debug:
                             st.write(f"🔁 [Interval] {label} → {d}")
 
-        # 3. Weekday mentions
+        # 3. Weekday Mentions
         weekday_mentions = extract_weekday_mentions(answer)
         if weekday_mentions and not interval:
             for wd in weekday_mentions:
                 weekday_idx = weekday_to_int.get(wd)
                 for d in valid_dates:
                     if d.weekday() == weekday_idx:
-                        row_key = (str(d), label)
+                        row_key = (str(d), task_key)
                         if row_key not in seen_keys:
                             seen_keys.add(row_key)
-                            rows.append({
+                            rows.append({**base_row, **{
                                 "Date": str(d),
                                 "Day": d.strftime("%A"),
                                 "Task": f"{label} – {answer}",
                                 "Tag": emoji_tags.get("[Weekly]", "🔁 Weekly"),
-                                "Category": category,
-                                "Source": source,
-                                "Area": area,
-                                "task_type": task_type,
-                                "question": label,
-                                "answer": answer,
-                                "clean_task": task.get("clean_task", ""),
-                                "formatted_answer": task.get("formatted_answer", ""),
-                                "inferred_days": task.get("inferred_days", []),
-                            })
+                            }})
                             if debug:
                                 st.write(f"📆 [Weekday Mention] {label} → {d}")
 
@@ -169,70 +159,130 @@ def schedule_tasks_from_templates(
             current_date = pd.to_datetime(valid_dates[0])
             while current_date.date() <= valid_dates[-1]:
                 d = current_date.date()
-                row_key = (str(d), label)
-                if d in valid_dates and row_key not in seen_keys:
-                    seen_keys.add(row_key)
-                    rows.append({
-                        "Date": str(d),
-                        "Day": d.strftime("%A"),
-                        "Task": f"{label} – {answer}",
-                        "Tag": emoji_tags.get("[Monthly]", "📅 Monthly"),
-                        "Category": category,
-                        "Source": source,
-                        "Area": area,
-                        "task_type": task_type,
-                        "question": label,
-                        "answer": answer,
-                        "clean_task": task.get("clean_task", ""),
-                        "formatted_answer": task.get("formatted_answer", ""),
-                        "inferred_days": task.get("inferred_days", []),
-                    })
-                    if debug:
-                        st.write(f"📆 [Monthly] {label} → {d}")
+                if d in valid_dates:
+                    row_key = (str(d), task_key)
+                    if row_key not in seen_keys:
+                        seen_keys.add(row_key)
+                        rows.append({**base_row, **{
+                            "Date": str(d),
+                            "Day": d.strftime("%A"),
+                            "Task": f"{label} – {answer}",
+                            "Tag": emoji_tags.get("[Monthly]", "📅 Monthly"),
+                        }})
+                        if debug:
+                            st.write(f"📆 [Monthly] {label} → {d}")
                 current_date += pd.DateOffset(months=1)
 
-        # Push deduplicated task rows
         all_rows.extend(rows)
 
     return pd.DataFrame(all_rows)
+
 
 def extract_unscheduled_tasks_from_inputs(section, label_task_fn, valid_dates, utils):
     import streamlit as st
     input_data = st.session_state.get("input_data", {})
     section_data = input_data.get(section, [])
+
+    if not isinstance(section_data, list):
+        st.warning(f"⚠️ Unexpected input format for section `{section}`.")
+        return pd.DataFrame()
+
     rows = []
     for item in section_data:
         label = item.get("question")
-        answer = item.get("answer")
-        if label and answer:
+        answer = item.get("answer", "")
+        if isinstance(answer, bool):
+            answer = "Yes" if answer else "No"
+        answer = str(answer).strip()
+
+        if label and answer.lower() not in ["", "⚠️ not provided", "none"]:
             task_rows = label_task_fn(label, answer, valid_dates, utils)
+            for row in task_rows:
+                row["SourceKey"] = f"{section}::{label}"
+                row["SectionLabel"] = section
             rows.extend(task_rows)
+
     return pd.DataFrame(rows)
 
 def generate_combined_schedule(valid_dates, utils, sections=["Trash Handling", "Mail", "Quality-Oriented Household Services", "Rent or Own"]):
     combined_rows = []
+
     for section in sections:
-        extractor_fn = utils.get(f"extractor_{section.replace(' ', '_').lower()}")
-        if extractor_fn:
+        extractor_key = f"extractor_{section.replace(' ', '_').lower()}"
+        extractor_fn = utils.get(extractor_key)
+
+        if callable(extractor_fn):
             df = extractor_fn(valid_dates, utils)
             if not df.empty:
+                st.success(f"✅ Extracted {len(df)} tasks from `{section}`")
                 combined_rows.append(df)
-    return pd.concat(combined_rows, ignore_index=True) if combined_rows else pd.DataFrame()
+            else:
+                st.info(f"ℹ️ No tasks found in `{section}`")
+        else:
+            st.warning(f"⚠️ No extractor function found for `{section}`")
+
+    combined_df = pd.concat(combined_rows, ignore_index=True) if combined_rows else pd.DataFrame()
+
+    # Optional: sort final schedule
+    if not combined_df.empty and "Date" in combined_df.columns:
+        combined_df["Date"] = pd.to_datetime(combined_df["Date"], errors="coerce")
+        combined_df = combined_df.sort_values(by="Date")
+
+    return combined_df
 
 def extract_unscheduled_tasks_from_inputs_with_category(section_key="task_inputs") -> pd.DataFrame:
     """
     Extracts structured tasks from session_state['task_inputs'] list.
-    Each row already contains task metadata like is_freq, task_type, etc.
+    Each row contains task metadata like is_freq, task_type, etc.
+    Ensures required columns, cleans values, and tags with SourceKey, SectionLabel, timestamp, and task_id.
+    Deduplicates on task_id.
     """
     task_inputs = st.session_state.get(section_key, [])
+
+    if not isinstance(task_inputs, list):
+        st.warning(f"⚠️ Unexpected data format in `{section_key}`.")
+        return pd.DataFrame()
+
     df = pd.DataFrame(task_inputs)
 
-    # Ensure expected columns exist
-    for col in ["question", "answer", "category", "section", "area", "task_type", "is_freq"]:
+    # ✅ Ensure required columns
+    required_cols = [
+        "question", "answer", "category", "section", "area",
+        "task_type", "is_freq", "key", "timestamp"
+    ]
+    for col in required_cols:
         if col not in df.columns:
             df[col] = None
 
+    # ✅ Drop rows missing both question and answer
+    df = df.dropna(subset=["question", "answer"], how="all")
+
+    # ✅ Normalize text fields
+    for col in ["question", "answer", "task_type", "section", "key"]:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip()
+
+    # ✅ Filter out invalid answers
+    df = df[df["answer"].str.lower().isin(["", "⚠️ not provided", "none"]) == False]
+
+    # 🔖 Add SourceKey for traceability
+    df["SourceKey"] = df["section"].fillna("Unknown") + "::" + df["question"].fillna("")
+
+    # 🧭 Add SectionLabel
+    df["SectionLabel"] = df["section"].fillna("Unknown")
+
+    # 🆔 Generate SHA-1 task_id if missing
+    def generate_task_id(row):
+        base = f"{row.get('question', '')}|{row.get('answer', '')}|{row.get('section', '')}|{row.get('timestamp', '')}"
+        return hashlib.sha1(base.encode("utf-8")).hexdigest()[:10]
+
+    df["task_id"] = df.apply(lambda r: r["task_id"] if "task_id" in r and pd.notna(r["task_id"]) else generate_task_id(r), axis=1)
+
+    # 🧹 Deduplicate by task_id
+    df = df.drop_duplicates(subset=["task_id"], keep="first")
+
     return df
+
 
 def export_schedule_to_markdown(schedule_df: pd.DataFrame, image_base_url: Optional[str] = None) -> str:
     """
@@ -668,42 +718,60 @@ def humanize_task(row: dict, label_map: dict, include_days: bool = False) -> str
     except Exception as e:
         return f"{normalized} (⚠️ Template error)"
     
+import hashlib
+import pandas as pd
+from typing import Optional
+
 def enrich_task_dataframe(df: pd.DataFrame, label_map: Optional[dict] = None) -> pd.DataFrame:
     """
     Applies enrichment to a raw task DataFrame.
     Adds: clean_task, inferred_days, formatted_answer, and exploded inferred_day (if available).
+    Ensures task_id is preserved or generated consistently.
     """
-    label_map = load_label_map()
+    if label_map is None:
+        label_map = load_label_map()
+
     enriched_rows = []
+
+    def ensure_task_id(row):
+        """Generate SHA-1 based task_id if missing."""
+        task_id = row.get("task_id", None)
+        if task_id and str(task_id).strip():
+            return task_id
+        base = f"{row.get('question', '')}|{row.get('answer', '')}|{row.get('section', '')}|{row.get('timestamp', '')}"
+        return hashlib.sha1(base.encode("utf-8")).hexdigest()[:10]
 
     for _, row in df.iterrows():
         row = row.to_dict()
+        row["task_id"] = ensure_task_id(row)
         row["inferred_days"] = infer_relevant_days_from_text(row.get("answer", ""))
         row["formatted_answer"] = row.get("answer", "")
         row["clean_task"] = humanize_task(row, label_map=label_map)
 
+        # Explode inferred days
         if row["inferred_days"]:
             for day in row["inferred_days"]:
                 enriched_rows.append({**row, "inferred_day": day})
         else:
             enriched_rows.append(row)
 
-    return pd.DataFrame(enriched_rows)
+    enriched_df = pd.DataFrame(enriched_rows)
+
+    # Optional: enforce column order or drop duplicates on task_id + inferred_day
+    enriched_df = enriched_df.drop_duplicates(subset=["task_id", "inferred_day"], keep="first")
+
+    return enriched_df
 
 def extract_and_schedule_all_tasks(
     valid_dates: List,
     utils: Dict = None,
     df: Optional[pd.DataFrame] = None,
     section: str = None,
-    output_key: str = None
+    output_key: str = "combined_home_schedule_df"
 ) -> pd.DataFrame:
     """
-    Extracts and schedules tasks using enrichment and inference:
-    - Applies human-readable labels
-    - Infers day mentions
-    - Formats answers
-    - Defers scheduling if no day match is found
-    Optionally filters by section and stores result in a specific session key.
+    Extracts and schedules tasks using enrichment and inference.
+    Replaces old tasks with matching task_ids to avoid duplication.
     """
     if utils is None:
         utils = get_schedule_utils()
@@ -712,22 +780,27 @@ def extract_and_schedule_all_tasks(
     if df is None:
         df = extract_unscheduled_tasks_from_inputs_with_category()
 
-    label_map = load_label_map()
-    raw_df = extract_unscheduled_tasks_from_inputs_with_category()
-
     # Optional section filtering
     if section:
-        raw_df = raw_df[raw_df["section"] == section]
+        df = df[df["section"] == section]
 
+    label_map = load_label_map()
     enriched_rows = []
-    for row in raw_df.to_dict(orient="records"):
+
+    for row in df.to_dict(orient="records"):
         question = row.get("question", "")
         answer = row.get("answer", "")
 
+        # Normalize
         if isinstance(answer, bool):
             answer = "Yes" if answer else "No"
         elif answer is None:
             answer = ""
+
+        # Generate task_id if missing
+        if not row.get("task_id"):
+            base = f"{question}|{answer}|{row.get('section', '')}|{row.get('timestamp', '')}"
+            row["task_id"] = hashlib.sha1(base.encode("utf-8")).hexdigest()[:10]
 
         row["inferred_days"] = infer_relevant_days_from_text(answer)
         row["formatted_answer"] = format_answer_as_bullets(answer)
@@ -737,33 +810,47 @@ def extract_and_schedule_all_tasks(
 
     enriched_df = pd.DataFrame(enriched_rows)
 
-    # Debug: visualize tasks being scheduled
+    # Debug: visualize enriched task candidates
     if st.session_state.get("enable_debug_mode", False):
         debug_schedule_task_input(enriched_df.to_dict(orient="records"), valid_dates)
 
-    final_rows = []
+    # 🗓️ Run scheduling logic
     base_schedule = schedule_tasks_from_templates(
         tasks=enriched_df.to_dict(orient="records"),
         valid_dates=valid_dates,
         utils=utils
     )
 
+    # Merge scheduled task rows with original metadata
+    final_rows = []
     for scheduled_row in base_schedule.to_dict(orient="records"):
         matched = next(
             (e for e in enriched_rows
-             if e["question"] == scheduled_row.get("question")
-             and e["answer"] == scheduled_row.get("answer")), None
+             if e.get("task_id") == scheduled_row.get("task_id")), None
         )
         combined = {**scheduled_row, **matched} if matched else scheduled_row
         final_rows.append(combined)
 
     final_df = pd.DataFrame(final_rows)
 
-    # ✅ Optionally store result in session
-    if output_key:
-        st.session_state[output_key] = final_df
+    # ✅ Load existing scheduled tasks
+    existing_df = st.session_state.get(output_key, pd.DataFrame())
 
-    return final_df
+    # ✅ Remove old rows with same task_id
+    if "task_id" in final_df.columns and not existing_df.empty and "task_id" in existing_df.columns:
+        new_ids = final_df["task_id"].unique().tolist()
+        existing_df = existing_df[~existing_df["task_id"].isin(new_ids)]
+
+    # ✅ Combine updated schedule
+    combined_df = pd.concat([existing_df, final_df], ignore_index=True)
+
+    # ✅ Remove accidental duplicates
+    combined_df = combined_df.drop_duplicates(subset=["task_id"], keep="last")
+
+    # ✅ Store result in session state
+    st.session_state[output_key] = combined_df
+
+    return combined_df
 
 def save_task_schedules_by_type(combined_df: pd.DataFrame):
     """

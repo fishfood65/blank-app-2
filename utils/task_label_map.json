@@ -25,11 +25,11 @@
     "keys": ["timing", "days"]
   },
   "When and where should garbage, recycling, and compost bins be placed for pickup?":{
-    "template": "Put out garbage and recycling bins for collection on {timing} on {days}",
+    "template": "Put out garbage and recycling bins for collection on {days} at {timing}",
     "keys": ["timing", "days"]
   },
     "When and where should bins be brought back in?":{
-    "template": "Bring back garbage and recycling bins for collection on {timing} on {days}",
+    "template": "Bring back garbage and recycling bins for collection on {days} at {night}",
     "keys": ["timing", "days"]
   },
   "Empty the trash":{

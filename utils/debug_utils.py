@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 import json
 from typing import List, Optional
+from collections import Counter
 from .data_helpers import sanitize, get_answer, sanitize_label
 from config.sections import SECTION_METADATA
 from .runbook_generator_helpers import runbook_preview_dispatcher
@@ -316,15 +317,17 @@ def debug_single_get_answer(section: str, key: str):
     # Step 2: Try to find match by sanitized question or key
     for entry in matching_section:
         question_raw = entry.get("question", "")
-        key_raw= entry.get("key", "")
+        key_raw = entry.get("key", "")
         question_sanitized = sanitize_label(question_raw)
         key_sanitized = sanitize_label(key_raw)
 
         if question_sanitized == sanitized_key or key_sanitized == sanitized_key:
             st.success("✅ Exact match found:")
-            st.write(f"🧾 Label: {question_raw}")
-            st.write(f"🗝️ Key: {key_raw}")
-            st.write(f"📦 Value returned: `{entry.get('answer')}`")
+            st.write(f"🧾 **Label**: `{question_raw}`")
+            st.write(f"🗝️ **Key**: `{key_raw}`")
+            st.write(f"📦 **Value returned**: `{entry.get('answer')}`")
+            if "task_id" in entry:
+                st.code(f"🆔 task_id: {entry['task_id']}")
             return
 
     # Step 3: Try partial match
@@ -335,10 +338,17 @@ def debug_single_get_answer(section: str, key: str):
     ]
     if partial_matches:
         st.warning("⚠️ No exact match, but found partial label matches:")
-        st.json(partial_matches)
+        for match in partial_matches:
+            st.markdown("---")
+            st.write(f"🧾 **Label**: `{match.get('question')}`")
+            st.write(f"🗝️ **Key**: `{match.get('key')}`")
+            st.write(f"📦 **Answer**: `{match.get('answer')}`")
+            if "task_id" in match:
+                st.code(f"🆔 task_id: {match['task_id']}")
         return
 
     st.error(f"❌ No label match for key `{sanitized_key}` in section `{section}`.")
+
 
 def clear_all_session_data():
     """
@@ -372,10 +382,87 @@ def clear_all_session_data():
 
     st.success("🧹 All session state has been cleared.")
 
+def log_extracted_tasks_debug(df: pd.DataFrame, section: str = None) -> dict:
+    """
+    Visualize and summarize the output from extract_unscheduled_tasks_from_inputs_with_category().
+
+    Args:
+        df (pd.DataFrame): The extracted task dataframe.
+        section (str, optional): If provided, filters tasks to just that section.
+
+    Returns:
+        dict: Summary statistics.
+    """
+    if df.empty:
+        st.warning("⚠️ No tasks extracted.")
+        return {"total_tasks": 0}
+
+    # Optional section filter
+    if section:
+        df = df[df["section"] == section]
+        if df.empty:
+            st.warning(f"⚠️ No tasks found for section `{section}`.")
+            return {"total_tasks": 0, "filtered": True, "section": section}
+
+    # Optional sort
+    if "timestamp" in df.columns:
+        df = df.sort_values(by="timestamp", ascending=False)
+    elif "section" in df.columns:
+        df = df.sort_values(by="section")
+
+    # Display raw task table
+    st.markdown(f"### 📋 Extracted Tasks{' for `' + section + '`' if section else ''}")
+    st.dataframe(df)
+
+    # Summary stats
+    missing_keys = df["key"].apply(lambda k: not str(k).strip()).sum() if "key" in df.columns else None
+    missing_task_ids = df["task_id"].apply(lambda x: not str(x).strip()).sum() if "task_id" in df.columns else None
+
+    summary = {
+        "total_tasks": len(df),
+        "distinct_sections": df["section"].nunique() if "section" in df.columns else None,
+        "distinct_task_types": df["task_type"].nunique() if "task_type" in df.columns else None,
+        "empty_answers": df["answer"].apply(lambda a: not str(a).strip()).sum() if "answer" in df.columns else None,
+        "missing_keys": missing_keys,
+        "missing_task_ids": missing_task_ids,
+        "section": section,
+        "filtered": bool(section),
+    }
+
+    st.markdown(f"### 🧮 Task Extraction Summary{' for `' + section + '`' if section else ''}")
+    for k, v in summary.items():
+        st.markdown(f"- **{k.replace('_', ' ').title()}**: `{v}`")
+
+    # Optional breakdown by type
+    if "task_type" in df.columns:
+        st.markdown("### 📂 Task Type Breakdown")
+        st.dataframe(
+            df["task_type"].value_counts()
+              .rename("count")
+              .reset_index()
+              .rename(columns={"index": "task_type"})
+        )
+
+    # Optional preview of bad rows
+    if all(col in df.columns for col in ["key", "task_id", "question", "answer"]):
+        st.markdown("### ⚠️ Problematic Task Rows (Missing Key / Task ID / Question / Answer)")
+        problem_rows = df[
+            df["key"].apply(lambda k: not str(k).strip()) |
+            df["task_id"].apply(lambda t: not str(t).strip()) |
+            df["question"].apply(lambda q: not str(q).strip()) |
+            df["answer"].apply(lambda a: not str(a).strip())
+        ]
+        if not problem_rows.empty:
+            st.dataframe(problem_rows)
+        else:
+            st.success("✅ All tasks have key, task_id, question, and answer populated.")
+
+    return summary
+
 def render_enrichment_debug_view(section: str):
     """
     Renders debug info comparing raw vs enriched task scheduling.
-    Includes label normalization and task diffs.
+    Includes label normalization, label map keys, and color-coded task diffs.
     """
     st.markdown("## 🔍 Task Preview: Raw vs Enriched")
 
@@ -383,111 +470,74 @@ def render_enrichment_debug_view(section: str):
     combined_df = st.session_state.get("combined_home_schedule_df")
     label_map = load_label_map()
 
-    if not raw_df.empty:
-        st.markdown("### 🔍 Label → Clean Task Mappings")
-        for label in raw_df["question"].dropna().unique():
-            norm_label = normalize_label(label)
-            cleaned = label_map.get(norm_label, "⚠️ No match in LABEL_MAP")
-            st.text(f"Label: '{label}' → Normalized: '{norm_label}' → Cleaned: '{cleaned}'")
-    else:
+    if raw_df.empty:
         st.warning("⚠️ No raw tasks available to preview.")
-
-    if not raw_df.empty:
-        st.markdown("### 📝 Raw Task Inputs")
-        st.dataframe(raw_df)
-
-    if isinstance(combined_df, pd.DataFrame) and not combined_df.empty:
-        st.markdown("### ✨ Enriched & Scheduled Tasks")
-        st.dataframe(combined_df)
-
-        st.markdown("### 🔁 Matched Task Diffs")
-        for i, row in raw_df.iterrows():
-            raw_q = str(row.get("question", "")).strip()
-            raw_a = str(row.get("answer", "")).strip()
-
-            matches = combined_df[
-                combined_df["question"].astype(str).str.strip() == raw_q
-            ]
-
-            if not matches.empty:
-                enriched_sample = matches.iloc[0]
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown(f"**Raw Task {i+1}:**")
-                    st.write(f"**Question:** {raw_q}")
-                    st.write(f"**Answer:** {raw_a}")
-
-                with col2:
-                    st.markdown("**🪄 Enriched View**")
-                    st.write(f"**Clean Task:** {enriched_sample.get('clean_task', '')}")
-                    st.write(f"**Formatted Answer:** {enriched_sample.get('formatted_answer', '')}")
-                    st.write(f"**Inferred Days:** {enriched_sample.get('inferred_days', '')}")
-            else:
-                st.warning(f"⚠️ No enriched match for: `{raw_q}`")
-    else:
-        st.warning("⚠️ No enriched schedule found.")
-
-def render_schedule_debug_info(
-    df: Optional[pd.DataFrame] = None,
-    section: str = "combined_home_schedule_df"
-):
-    """
-    Render debugging details for a scheduled task DataFrame.
-    Supports optional explicit input or fallback to st.session_state[section].
-
-    Includes:
-    - Duplicate detection
-    - Full raw table
-    - Placeholder mapping
-    - Grouped summary by SourceKey and metrics
-
-    Usage:
-    - Inside debug tabs:
-    -- render_schedule_debug_info(section="combined_home_schedule_df")
-    - For test injection:
-    -- render_schedule_debug_info(df=some_filtered_df)
-    """
-    if df is None:
-        df = st.session_state.get(section)
-
-    if df is None or df.empty:
-        st.warning(f"⚠️ No data found in `{section}`.")
         return
 
-    # 🔁 Show duplicate tasks
-    dupes = df[df.duplicated(subset=["Date", "Day", "clean_task", "task_type"], keep=False)]
-    if not dupes.empty:
-        st.markdown("### 🔁 Possible Duplicate Tasks")
-        st.dataframe(dupes)
+    st.markdown("### 🔍 Label → Clean Task Mappings")
+    for label in raw_df["question"].dropna().unique():
+        norm_label = normalize_label(label)
+        cleaned = label_map.get(norm_label, "⚠️ No match in LABEL_MAP")
+        st.text(f"Label: '{label}' → Normalized: '{norm_label}' → Cleaned: '{cleaned}'")
 
-    # 🧠 Raw schedule output
-    st.markdown(f"### 🧠 Raw `{section}` Schedule")
-    st.dataframe(df)
+    # 🔎 Expandable view of all LABEL_MAP keys
+    with st.expander("🧩 Label Map Keys"):
+        st.write(sorted(label_map.keys()))
 
-    # 🧩 Placeholder → DataFrame mapping
-    st.subheader("🧩 Placeholder → Schedule Mapping")
-    mapping = get_schedule_placeholder_mapping()
-    st.json(mapping)
+    st.markdown("### 📝 Raw Task Inputs")
+    st.dataframe(raw_df)
 
-    # 📆 Scheduled Tasks Output
-    st.subheader("📆 Scheduled Tasks")
-    st.write(df)
+    if not isinstance(combined_df, pd.DataFrame) or combined_df.empty:
+        st.warning("⚠️ No enriched schedule found.")
+        return
 
-    # 📊 Grouped summary
-    if "SourceKey" in df.columns:
-        st.markdown("### 📊 Task Summary by `SourceKey`")
-        summary = (
-            df.groupby("SourceKey")
-              .agg(
-                  task_count=("clean_task", "count"),
-                  unique_dates=("Date", pd.Series.nunique),
-                  unique_types=("task_type", pd.Series.nunique)
-              )
-              .reset_index()
-              .sort_values(by="task_count", ascending=False)
-        )
-        st.dataframe(summary)
+    st.markdown("### ✨ Enriched & Scheduled Tasks")
+    st.dataframe(combined_df)
+
+    st.markdown("### 🔁 Matched Task Diffs")
+
+    for i, row in raw_df.iterrows():
+        raw_id = row.get("task_id")
+        raw_q = str(row.get("question", "")).strip()
+        raw_a = str(row.get("answer", "")).strip()
+        raw_key = row.get("key")
+
+        # 🔑 Match by task_id first
+        if raw_id:
+            matches = combined_df[combined_df["task_id"] == raw_id]
+        elif raw_key:
+            matches = combined_df[combined_df["key"] == raw_key]
+        else:
+            matches = combined_df[
+                (combined_df["question"].astype(str).str.strip() == raw_q) &
+                (combined_df["answer"].astype(str).str.strip() == raw_a)
+            ]
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown(f"**📝 Raw Task {i+1}:**")
+            st.write(f"**Question:** {raw_q}")
+            st.write(f"**Answer:** {raw_a}")
+            st.write(f"**Key:** {raw_key}")
+            st.write(f"**task_id:** `{raw_id}`")
+
+        with col2:
+            if not matches.empty:
+                enriched_sample = matches.iloc[0]
+                clean_task = enriched_sample.get("clean_task", "").strip()
+                status_emoji = "✅" if clean_task and clean_task != "⚠️" else "⚠️"
+
+                st.markdown(f"**{status_emoji} Enriched View**")
+                st.write(f"**Clean Task:** {clean_task or '⚠️ Missing'}")
+                st.write(f"**Formatted Answer:** {enriched_sample.get('formatted_answer', '')}")
+                st.write(f"**Inferred Days:** {enriched_sample.get('inferred_days', '')}")
+                st.write(f"**Frequency Tag:** {enriched_sample.get('FrequencyTag', '')}")
+                st.write(f"**task_id:** `{enriched_sample.get('task_id', '')}`")
+            else:
+                st.markdown("**⚠️ No enriched match found**")
+                st.write(f"Missing match for task_id: `{raw_id}` or fallback key: `{raw_key}`")
+
 
 def log_section_input_debug(section: str, min_entries: int = 1) -> dict:
     """
@@ -502,16 +552,17 @@ def log_section_input_debug(section: str, min_entries: int = 1) -> dict:
             "meets_threshold": bool
         }
     """
+    def is_valid_answer(ans: str) -> bool:
+        stripped = str(ans or "").strip().lower()
+        return stripped not in ["", "⚠️ not provided", "none", "n/a", "na"]
+
     input_data = st.session_state.get("input_data", {}).get(section, [])
-    count_regular = sum(
-        1 for entry in input_data 
-        if str(entry.get("answer", "")).strip().lower() not in ["", "⚠️ not provided", "none"]
-    )
+    count_regular = sum(1 for entry in input_data if is_valid_answer(entry.get("answer")))
 
     task_inputs = st.session_state.get("task_inputs", [])
     count_tasks = sum(
         1 for entry in task_inputs
-        if entry.get("section") == section and str(entry.get("answer", "")).strip()
+        if entry.get("section") == section and is_valid_answer(entry.get("answer"))
     )
 
     total = count_regular + count_tasks
@@ -524,7 +575,16 @@ def log_section_input_debug(section: str, min_entries: int = 1) -> dict:
 - ✅ Total counted inputs: **{total}**
 - Minimum required: **{min_entries}**
 - ✅ Meets threshold: **{meets_threshold}**
+
+> ⚠️ Skips answers like "⚠️ not provided", "none", or "n/a"
 """)
+
+    if st.session_state.get("enable_debug_mode"):
+        st.markdown("#### Raw Regular Inputs")
+        st.json(input_data)
+
+        st.markdown("#### Raw Task Inputs")
+        st.json([entry for entry in task_inputs if entry.get("section") == section])
 
     return {
         "count_regular": count_regular,
@@ -548,70 +608,199 @@ def log_extracted_tasks_debug(df: pd.DataFrame, section: str = None) -> dict:
         st.warning("⚠️ No tasks extracted.")
         return {"total_tasks": 0}
 
-    # Optional filter
+    # Optional section filter
     if section:
         df = df[df["section"] == section]
+        if df.empty:
+            st.warning(f"⚠️ No tasks found for section `{section}`.")
+            return {"total_tasks": 0, "filtered": True, "section": section}
 
+    # Optional sort
+    if "timestamp" in df.columns:
+        df = df.sort_values(by="timestamp", ascending=False)
+    elif "section" in df.columns:
+        df = df.sort_values(by="section")
+
+    # Display raw task table
     st.markdown(f"### 📋 Extracted Tasks{' for `' + section + '`' if section else ''}")
     st.dataframe(df)
 
     # Summary stats
+    missing_keys = df["key"].apply(lambda k: not str(k).strip()).sum() if "key" in df.columns else None
+    missing_task_ids = df["task_id"].apply(lambda x: not str(x).strip()).sum() if "task_id" in df.columns else None
+
     summary = {
         "total_tasks": len(df),
         "distinct_sections": df["section"].nunique() if "section" in df.columns else None,
         "distinct_task_types": df["task_type"].nunique() if "task_type" in df.columns else None,
-        "empty_answers": df["answer"].isna().sum() if "answer" in df.columns else None,
-        "missing_keys": df["key"].isna().sum() if "key" in df.columns else None,
+        "empty_answers": df["answer"].apply(lambda a: not str(a).strip()).sum() if "answer" in df.columns else None,
+        "missing_keys": missing_keys,
+        "missing_task_ids": missing_task_ids,
+        "section": section,
+        "filtered": bool(section),
     }
 
-    st.markdown("### 🧮 Task Extraction Summary")
+    st.markdown(f"### 🧮 Task Extraction Summary{' for `' + section + '`' if section else ''}")
     for k, v in summary.items():
         st.markdown(f"- **{k.replace('_', ' ').title()}**: `{v}`")
 
-    return summary
+    # Optional breakdown by type
+    if "task_type" in df.columns:
+        st.markdown("### 📂 Task Type Breakdown")
 
 def debug_schedule_df_presence():
-    schedule_keys = [k for k in st.session_state if k.endswith("_schedule_df")]
+    schedule_keys = sorted([k for k in st.session_state if k.endswith("_schedule_df")])
     if not schedule_keys:
         st.warning("❌ No *_schedule_df keys found.")
-    else:
-        for key in schedule_keys:
-            df = st.session_state.get(key)
-            if isinstance(df, pd.DataFrame):
-                st.success(f"✅ `{key}`: {len(df)} rows")
+        return
+
+    for key in schedule_keys:
+        df = st.session_state.get(key)
+        if isinstance(df, pd.DataFrame):
+            if df.empty:
+                st.warning(f"⚠️ `{key}` is an empty DataFrame.")
             else:
-                st.error(f"🚫 `{key}` is not a DataFrame")
+                st.success(f"✅ `{key}`: {len(df)} rows")
+        else:
+            st.error(f"🚫 `{key}` is not a DataFrame.")
 
 def debug_session_keys():
+    st.markdown("### 🧵 Session Keys Summary")
     for k in sorted(st.session_state.keys()):
         v = st.session_state[k]
-        st.write(f"- `{k}` → `{type(v).__name__}`", f"(len={len(v)})" if hasattr(v, "__len__") else "")
+        length_str = f"(len={len(v)})" if hasattr(v, "__len__") else ""
+        st.write(f"- `{k}` → `{type(v).__name__}` {length_str}")
+        if isinstance(v, dict) and len(v) > 0:
+            st.json({kk: str(type(v[kk])) for kk in list(v.keys())[:5]})
 
 def log_all_schedule_dfs_from_session(show_dataframes=True):
     st.markdown("### 📦 All *_schedule_df in session_state")
-    keys = [k for k in st.session_state if k.endswith("_schedule_df")]
+    keys = sorted([k for k in st.session_state if k.endswith("_schedule_df")])
     if not keys:
         st.warning("⚠️ No *_schedule_df found.")
         return []
 
+    total_rows = 0
     for k in keys:
-        df = st.session_state[k]
-        st.markdown(f"#### 🔹 `{k}` → {len(df)} rows")
-        if show_dataframes:
-            st.dataframe(df)
+        df = st.session_state.get(k)
+        if isinstance(df, pd.DataFrame):
+            st.markdown(f"#### 🔹 `{k}` → {len(df)} rows")
+            total_rows += len(df)
+            if df.empty:
+                st.warning(f"⚠️ `{k}` is empty.")
+            elif show_dataframes:
+                st.dataframe(df)
+        else:
+            st.error(f"🚫 `{k}` is not a DataFrame.")
+    st.success(f"✅ Total scheduled tasks across all: **{total_rows}**")
     return keys
+
+from collections import Counter
 
 def debug_schedule_task_input(tasks: list, valid_dates: list):
     st.markdown("### 🧪 Task Scheduling Input Debug")
 
     if not tasks:
         st.warning("⚠️ No tasks passed to scheduler.")
-        return  # Exit early so you don't try to render empty data
+        return
 
     st.markdown(f"- Total tasks passed: `{len(tasks)}`")
     st.markdown(f"- Valid dates: `{[d.isoformat() for d in valid_dates]}`")
 
-    sample = tasks[:3]
+    # Show first few tasks with focused display
     st.markdown("#### 📋 Task Preview (first 3)")
-    for i, task in enumerate(sample):
-        st.json(task, expanded=False)
+    for i, task in enumerate(tasks[:3]):
+        st.markdown(f"**Task {i+1}** — ID: `{task.get('task_id', '❌ missing')}`")
+        st.write({k: task.get(k) for k in ["question", "answer", "clean_task", "task_type", "task_id"]})
+
+    # Highlight tasks with missing critical fields
+    st.markdown("#### ⚠️ Tasks Missing Required Fields")
+    required_fields = ["question", "answer", "clean_task", "task_id"]
+    bad_tasks = [
+        t for t in tasks if not all(str(t.get(f, "")).strip() for f in required_fields)
+    ]
+
+    if bad_tasks:
+        st.warning(f"⚠️ {len(bad_tasks)} tasks have missing fields: {', '.join(required_fields)}")
+        for i, bt in enumerate(bad_tasks):
+            st.markdown(f"**❌ Incomplete Task {i+1}**")
+            st.write({k: bt.get(k) for k in required_fields})
+    else:
+        st.success("✅ All tasks have required fields.")
+
+    # Detect duplicate task_ids
+    task_id_counts = Counter(t.get("task_id") for t in tasks if t.get("task_id"))
+    dupes = [tid for tid, count in task_id_counts.items() if count > 1]
+
+    if dupes:
+        st.markdown("### ⚠️ Duplicate `task_id`s Detected")
+        for tid in dupes:
+            st.markdown(f"**task_id:** `{tid}`")
+            for t in [t for t in tasks if t.get("task_id") == tid]:
+                st.write({k: t.get(k) for k in ["question", "answer", "clean_task", "task_type", "task_id"]})
+    else:
+        st.success("✅ All `task_id`s are unique.")
+
+def render_schedule_debug_info(
+    df: Optional[pd.DataFrame] = None,
+    section: str = "combined_home_schedule_df"
+):
+    """
+    Render debugging details for a scheduled task DataFrame.
+    Includes duplicate detection, schedule inspection, placeholder mapping, and group summaries.
+    """
+    if df is None:
+        df = st.session_state.get(section)
+
+    if df is None or df.empty:
+        st.warning(f"⚠️ No data found in `{section}`.")
+        return
+
+    # 🔁 Duplicate detection
+    required_cols = ["Date", "Day", "clean_task", "task_type"]
+    if all(col in df.columns for col in required_cols):
+        dupes = df[df.duplicated(subset=required_cols, keep=False)]
+        if not dupes.empty:
+            st.markdown("### 🔁 Possible Duplicate Tasks")
+            st.dataframe(dupes)
+    else:
+        st.info("ℹ️ Duplicate detection skipped due to missing columns.")
+
+    # 📆 Sort for easier reading
+    if "Date" in df.columns:
+        df = df.sort_values(by="Date")
+
+    st.markdown(f"### 🧠 Raw `{section}` Schedule")
+    st.dataframe(df)
+
+    st.subheader("🧩 Placeholder → Schedule Mapping")
+    mapping = get_schedule_placeholder_mapping()
+    st.json(mapping)
+
+    st.subheader("📆 Scheduled Tasks")
+    st.write(df)
+
+    if "SourceKey" in df.columns and df["SourceKey"].notna().any():
+        st.markdown("### 📊 Task Summary by `SourceKey`")
+        summary = (
+            df.groupby("SourceKey")
+              .agg(
+                  task_count=("clean_task", "count"),
+                  unique_dates=("Date", pd.Series.nunique),
+                  unique_types=("task_type", pd.Series.nunique)
+              )
+              .reset_index()
+              .sort_values(by="task_count", ascending=False)
+        )
+        st.dataframe(summary)
+    else:
+        st.info("ℹ️ No valid `SourceKey` values found for summary.")
+
+    if "task_type" in df.columns:
+        st.markdown("### 📂 Task Type Breakdown")
+        st.dataframe(
+            df["task_type"].value_counts()
+              .rename("count")
+              .reset_index()
+              .rename(columns={"index": "task_type"})
+        )
