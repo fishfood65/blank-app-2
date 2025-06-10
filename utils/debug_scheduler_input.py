@@ -12,6 +12,6 @@ def debug_schedule_task_input(tasks: list, valid_dates: list):
     st.markdown(f"- Total tasks passed: `{len(tasks)}`")
     st.markdown(f"- Valid dates: `{[d.isoformat() for d in valid_dates]}`")
 
-    st.markdown("#### 📋 First 3 Tasks")
-    for task in tasks[:3]:
+    st.markdown("#### 📋 First 20 Tasks")
+    for task in tasks[:20]:
         st.json(task, expanded=False)

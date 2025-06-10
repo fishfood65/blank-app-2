@@ -481,8 +481,8 @@ def render_enrichment_debug_view(section: str):
         st.text(f"Label: '{label}' → Normalized: '{norm_label}' → Cleaned: '{cleaned}'")
 
     # 🔎 Expandable view of all LABEL_MAP keys
-    with st.expander("🧩 Label Map Keys"):
-        st.write(sorted(label_map.keys()))
+    st.subheader("🧩 Label Map Keys")
+    st.write(sorted(label_map.keys()))
 
     st.markdown("### 📝 Raw Task Inputs")
     st.dataframe(raw_df)

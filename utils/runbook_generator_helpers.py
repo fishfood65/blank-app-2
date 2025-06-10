@@ -562,7 +562,7 @@ def maybe_generate_runbook(
         if st.session_state.get("enable_debug_mode"):
             st.success(f"✅ Generated runbook for `{section}`")
             st.write("📋 Final Markdown Output:", markdown_text[:500])  # Preview
-            st.write("📁 DOCX Buffer:", buffer)
+            #st.write("📁 DOCX Buffer:", buffer)
 
     # Show download
     if st.session_state.get(ready_key):

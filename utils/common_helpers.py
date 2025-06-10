@@ -303,7 +303,6 @@ def merge_all_schedule_dfs(
                 df = df.copy()
                 df["SourceKey"] = key
                 dfs.append(df)
-                seen_keys.add(key)
         if dfs:
             combined_df = pd.concat(dfs, ignore_index=True)
             st.session_state[combined_key] = combined_df

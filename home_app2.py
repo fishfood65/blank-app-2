@@ -1,6 +1,4 @@
 from utils.common_helpers import (
-    extract_all_trash_tasks_grouped, 
-    extract_grouped_mail_task, 
     generate_flat_home_schedule_markdown,
     switch_section,
     get_schedule_placeholder_mapping,
@@ -122,6 +120,12 @@ def main():
     st.markdown(
         f"🏆 **Completed {num_completed} out of {total_levels} levels** - {', '.join(friendly_labels) if friendly_labels else 'None'}"
     )
+
+    if st.button("🧹 Clear *_schedule_df and combined df"):
+        for key in list(st.session_state.keys()):
+            if key.endswith("_schedule_df") or key == "combined_home_schedule_df":
+                del st.session_state[key]
+        st.success("✅ All schedule DataFrames cleared from session_state.")
 
     # ⬇️ Optional export for debugging or preview
     export_input_data_as_csv()

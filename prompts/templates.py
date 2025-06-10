@@ -527,7 +527,7 @@ def mail_trash_combined_schedule_prompt(section: str = "mail_trash", debug: bool
 
     return wrap_prompt_block(
         content=markdown,
-        title="", # Omit if you're already setting a heading inside content
+        title="Combined Mail and Trash Task Schedule", # Omit if you're already setting a heading inside content
         instructions=None,
         debug=debug,
         section=section  # Pass explicitly to wrap_prompt_block
