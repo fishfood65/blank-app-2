@@ -188,6 +188,7 @@ def emergency_kit_utilities():
     st.success("✅ All required utility inputs are complete.")
     st.session_state["utility_providers_saved"] = True
     st.session_state[f"{section}_runbook_blocks"] = blocks
+    st.subheader("🎉 Reward")
 
     #Debug preview
     if st.session_state.get("enable_debug_mode"):
