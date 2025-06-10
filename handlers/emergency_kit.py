@@ -203,8 +203,7 @@ def emergency_kit_utilities():
 
     def generate_kit_docx():
         blocks = generate_all_prompt_blocks(section)
-        #st.success("✅ All required utility inputs are complete.")
-        #st.session_state["utility_providers_saved"] = True
+        st.session_state[f"{section}_runbook_blocks"] = blocks  # ✅ Store for debug
         return generate_docx_from_prompt_blocks(
             section=section,
             blocks=blocks, 

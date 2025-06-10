@@ -159,14 +159,6 @@ Please retrieve:
 Ensure the run book is clearly formatted using Markdown, with bold headers and bullet points. Use ⚠️ to highlight missing kit items.
 """.strip()
 
-    return wrap_prompt_block(
-        content=body,
-        title="🧰 Emergency Utilities & Kit Overview",
-        instructions="Summarize each utility and kit component clearly. Do not invent information. Emphasize missing or critical kit items.",
-        debug=debug,
-        for_llm=True,
-        section=section
-    )
 
 def utilities_emergency_prompt_template(
     city: str,
@@ -231,15 +223,6 @@ Please retrieve:
 
 Ensure the runbook is clearly formatted using Markdown, with bold headers and bullet points.
 """.strip()
-
-    return wrap_prompt_block(
-        content=body,
-        title="🚨 Utility and Emergency Provider Instructions",
-        instructions="Fill in the missing utility company details and summarize emergency response steps using clear bullet points. Do not invent information.",
-        debug=debug,
-        for_llm=True,
-        section=section
-    )
 
 def utility_provider_lookup_prompt(city: str, zip_code: str) -> str:
     return f"""

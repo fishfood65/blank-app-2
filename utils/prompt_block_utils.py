@@ -76,24 +76,17 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
     Collects and wraps prompt content blocks based on the current section.
     Returns a list of structured prompt strings, excluding empty or placeholder-only blocks.
     """
-    blocks = [] # Expecting prompt functions to return pre-wrapped blocks using wrap_prompt_block()
-
+    blocks = []  # Expecting prompt functions to return pre-wrapped blocks using wrap_prompt_block()
     debug = st.session_state.get("enable_debug_mode", False)
 
     prompt_registry = {
         "home": [
-            (
-                "Utilities and Emergency Services",
-                lambda: utilities_emergency_runbook_prompt(section=section, debug=debug) or
-                        fallback_utilities_emergency_prompt(section=section)
-            )
+            ("Utilities and Emergency Services", lambda: utilities_emergency_runbook_prompt(section=section, debug=debug) or
+                fallback_utilities_emergency_prompt(section=section))
         ],
         "emergency_kit": [
-            (
-                "Utilities Emergency Services with Kit",
-                lambda: emergency_kit_utilities_runbook_prompt(section=section, debug=debug) or
-                        fallback_emergency_kit_utilities_runbook_prompt(section=section)
-            )
+            ("Utilities Emergency Services with Kit", lambda: emergency_kit_utilities_runbook_prompt(section=section, debug=debug) or
+                fallback_emergency_kit_utilities_runbook_prompt(section=section))
         ],
         "mail_trash": [
             ("Mail Instructions", lambda: mail_runbook_prompt(section=section, debug=debug)),
@@ -103,19 +96,17 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
         "home_security": [
             ("Home Caretaker & Guest Instructions", lambda: home_caretaker_runbook_prompt(section=section)),
         ],
-        # "emergency_kit_critical_documents": [
-        #     ("Important Documents Checklist", lambda: emergency_kit_document_prompt(section=section)),
-        # ],
-        # "bonus_level": [
-        #     ("Additional Home Instructions", lambda: bonus_level_runbook_prompt(section=section)),
-        # ],
     }
 
     if section in prompt_registry:
         for title, fn in prompt_registry[section]:
-            block = fn()
-            if is_content_meaningful(block):
-                blocks.append(block)
+            try:
+                block = fn()
+                if is_content_meaningful(block):
+                    blocks.append(block)
+            except Exception as e:
+                if debug:
+                    st.error(f"❌ Error generating block '{title}': {e}")
     else:
         blocks.append(wrap_prompt_block(
             title=f"⚠️ No prompt defined for section: {section}",
@@ -123,8 +114,10 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
             section=section
         ))
 
-    return blocks
+    # ✅ Final safety check: remove any None or empty blocks
+    blocks = [b for b in blocks if isinstance(b, str) and b.strip()]
 
+    return blocks
 
 def is_content_meaningful(content: str) -> bool:
     """
