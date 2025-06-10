@@ -290,6 +290,7 @@ def home():
         blocks = generate_all_prompt_blocks(section)
             # ✅ Automatically generate prompt blocks once providers are saved
         st.session_state[f"{section}_runbook_blocks"] = blocks
+        st.subheader("🎉 Reward")
         
         if st.session_state.get("enable_debug_mode"):
             st.markdown("### 🧾 Prompt Preview")
@@ -321,42 +322,3 @@ def home():
             button_label="📥 Generate Runbook"
         )
         
-        
-        # Step 6: Generate the DOCX and Markdown
-        st.subheader("🎉 Reward")
-
-                
-            # After generation
-            st.session_state[generate_key] = False
-
-        if st.session_state.get(generate_key):
-            #st.info("⚙️ Calling generate_docx_from_prompt_blocks...")
-            buffer, markdown_text = generate_docx_from_prompt_blocks(
-                section=section,
-                blocks=blocks,
-                insert_main_heading=True,
-                use_llm=bool(True),
-                api_key=os.getenv("MISTRAL_TOKEN"),
-                doc_heading="🏠 Utilities Emergency Runbook",
-                debug=False,
-                #include_priority=include_priority
-            )
-            if st.session_state.get("enable_debug_mode"):
-                st.write("📋 Blocks sent to DOCX generator:", blocks)
-                #st.write("📝 Markdown Text:", markdown_text)
-                st.write("📁 DOCX Buffer:", buffer)
-                st.write("🧪 Buffer type:", type(buffer))
-                st.write("🧪 Buffer size:", buffer.getbuffer().nbytes if isinstance(buffer, io.BytesIO) else "Invalid")
-
-            # Cache results in session state
-            st.session_state[f"{section}_runbook_text"] = markdown_text
-            st.session_state[f"{section}_runbook_buffer"] = buffer
-            st.session_state[f"{section}_runbook_ready"] = True
-
-# Step 6: Show download options (only if generation succeeded)
-    if st.session_state.get(f"{section}_runbook_ready"):
-        st.success("✅ Runbook Ready!")
-        maybe_render_download(section=section, filename="utilities_emergency.docx")
-        st.session_state["level_progress"][section] = True
-    else:
-        st.info("ℹ️ Click the button above to generate your runbook.")
