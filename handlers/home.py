@@ -266,7 +266,6 @@ def home():
             debug_all_sections_input_capture_with_summary(["home", "emergency_kit"])
 
 # Step 4: Save Utility Providers (with validation)
-        st.write("Render button for:", generate_key)
         if st.button("💾 Save Utility Providers"):
             missing = check_missing_utility_inputs()
             if missing:
@@ -299,7 +298,7 @@ def home():
         #Step 2: Generate DOCX
         include_priority = st.session_state.get("include_priority", True) # Ensure default for include_priority
 
-        def generate_kit_docx():
+        def generate_utilities_docx():
             blocks = generate_all_prompt_blocks(section)
             st.session_state[f"{section}_runbook_blocks"] = blocks  # ✅ Store for debug
             return generate_docx_from_prompt_blocks(
@@ -310,15 +309,15 @@ def home():
                 include_priority=include_priority,
                 use_llm=False,
                 api_key=os.getenv("MISTRAL_TOKEN"),
-                doc_heading="📬 Mail and 🗑️ Trash Runbook",
+                doc_heading="🔌 Utilities Emergency Runbook",
                 debug=st.session_state.get("enable_debug_mode", False),
             )
 
         maybe_generate_runbook(
             section=section,
             generator_fn=generate_kit_docx,
-            doc_heading="📬 Mail and 🗑️ Trash Runbook",
-            filename="utilities_emergency_kit.docx",
+            doc_heading="🔌 Utilities Emergency Runbook",
+            filename="utilities_emergency_runbook",
             button_label="📥 Generate Runbook"
         )
         
