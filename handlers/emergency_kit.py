@@ -212,7 +212,7 @@ def emergency_kit_utilities():
             blocks=blocks, 
             schedule_sources=get_schedule_placeholder_mapping(),   
             include_heading=True,
-            include_priority=include_priority
+            include_priority=include_priority,
             use_llm=True,
             api_key=os.getenv("MISTRAL_TOKEN"),
             doc_heading="⛑️ Utilities & Emergency Kit Runbook ",
