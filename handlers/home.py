@@ -275,6 +275,7 @@ def home():
                 update_session_state_with_providers(updated)
                 st.session_state["utility_providers_saved"] = True
                 st.success("✅ Utility providers updated!")
+                st.subheader("🎉 Reward")
 
                 # ✅ Show output in debug mode
                 if st.session_state.get("enable_debug_mode"):
@@ -288,17 +289,42 @@ def home():
     if st.session_state.get("utility_providers_saved"):
         blocks = generate_all_prompt_blocks(section)
             # ✅ Automatically generate prompt blocks once providers are saved
-
+        st.session_state[f"{section}_runbook_blocks"] = blocks
+        
         if st.session_state.get("enable_debug_mode"):
             st.markdown("### 🧾 Prompt Preview")
             for block in blocks:
                 st.code(block, language="markdown")
+        #Step 2: Generate DOCX
+        include_priority = st.session_state.get("include_priority", True) # Ensure default for include_priority
+
+        def generate_kit_docx():
+            blocks = generate_all_prompt_blocks(section)
+            st.session_state[f"{section}_runbook_blocks"] = blocks  # ✅ Store for debug
+            return generate_docx_from_prompt_blocks(
+                section=section,
+                blocks=blocks,
+                schedule_sources=get_schedule_placeholder_mapping(),
+                include_heading=True,
+                include_priority=include_priority,
+                use_llm=False,
+                api_key=os.getenv("MISTRAL_TOKEN"),
+                doc_heading="📬 Mail and 🗑️ Trash Runbook",
+                debug=st.session_state.get("enable_debug_mode", False),
+            )
+
+        maybe_generate_runbook(
+            section=section,
+            generator_fn=generate_kit_docx,
+            doc_heading="📬 Mail and 🗑️ Trash Runbook",
+            filename="utilities_emergency_kit.docx",
+            button_label="📥 Generate Runbook"
+        )
         
-# Step 6: Generate the DOCX and Markdown
+        
+        # Step 6: Generate the DOCX and Markdown
         st.subheader("🎉 Reward")
-        if st.button("📥 Generate Runbook"):
-            st.session_state[generate_key] = True
-            st.rerun() # Trigger rerun to ensure next block runs
+
                 
             # After generation
             st.session_state[generate_key] = False
