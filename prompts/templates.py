@@ -265,14 +265,21 @@ Please retrieve:
 
 def utility_provider_lookup_prompt(city: str, zip_code: str) -> str:
     return f"""
-You are a reliable assistant helping users prepare emergency documentation. 
-Given the city: {city} and ZIP code: {zip_code}, list the **primary public utility provider companies** for the following:
+You are a reliable assistant helping users prepare emergency documentation.
 
-1. Electricity
-2. Natural Gas
-3. Water
+Given the following location:
+- City: {city}
+- ZIP Code: {zip_code}
 
-For each, provide only the company name. Format your response like this:
+Please list the **primary public utility providers** for:
+
+1. Electricity  
+2. Natural Gas  
+3. Water  
+
+For each, return only the company name, clearly labeled.
+
+Format your response exactly like this:
 
 Electricity Provider: <company name>  
 Natural Gas Provider: <company name>  

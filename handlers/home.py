@@ -22,18 +22,20 @@ from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, ma
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data
 from prompts.templates import utility_provider_lookup_prompt
 from utils.common_helpers import get_schedule_placeholder_mapping
+from utils.llm_cache_utils import get_or_generate_llm_output
+from utils.llm_helpers import call_openrouter_chat 
 
 # --- Generate the AI prompt ---
-api_key = os.getenv("MISTRAL_TOKEN")
-client = Mistral(api_key=api_key)
+# Load from environment (default) or user input
+api_key = os.getenv("OPENROUTER_TOKEN") or st.text_input("Enter your OpenRouter API key:", type="password")
+referer = os.getenv("OPENROUTER_REFERER", "https://example.com")
+model_name = "anthropic/claude-3-haiku"  # You can make this dynamic if needed
 
-if not api_key:
-    api_key = st.text_input("Enter your Mistral API key:", type="password")
-
+# Show success/error message
 if api_key:
-    st.success("API key successfully loaded.")
+    st.success("✅ OpenRouter API key loaded.")
 else:
-   st.error("API key is not set.")
+    st.error("❌ OpenRouter API key is not set.")
 
 # --- Helper functions (top of the file) ---
 def get_home_inputs(section: str):
@@ -109,15 +111,12 @@ def query_utility_providers(section: str, test_mode: bool = False) -> dict:
     prompt = utility_provider_lookup_prompt(city, zip_code)
 
     try:
-        response = client.chat.complete(
-            model="mistral-small-latest",
-            messages=[UserMessage(content=prompt)],
-            max_tokens=1500,
-            temperature=0.5,
-        )
-        content = response.choices[0].message.content
+        content = call_openrouter_chat(prompt)
+        if not content:
+            st.warning("⚠️ No content returned from LLM.")
+            return {}
     except Exception as e:
-        st.error(f"Error querying Mistral API: {str(e)}")
+        st.error(f"❌ Error querying OpenRouter: {str(e)}")
         return {}
 
     return extract_and_log_providers(content, section=section)
@@ -203,6 +202,7 @@ def fetch_utility_providers(section: str):
         st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
         st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
         st.write("💧 Water:", st.session_state.get("water_provider"))
+        st.write("🤖 Using Model:", st.session_state.get("llm_model", "claude-3-haiku"))
     return results
 
 def update_session_state_with_providers(updated):
@@ -242,7 +242,7 @@ def home():
 # Step 2: Fetch utility providers
 
     if st.button("Find My Utility Providers"):
-        with st.spinner("Fetching providers from Mistral..."):
+        with st.spinner("Querying providers from OpenRouter..."):
             fetch_utility_providers(section=section)
             st.session_state["show_provider_corrections"] = True
             st.success("Providers stored in session state!")
