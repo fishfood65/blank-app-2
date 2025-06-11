@@ -306,7 +306,7 @@ def home():
                 section=section,
                 blocks=blocks,
                 schedule_sources=get_schedule_placeholder_mapping(),
-                include_heading=True,
+                include_heading=False,
                 include_priority=include_priority,
                 use_llm=True,
                 api_key=os.getenv("MISTRAL_TOKEN"),

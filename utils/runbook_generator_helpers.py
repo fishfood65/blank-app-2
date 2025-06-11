@@ -271,7 +271,10 @@ def generate_llm_responses(blocks: List[str], api_key: str, model: str, debug: b
     markdown_output = []
 
     for i, block in enumerate(blocks):
-        if not block.strip():
+        if not isinstance(block, str) or not block.strip():
+            if debug:
+                st.warning(f"⚠️ Skipping block {i+1}: Empty or not a valid string.")
+            markdown_output.append(f"❌ Block {i+1} was empty or invalid.")
             continue
 
         if debug:
@@ -288,11 +291,13 @@ def generate_llm_responses(blocks: List[str], api_key: str, model: str, debug: b
             )
             response_text = completion.choices[0].message.content.strip()
         except Exception as e:
-            response_text = f"❌ LLM error: {e}"
+                error_msg = f"❌ LLM error on block {i+1}: {e}"
+                st.error(error_msg)
+                response_text = error_msg
 
         markdown_output.append(response_text)
 
-    return 
+    return markdown_output
 
 
 def generate_docx_from_prompt_blocks(
@@ -322,8 +327,8 @@ def generate_docx_from_prompt_blocks(
         blocks.append(f"### 📆 Combined Task Schedule\n{schedule_placeholder}")
 
     # Step 0.1: Add top-level heading if provided
-    if doc_heading:
-        blocks.insert(0, f"# {doc_heading}")
+    #if doc_heading:
+     #   blocks.insert(0, f"# {doc_heading}")
 
     # Step 1: Generate markdown blocks (LLM or manual)
     markdown_blocks = []
@@ -344,6 +349,8 @@ def generate_docx_from_prompt_blocks(
                     st.markdown(f"🏷️ Detected Title: `{match.group(1)}`")
                 st.code(b, language="markdown")
                 st.markdown(f"📝 Length: `{len(b.strip())}` characters")
+                if len(b.strip()) < 50:
+                    st.warning(f"⚠️ Block {i+1} is very short — may be a title-only block.")
         def is_placeholder_block(b: str) -> bool:
             return "<<INSERT_" in b and "SCHEDULE_TABLE>>" in b
 
@@ -353,11 +360,11 @@ def generate_docx_from_prompt_blocks(
 
         if debug:
             st.markdown("### 🔎 Prompt Blocks About to be Sent to LLM")
-            for i, b in enumerate(sanitized_blocks):
+            for i, b in enumerate(blocks_for_llm):
                 st.markdown(f"#### Block {i+1} (Type: `{type(b).__name__}`)")
                 st.code(b, language="markdown")
             with open("debug_llm_blocks.json", "w") as f:
-                json.dump(sanitized_blocks, f, indent=2)
+                json.dump(blocks_for_llm, f, indent=2)
         #### debug above
         try:
             markdown_blocks = generate_llm_responses(blocks_for_llm, api_key, model, debug)

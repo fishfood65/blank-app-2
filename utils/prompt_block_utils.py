@@ -115,22 +115,30 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
         ))
 
     # ✅ Final safety check: remove any None or empty blocks
-    blocks = [b for b in blocks if isinstance(b, str) and b.strip()]
+    blocks = [b for b in blocks if isinstance(b, str) and b.strip() and is_content_meaningful(b)]
 
     return blocks
 
 def is_content_meaningful(content: str) -> bool:
     """
-    Returns True if the block has meaningful content (not empty or all ⚠️ lines).
+    Returns True if the block has meaningful content (not empty or just headers/placeholders).
     """
-    if not content.strip():
+    if not content or not content.strip():
         return False
+
     lines = [line.strip() for line in content.strip().splitlines()]
-    non_placeholder_lines = [
+
+    # Filter out trivial lines
+    non_trivial_lines = [
         line for line in lines
-        if "⚠️ Not provided" not in line and line not in {"---", "", "N/A"}
+        if line
+        and not line.startswith("#")         # Header
+        and line not in {"---", "N/A"}       # Dividers / placeholders
+        and "⚠️ Not provided" not in line     # Placeholder value
+        and not line.startswith("<<INSERT_") # Template tag
     ]
-    return bool(non_placeholder_lines)
+
+    return bool(non_trivial_lines)
 
 def utilities_emergency_runbook_prompt(section: str = "home", debug: bool = False) -> str:
     city = get_answer(key="City", section=section) or "⚠️ Not provided"
@@ -168,7 +176,11 @@ def utilities_emergency_runbook_prompt(section: str = "home", debug: bool = Fals
     if debug and wrapped is None:
         st.error("❌ utilities_emergency_runbook_prompt(): Wrapped block is None.")
 
-    return wrapped
+    # ✅ FINAL GUARD: Ensure content is meaningful
+    if wrapped and is_content_meaningful(wrapped):
+        return wrapped
+
+    return None
 
 def fallback_utilities_emergency_prompt(section: str = "home") -> str:
     return utilities_emergency_runbook_prompt(section=section, debug=False)

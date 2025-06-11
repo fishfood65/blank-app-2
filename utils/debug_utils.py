@@ -804,3 +804,21 @@ def render_schedule_debug_info(
               .reset_index()
               .rename(columns={"index": "task_type"})
         )
+
+def run_batch_meaningful_content_test(path="debug_llm_blocks.json"):
+    with open(path, "r", encoding="utf-8") as f:
+        blocks = json.load(f)
+
+    results = []
+    for i, block in enumerate(blocks, start=1):
+        meaningful = is_content_meaningful(block)
+        results.append((i, meaningful, block.strip()[:80]))  # show a preview
+
+    print("🧪 Batch Test Results")
+    for i, meaningful, preview in results:
+        status = "✅ Meaningful" if meaningful else "❌ Trivial"
+        print(f"Block {i:02d}: {status} — {preview!r}")
+
+    num_trivial = sum(1 for _, m, _ in results if not m)
+    num_total = len(results)
+    print(f"\nSummary: {num_total - num_trivial} meaningful / {num_total} total blocks")

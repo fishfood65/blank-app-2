@@ -13,16 +13,8 @@ def wrap_prompt_block(
     Wraps a content block with optional title, guidance, and section metadata.
     Useful for both LLM prompts and export-ready documentation.
     """
-    if content is None or (isinstance(content, str) and not content.strip()):
-        if debug:
-            st.error("❌ wrap_prompt_block(): Content is empty or 'None'.")
-        return None
 
-    if debug:
-        st.markdown("### 🧱 DEBUG WRAP: Raw Content")
-        st.code(content, language="markdown")
-
-    # 🛡️ Normalize input types
+    # Normalize input types
     if isinstance(content, list):
         content = "\n\n".join(str(item) for item in content)
     elif isinstance(content, dict):
@@ -30,39 +22,66 @@ def wrap_prompt_block(
     elif not isinstance(content, str):
         content = str(content)
 
-    # 🛡️ Defensive: skip if empty after normalization
-    if not content or not content.strip() or content.strip().lower() == "none":
+    content = content.strip()
+
+    # ✅ Guard 1: Skip if empty
+    if not content or content.lower() == "none":
         if debug:
-            st.error("❌ wrap_prompt_block(): Content is empty or 'None'.")
+            st.warning(f"⚠️ wrap_prompt_block(): Content missing for title '{title}'")
         return None
-    
+
+    # ✅ Guard 2: Prevent wrapping title-only blocks (e.g. "# Heading")
+    content_lines = [line.strip() for line in content.splitlines()]
+    non_trivial_lines = [
+        line for line in content_lines
+        if line and not line.startswith("#") and line != "---"
+    ]
+    if not non_trivial_lines:
+        if debug:
+            st.warning(f"⚠️ wrap_prompt_block(): Content under title '{title}' appears to be just a header or divider.")
+        return None
+
+    if debug:
+        st.markdown("### 🧱 DEBUG WRAP: Raw Content")
+        st.code(content, language="markdown")
+
     if debug:
         st.markdown("### 🧱 DEBUG WRAP: Raw Content")
         st.code(content.strip(), language="markdown")
 
     block = []
 
-    # Optional section marker (can also be used for debugging or internal tracking)
+    # Optional section marker
     if section:
         block.append(f"<!-- Section: {section} -->")
 
-    # Markdown heading
+    # Title
     if title:
         block.append(f"# {title}")
 
-    # Optional instructions (only if non-empty)
+    # Instructions
     if instructions and instructions.strip():
+        lines = [
+            line.strip().rstrip(".") for line in instructions.strip().split(". ")
+            if line.strip()
+        ]
         if for_llm:
-            block.append("_Instructions:_")
-            block.append(instructions.strip())
+            block.append("**Instructions:**")
+            for line in lines:
+                block.append(f"- {line}")
+            block.append("")  # Blank line
+            block.append("---")  # Visual separator for LLM to delineate
+            block.append("")  # Another blank line before content
         else:
-            block.append(f"**Instructions:** {instructions}")
-        block.append("")
+            block.append("**Instructions:**")
+            for line in lines:
+                block.append(f"- {line}")
+            block.append("")  # Blank line before content
 
-    # ✅ Append main content
+    # Main content
     block.append(content.strip())
 
-    # Join and return
+    # Final assembly
     final = "\n\n".join(block).strip()
 
     if debug:
@@ -70,6 +89,7 @@ def wrap_prompt_block(
         st.code(final, language="markdown")
 
     return final
+
 
 def emergency_kit_utilities_prompt_template(
     city: str,
@@ -192,12 +212,13 @@ def utilities_emergency_prompt_template(
     """
 
     body = f"""
-City: {city}
-Zip: {zip_code}
-Internet Provider: {internet}
-Electricity Provider: {electricity}
-Natural Gas Provider: {gas}
-Water Provider: {water}
+City: {city}  
+Zip: {zip_code}  
+Internet Provider: {internet}  
+Electricity Provider: {electricity}  
+Natural Gas Provider: {gas}  
+Water Provider: {water}  
+
 
 Please retrieve:
 - Company Description
@@ -237,7 +258,7 @@ Please retrieve:
 
 ---
 
-Ensure the runbook is clearly formatted using Markdown, with bold headers and bullet points.
+✅ When done, format clearly using markdown. Keep content actionable and well-structured.
 """.strip()
 
     return body
