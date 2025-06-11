@@ -94,6 +94,11 @@ def schedule_tasks_from_templates(
             "SourceKey": source_key,
             "SectionLabel": section_label,
         }
+        # ✅ Preserve metadata fields like expanded_task_id and inferred_day
+        extra_keys = ["expanded_task_id", "inferred_day", "task_id", "formatted_answer", "clean_task", "SourceKey", "SectionLabel", "area"]
+        for k in extra_keys:
+            if k in task:
+                base_row[k] = task[k]
 
         if not label or not answer:
             continue
@@ -765,11 +770,12 @@ def extract_and_schedule_all_tasks(
     utils: Dict = None,
     df: Optional[pd.DataFrame] = None,
     section: str = None,
-    output_key: str = "combined_home_schedule_df"
+    output_key: Optional[str] = None,
+    save_to_session: bool = True  # ✅ Explicit save flag
 ) -> pd.DataFrame:
     """
     Extracts and schedules tasks using enrichment and inference.
-    Replaces old tasks with matching expanded_task_ids or SourceKey+key combos.
+    Optionally stores results to session_state[output_key] if both output_key and save_to_session are provided.
     """
     if utils is None:
         utils = get_schedule_utils()
@@ -800,7 +806,6 @@ def extract_and_schedule_all_tasks(
         row["formatted_answer"] = format_answer_as_bullets(answer)
         row["clean_task"] = humanize_task(row, include_days=False, label_map=label_map)
 
-        # Explode by inferred_day
         if row["inferred_days"]:
             for day in row["inferred_days"]:
                 new_row = row.copy()
@@ -830,46 +835,50 @@ def extract_and_schedule_all_tasks(
             (e for e in enriched_rows
              if e.get("expanded_task_id") == scheduled_row.get("expanded_task_id")), None
         )
-        combined = {**scheduled_row, **matched} if matched else scheduled_row
+        combined = {**matched, **scheduled_row} if matched else scheduled_row
         final_rows.append(combined)
 
     final_df = pd.DataFrame(final_rows)
-    existing_df = st.session_state.get(output_key, pd.DataFrame())
 
-    if not existing_df.empty:
-        if "expanded_task_id" in final_df.columns and "expanded_task_id" in existing_df.columns:
-            new_ids = final_df["expanded_task_id"].unique().tolist()
-            existing_df = existing_df[~existing_df["expanded_task_id"].isin(new_ids)]
+    if output_key and save_to_session:
+        existing_df = st.session_state.get(output_key, pd.DataFrame())
 
-        if "task_id" in final_df.columns:
-            prior_keys = final_df[["SourceKey", "key", "task_id"]].drop_duplicates()
-            removed = []
-            for _, row in prior_keys.iterrows():
-                src, key, task_id = row["SourceKey"], row["key"], row["task_id"]
-                mask = (
-                    (existing_df["SourceKey"] == src) &
-                    (existing_df["key"] == key) &
-                    (existing_df["task_id"] != task_id)
-                )
-                removed.extend(existing_df[mask].to_dict("records"))
-                existing_df = existing_df[~mask]
+        if not existing_df.empty:
+            if "expanded_task_id" in final_df.columns and "expanded_task_id" in existing_df.columns:
+                new_ids = final_df["expanded_task_id"].unique().tolist()
+                existing_df = existing_df[~existing_df["expanded_task_id"].isin(new_ids)]
 
-            if removed and st.session_state.get("enable_debug_mode", False):
-                st.markdown("### 🗑️ Removed outdated tasks due to answer change")
-                for task in removed:
-                    st.json(task, expanded=False)
+            if "task_id" in final_df.columns:
+                prior_keys = final_df[["SourceKey", "key", "task_id"]].drop_duplicates()
+                removed = []
+                for _, row in prior_keys.iterrows():
+                    src, key, task_id = row["SourceKey"], row["key"], row["task_id"]
+                    mask = (
+                        (existing_df["SourceKey"] == src) &
+                        (existing_df["key"] == key) &
+                        (existing_df["task_id"] != task_id)
+                    )
+                    removed.extend(existing_df[mask].to_dict("records"))
+                    existing_df = existing_df[~mask]
 
-    combined_df = pd.concat([existing_df, final_df], ignore_index=True)
+                if removed and st.session_state.get("enable_debug_mode", False):
+                    st.markdown("### 🗑️ Removed outdated tasks due to answer change")
+                    for task in removed:
+                        st.json(task, expanded=False)
 
-    if "expanded_task_id" in combined_df.columns:
-        combined_df = combined_df.drop_duplicates(subset=["expanded_task_id"], keep="last")
+        combined_df = pd.concat([existing_df, final_df], ignore_index=True)
+
+        if "expanded_task_id" in combined_df.columns:
+            combined_df = combined_df.drop_duplicates(subset=["expanded_task_id"], keep="last")
+        else:
+            st.warning("⚠️ `expanded_task_id` column missing in combined_df, skipping deduplication.")
+
+        st.session_state[output_key] = combined_df
+        return combined_df
+
     else:
-        st.warning("⚠️ `expanded_task_id` column missing in combined_df, skipping deduplication.")
-
-    st.session_state[output_key] = combined_df
-
-    return combined_df
-
+        # ✅ Pure return: do not write to session_state
+        return final_df
 
 def save_task_schedules_by_type(combined_df: pd.DataFrame):
     """

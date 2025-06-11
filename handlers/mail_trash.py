@@ -381,11 +381,20 @@ def mail_trash():
             df = extract_unscheduled_tasks_from_inputs_with_category()
             if st.session_state.get("enable_debug_mode", False):
                 debug_summary = log_extracted_tasks_debug(df, section="mail_trash")
+            
+            # Step 5: Schedule tasks (non-persistent, for preview/debug only)
+            schedule_df = extract_and_schedule_all_tasks(
+                valid_dates=valid_dates,
+                utils=utils,
+                df=df,  # 👈 use the extracted tasks
+                section="mail_trash",
+                save_to_session=False  # 👈 optional, also stored to session
+            )
 
-            # Step 5: Optional preview toggle
+            # Step 6: Optional preview toggle
             refresh_preview = st.checkbox("🔄 Refresh Preview", value=True)
 
-            # Step 6: Schedule and merge all available *_schedule_df entries
+            # Step 7: Schedule and merge all available *_schedule_df entries
             if st.session_state.get("enable_debug_mode"):
                 debug_schedule_df_presence() # optional log
             
@@ -398,13 +407,13 @@ def mail_trash():
                 group_keys={
                 "trash_schedule_df": ["indoor_trash_schedule_df", "outdoor_trash_schedule_df"],
                 "mail_trash_schedule_df": ["mail_handling_schedule_df", "indoor_trash_schedule_df", "outdoor_trash_schedule_df"]
-            }
+              }
             )
 
-            # Step 7: Save merged version to session
-            st.session_state["combined_home_schedule_df"] = combined_df
+            # Step 8: Save merged version to session
+            #st.session_state["combined_home_schedule_df"] = combined_df
 
-            # Step 8: Save split schedules for mail/trash/etc
+            # Step 9: Save split schedules for mail/trash/etc
             save_task_schedules_by_type(combined_df)
 
             display_user_friendly_schedule_table(
@@ -416,9 +425,9 @@ def mail_trash():
             )
 
             # Step 9: Redundant update (keep for consistency)
-            st.session_state.update({
-                "combined_home_schedule_df": combined_df
-            })
+           # st.session_state.update({
+            #    "combined_home_schedule_df": combined_df
+           # })
     st.markdown("---")
 
     if st.button("🔄 Reset Runbook Prerequisites (for testing)"):
