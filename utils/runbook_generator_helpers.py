@@ -19,6 +19,9 @@ import markdown
 from config.constants import TASK_TYPE_EMOJI, SCHEDULE_HEADING_MAP, PRIORITY_ORDER
 import pandas as pd
 from datetime import datetime
+import tiktoken  # For OpenAI-compatible token counting
+import time
+import traceback
 
 def display_user_friendly_schedule_table(
     df: pd.DataFrame,
@@ -266,36 +269,73 @@ def add_table_from_schedule_to_html(schedule_df: pd.DataFrame, section: str, inc
 
     return "\n".join(html_output)
 
+def count_tokens(text: str, model: str = "gpt-3.5-turbo") -> int:
+    try:
+        enc = tiktoken.encoding_for_model(model)
+    except KeyError:
+        enc = tiktoken.get_encoding("cl100k_base")  # fallback
+    return len(enc.encode(text))
+
+
 def generate_llm_responses(blocks: List[str], api_key: str, model: str, debug: bool) -> List[str]:
     client = Mistral(api_key=api_key)
     markdown_output = []
 
+    # ✅ Global Assertion: ensure all blocks are valid non-empty strings
+    assert all(isinstance(b, str) and b.strip() for b in blocks), \
+        "❌ One or more blocks are not valid non-empty strings."
+
+    if debug:
+        st.markdown("## 🧪 Block Sanity Check")
+        st.markdown(f"- Total blocks: `{len(blocks)}`")
+        for i, b in enumerate(blocks):
+            token_count = count_tokens(b, model=model) if isinstance(b, str) else "N/A"
+            st.text(f"Block {i+1}: type={type(b).__name__}, len={len(b.strip()) if isinstance(b, str) else 'N/A'}, tokens={token_count}")
+
     for i, block in enumerate(blocks):
-        if not isinstance(block, str) or not block.strip():
-            if debug:
-                st.warning(f"⚠️ Skipping block {i+1}: Empty or not a valid string.")
-            markdown_output.append(f"❌ Block {i+1} was empty or invalid.")
-            continue
+        cleaned_block = block.strip()
 
         if debug:
             st.markdown(f"### 🧱 Prompt Block {i+1}")
-            st.code(block, language="markdown")
+            st.code(cleaned_block, language="markdown")
+            st.text(f"🔢 Token count: {count_tokens(cleaned_block, model=model)}")
+            st.markdown("### 📤 Block Sent to LLM")
+            st.code(cleaned_block, language="markdown")
 
         try:
             st.info("⚙️ Calling LLM...")
+            start_time = time.time()
+            st.write("⏱️ LLM request started...")
+        
             completion = client.chat.complete(
-                model=model,
-                messages=[SystemMessage(content=block)],
+                model="mistral-small-latest",
+                messages=[UserMessage(content=cleaned_block)],
                 max_tokens=2048,
                 temperature=0.5,
             )
-            response_text = completion.choices[0].message.content.strip()
-        except Exception as e:
-                error_msg = f"❌ LLM error on block {i+1}: {e}"
-                st.error(error_msg)
-                response_text = error_msg
+            duration = time.time() - start_time
+            st.write(f"✅ LLM response received in {duration:.2f} seconds")
 
-        markdown_output.append(response_text)
+            # ✅ Optional: debug raw object
+            if debug:
+                try:
+                    st.markdown("### 🔎 Raw Completion Object (model_dump)")
+                    st.json(completion.model_dump())
+                except Exception:
+                    try:
+                        st.markdown("### 🔎 Raw Completion Object (dict fallback)")
+                        st.json(completion.__dict__)
+                    except Exception as e:
+                        st.warning(f"⚠️ Could not log raw completion: {e}")
+ 
+            response_text = completion.choices[0].message.content.strip()
+            markdown_output.append(response_text)
+        
+        except Exception as e:
+            error_msg = f"❌ LLM error on block {i+1}: {e}"
+            st.error(error_msg)
+            st.write (f"[ERROR] Block {i+1} failed: {e}")
+            markdown_output.append(error_msg)
 
     return markdown_output
 
