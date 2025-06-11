@@ -18,9 +18,10 @@ from utils.data_helpers import (
     extract_providers_from_text, 
     check_missing_utility_inputs
 )
-from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download
+from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data
 from prompts.templates import utility_provider_lookup_prompt
+from utils.common_helpers import get_schedule_placeholder_mapping
 
 # --- Generate the AI prompt ---
 api_key = os.getenv("MISTRAL_TOKEN")
@@ -307,7 +308,7 @@ def home():
                 schedule_sources=get_schedule_placeholder_mapping(),
                 include_heading=True,
                 include_priority=include_priority,
-                use_llm=False,
+                use_llm=True,
                 api_key=os.getenv("MISTRAL_TOKEN"),
                 doc_heading="🔌 Utilities Emergency Runbook",
                 debug=st.session_state.get("enable_debug_mode", False),
@@ -315,7 +316,7 @@ def home():
 
         maybe_generate_runbook(
             section=section,
-            generator_fn=generate_kit_docx,
+            generator_fn=generate_utilities_docx,
             doc_heading="🔌 Utilities Emergency Runbook",
             filename="utilities_emergency_runbook",
             button_label="📥 Generate Runbook"

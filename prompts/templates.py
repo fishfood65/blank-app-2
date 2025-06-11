@@ -13,6 +13,11 @@ def wrap_prompt_block(
     Wraps a content block with optional title, guidance, and section metadata.
     Useful for both LLM prompts and export-ready documentation.
     """
+    if content is None or (isinstance(content, str) and not content.strip()):
+        if debug:
+            st.error("❌ wrap_prompt_block(): Content is empty or 'None'.")
+        return None
+
     if debug:
         st.markdown("### 🧱 DEBUG WRAP: Raw Content")
         st.code(content, language="markdown")
@@ -24,6 +29,16 @@ def wrap_prompt_block(
         content = "\n".join(f"- **{k}**: {v}" for k, v in content.items())
     elif not isinstance(content, str):
         content = str(content)
+
+    # 🛡️ Defensive: skip if empty after normalization
+    if not content or not content.strip() or content.strip().lower() == "none":
+        if debug:
+            st.error("❌ wrap_prompt_block(): Content is empty or 'None'.")
+        return None
+    
+    if debug:
+        st.markdown("### 🧱 DEBUG WRAP: Raw Content")
+        st.code(content.strip(), language="markdown")
 
     block = []
 
@@ -38,7 +53,8 @@ def wrap_prompt_block(
     # Optional instructions (only if non-empty)
     if instructions and instructions.strip():
         if for_llm:
-            block.append(f"_Instructions: {instructions}_")
+            block.append("_Instructions:_")
+            block.append(instructions.strip())
         else:
             block.append(f"**Instructions:** {instructions}")
         block.append("")
@@ -223,6 +239,8 @@ Please retrieve:
 
 Ensure the runbook is clearly formatted using Markdown, with bold headers and bullet points.
 """.strip()
+
+    return body
 
 def utility_provider_lookup_prompt(city: str, zip_code: str) -> str:
     return f"""

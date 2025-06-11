@@ -153,12 +153,22 @@ def utilities_emergency_runbook_prompt(section: str = "home", debug: bool = Fals
 
     raw = utilities_emergency_prompt_template(city, zip_code, internet, electricity, gas, water)
 
-    return wrap_prompt_block(
+    if not raw or not isinstance(raw, str):
+        if debug:
+            st.error("❌ utilities_emergency_runbook_prompt(): raw content is None or invalid.")
+        return None  # 🔴 Prevents crash on `.strip()`
+
+    wrapped = wrap_prompt_block(
         raw,
         title="🏡 Emergency Utilities Overview",
         instructions="Include the heading above in your output. Format using markdown. Return structured emergency info for each utility. Format clearly.",
         debug=debug
     )
+
+    if debug and wrapped is None:
+        st.error("❌ utilities_emergency_runbook_prompt(): Wrapped block is None.")
+
+    return wrapped
 
 def fallback_utilities_emergency_prompt(section: str = "home") -> str:
     return utilities_emergency_runbook_prompt(section=section, debug=False)

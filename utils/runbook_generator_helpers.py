@@ -308,13 +308,13 @@ def generate_docx_from_prompt_blocks(
     insert_main_heading: bool = False,
     include_heading: bool = False,
 ) -> tuple[io.BytesIO, str, str]:
-    import io
-    import markdown
-    import pandas as pd
-    import re
-    from config.constants import SCHEDULE_HEADING_MAP
 
     debug_warnings = []
+
+    if debug:
+        st.markdown("### 🔧 Running generate_docx_from_prompt_blocks")
+        st.write("📎 Section:", section)
+        st.write("📊 Using LLM:", use_llm)
 
     # Step 0: Ensure <<INSERT_MAIL_TRASH_SCHEDULE_TABLE>> is present
     schedule_placeholder = "<<INSERT_MAIL_TRASH_SCHEDULE_TABLE>>"
@@ -326,38 +326,77 @@ def generate_docx_from_prompt_blocks(
         blocks.insert(0, f"# {doc_heading}")
 
     # Step 1: Generate markdown blocks (LLM or manual)
+    markdown_blocks = []
     if use_llm:
-        markdown_blocks = generate_llm_responses(blocks, api_key, model, debug)
-    else:
-        markdown_blocks = [block for block in blocks if block.strip()]
+        ##### debug
+        if debug:
+            st.markdown("### 🧪 Final Sanity Check Before LLM")
+            for i, b in enumerate(blocks):
+                st.markdown(f"#### 🧱 LLM Block {i+1}")
+                st.markdown(f"**Type:** `{type(b).__name__}`")
+                if not isinstance(b, str):
+                    st.error(f"❌ Block {i+1} is NOT a string: {repr(b)}")
+                    continue
+                elif not b.strip():
+                    st.warning(f"⚠️ Block {i+1} is blank or whitespace-only.")
+                match = re.search(r"^#+\s+(.*)", b.strip(), re.MULTILINE)
+                if match:
+                    st.markdown(f"🏷️ Detected Title: `{match.group(1)}`")
+                st.code(b, language="markdown")
+                st.markdown(f"📝 Length: `{len(b.strip())}` characters")
+        def is_placeholder_block(b: str) -> bool:
+            return "<<INSERT_" in b and "SCHEDULE_TABLE>>" in b
 
-    raw_markdown = "\n\n".join(markdown_blocks)
-    final_markdown = raw_markdown
+        blocks_for_llm = [
+            b for b in blocks if isinstance(b, str) and b.strip() and not is_placeholder_block(b)
+        ]
+
+        if debug:
+            st.markdown("### 🔎 Prompt Blocks About to be Sent to LLM")
+            for i, b in enumerate(sanitized_blocks):
+                st.markdown(f"#### Block {i+1} (Type: `{type(b).__name__}`)")
+                st.code(b, language="markdown")
+            with open("debug_llm_blocks.json", "w") as f:
+                json.dump(sanitized_blocks, f, indent=2)
+        #### debug above
+        try:
+            markdown_blocks = generate_llm_responses(blocks_for_llm, api_key, model, debug)
+         #### debug below  
+            if debug:
+                with open(f"debug_markdown_output_{section}.md", "w", encoding="utf-8") as f:
+                    f.write("\n\n".join(markdown_blocks))
+                st.success(f"📝 Debug markdown saved to `debug_markdown_output_{section}.md`")
+        except Exception as e:
+            st.error(f"❌ Error during LLM response generation: {e}")
+            return "", f"LLM error: {e}"
     
-    # Step 1: LLM or manual markdown generation
-    if use_llm:
-        markdown_blocks = generate_llm_responses(blocks, api_key, model, debug)
-    else:
-        markdown_blocks = [block for block in blocks if block.strip()]
+    ### debug above
+        else:
+            markdown_blocks = [block for block in blocks if isinstance(block, str) and block.strip()]
 
     raw_markdown = "\n\n".join(markdown_blocks)
-    final_markdown = raw_markdown
-
+    
     # Step 2: Replace placeholders for markdown and HTML
+    final_markdown = raw_markdown
     placeholder_to_df_map = {}
     for placeholder, df_key in schedule_sources.items():
         df = st.session_state.get(df_key)
         heading_text = SCHEDULE_HEADING_MAP.get(placeholder)
-
         if isinstance(df, pd.DataFrame) and not df.empty:
             markdown_table = add_table_from_schedule_to_markdown(
                 df, section, include_priority=include_priority, include_heading=False, heading_text=heading_text
             )
+            placeholder_to_df_map[placeholder] = markdown_table  # ✅ store resolved table
             final_markdown = final_markdown.replace(placeholder, markdown_table)
         else:
             warning = f"⚠️ No data found for `{df_key}`."
+            placeholder_to_df_map[placeholder] = warning  # ✅ store fallback warning
             final_markdown = final_markdown.replace(placeholder, warning)
             if debug:
+                st.markdown("### 🧪 Placeholder Table Replacements")
+                for key, value in placeholder_to_df_map.items():
+                    st.markdown(f"**{key}** →")
+                    st.code(value, language="markdown")
                 debug_warnings.append(f"Missing data for {df_key} (placeholder: {placeholder})")
 
     # Debug: render warnings
@@ -461,7 +500,11 @@ def render_runbook_preview_inline(
             schedule_md = add_table_from_schedule_to_markdown(schedule_df)
             runbook_text = runbook_text.replace("<<INSERT_SCHEDULE_TABLE>>", schedule_md)
 
-        st.markdown(runbook_text, unsafe_allow_html=True)
+        st.markdown(runbook_text)
+
+        # 🧾 Optional raw preview for debugging
+        with st.expander("🔍 View Raw Markdown"):
+            st.code(runbook_text, language="markdown")
 
     # 📅 Schedule DataFrame Snapshot
     with tabs[1]:
@@ -534,7 +577,6 @@ def maybe_generate_runbook(
     """
     generate_key = f"{section}_generate"
     ready_key = f"{section}_runbook_ready"
-    buffer_key = f"{section}_runbook_buffer"
     text_key = f"{section}_runbook_text"
     debug = st.session_state.get("enable_debug_mode", False)
 
@@ -551,9 +593,10 @@ def maybe_generate_runbook(
             st.markdown("### ⚠️ Missing Schedule Warnings")
             for msg in debug_warnings:
                 st.markdown(f"- {msg}", unsafe_allow_html=True)
-        if not markdown_text.strip():
+        if not isinstance(markdown_text, str):
+            st.error("❌ markdown_text is not a string!")
+        elif not markdown_text.strip():
             st.warning("⚠️ Runbook generation did not produce any content.")
-
 
         # Store in session
         st.session_state[text_key] = markdown_text
