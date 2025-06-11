@@ -1,13 +1,24 @@
-docx==0.2.4
-Markdown==3.8
-mistralai==1.8.1
-pandas==2.3.0
-Pillow==11.2.1
-plotly==6.1.2
-pytest==8.4.0
-python-dotenv==1.1.0
-Requests==2.32.4
-spacy==3.8.7
-https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.0.0/en_core_web_sm-3.0.0.tar.gz#egg=en_core_web_sm
+# Core packages
 streamlit==1.45.1
-tiktoken
+pandas==2.3.0
+python-dotenv==1.1.0
+requests==2.32.4
+tiktoken==0.9.0
+pytest==8.4.0
+
+# Plotting and visualization
+plotly==6.1.2
+
+# Text and markdown
+markdown==3.8
+
+# Image and docx
+pillow==11.2.1
+python-docx==0.8.11  # Replaces 'my-docx'
+
+# spaCy + model
+spacy==3.8.7
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
+# LLM support
+mistralai==1.8.1
