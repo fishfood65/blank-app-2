@@ -38,7 +38,7 @@ else:
     st.error("❌ OpenRouter API key is not set.")
 
 # --- Helper functions (top of the file) ---
-def get_home_inputs(section: str):
+def get_utilities_inputs(section: str):
     """
     Collects home-related inputs and registers them with task metadata.
 
@@ -239,10 +239,10 @@ def utilities():
    
 # Step 1: Input collection
     # ✅ Call the function at runtime
-    city, zip_code, internet_provider = get_home_inputs(section)
+    city, zip_code, internet_provider = get_utilities_inputs(section)
 
-    if st.session_state.get("enable_debug_mode"): # DEBUG: get_home_inputs()
-        st.markdown("### 🧪 Debug: get_home_inputs ")
+    if st.session_state.get("enable_debug_mode"): # DEBUG: get_utilities_inputs()
+        st.markdown("### 🧪 Debug: get_utilities_inputs ")
         st.write("City:", city)
         st.write("ZIP Code:", zip_code)
         st.write("Internet Provider:", internet_provider)
