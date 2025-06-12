@@ -665,24 +665,6 @@ def extract_providers_from_text(content: str) -> dict:
         "water": extract("Water")
     }
 
-def extract_and_log_providers(content: str) -> dict:
-    """
-    Wrapper that extracts provider names and logs them to session state.
-    """
-    providers = extract_providers_from_text(content)
-
-    # Log to Streamlit or any side-effect mechanism
-    log_provider_result("Electricity", providers["electricity"])
-    log_provider_result("Natural Gas", providers["natural_gas"])
-    log_provider_result("Water", providers["water"])
-
-    # Store in session state for reuse
-    st.session_state["electricity_provider"] = providers["electricity"]
-    st.session_state["natural_gas_provider"] = providers["natural_gas"]
-    st.session_state["water_provider"] = providers["water"]
-
-    return providers
-
 def generate_category_keywords_from_labels(input_data):
     """Auto-generate category keywords based on recurring words in labels."""
     keyword_freq = defaultdict(int)
