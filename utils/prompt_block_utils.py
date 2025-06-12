@@ -2,7 +2,7 @@ import streamlit as st
 
 from prompts.templates import (
     wrap_prompt_block, 
-    utility_prompt, 
+    #utility_prompt, 
     utilities_emergency_prompt_template, 
     emergency_kit_utilities_prompt_template,
     home_caretaker_prompt_template,
