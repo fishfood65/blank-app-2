@@ -313,54 +313,54 @@ def utilities():
         st.session_state["corrected_utility_providers"] = updated
 
 # Step 4: Save Utility Providers (with validation)
-    if st.button("✅ Confirm All Utility Info"):
-        required_utilities = ["electricity", "natural_gas", "water", "internet"]
-        required_fields = ["name", "contact_phone", "contact_email", "contact_address"]
+        if st.button("✅ Confirm All Utility Info"):
+            required_utilities = ["electricity", "natural_gas", "water", "internet"]
+            required_fields = ["name", "contact_phone", "contact_email", "contact_address"]
 
-        missing_fields = {}
+            missing_fields = {}
 
-        for key in required_utilities:
-            provider = st.session_state.get("utility_providers", {}).get(key, {})
-            missing = [field for field in required_fields if not provider.get(field)]
-            if missing:
-                missing_fields[key] = missing
+            for key in required_utilities:
+                provider = st.session_state.get("utility_providers", {}).get(key, {})
+                missing = [field for field in required_fields if not provider.get(field)]
+                if missing:
+                    missing_fields[key] = missing
 
-        if missing_fields:
-            st.warning("⚠️ Missing required info:")
-            for utility, fields in missing_fields.items():
-                st.markdown(f"- **{utility.title()}**: missing {', '.join(fields)}")
-        else:
-            st.session_state["confirmed_utility_providers"] = updated
-            st.session_state["utility_info_locked"] = True
-            st.success("🔒 Utility provider info confirmed and saved.")
+            if missing_fields:
+                st.warning("⚠️ Missing required info:")
+                for utility, fields in missing_fields.items():
+                    st.markdown(f"- **{utility.title()}**: missing {', '.join(fields)}")
+            else:
+                st.session_state["confirmed_utility_providers"] = updated
+                st.session_state["utility_info_locked"] = True
+                st.success("🔒 Utility provider info confirmed and saved.")
 
-            # ✅ Show output in debug mode
-            if st.session_state.get("enable_debug_mode"):
-                st.markdown("### 🧪 Debug: Saved Providers")
-                st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
-                st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
-                st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
-                st.write("💧 Water:", st.session_state.get("water_provider"))
+                # ✅ Show output in debug mode
+                if st.session_state.get("enable_debug_mode"):
+                    st.markdown("### 🧪 Debug: Saved Providers")
+                    st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
+                    st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
+                    st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
+                    st.write("💧 Water:", st.session_state.get("water_provider"))
 
-# Step 5: Return Reward
-            if st.session_state.get("utility_info_locked"):
-                st.subheader("🎉 Reward")
-                st.markdown("You've successfully confirmed all your utility providers! ✅")
+    # Step 5: Return Reward
+                if st.session_state.get("utility_info_locked"):
+                    st.subheader("🎉 Reward")
+                    st.markdown("You've successfully confirmed all your utility providers! ✅")
 
-# Step 6: Display Raw LLM Output + Allow Download
-                providers = st.session_state.get("utility_providers", {})
-                if not providers:
-                    st.info("⚠️ No utility provider data available.")
-                else:
-                    markdown = format_provider_markdown(providers)
-                    docx_bytes = export_provider_docx(providers)
+    # Step 6: Display Raw LLM Output + Allow Download
+                    providers = st.session_state.get("utility_providers", {})
+                    if not providers:
+                        st.info("⚠️ No utility provider data available.")
+                    else:
+                        markdown = format_provider_markdown(providers)
+                        docx_bytes = export_provider_docx(providers)
 
-                    render_runbook_section_output(
-                        markdown_str=markdown,
-                        docx_bytes_io=docx_bytes,
-                        title="Utility Providers",
-                        filename_prefix="utility_providers"
-                    )
+                        render_runbook_section_output(
+                            markdown_str=markdown,
+                            docx_bytes_io=docx_bytes,
+                            title="Utility Providers",
+                            filename_prefix="utility_providers"
+                        )
 
 
                         
