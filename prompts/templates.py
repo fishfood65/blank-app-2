@@ -195,74 +195,6 @@ Please retrieve:
 Ensure the run book is clearly formatted using Markdown, with bold headers and bullet points. Use ⚠️ to highlight missing kit items.
 """.strip()
 
-
-def utilities_emergency_prompt_template(
-    city: str,
-    zip_code: str,
-    internet: str,
-    electricity: str,
-    gas: str,
-    water: str,
-    *,
-    section: str = "utilities",
-    debug: bool = False
-) -> str:
-    """
-    Generates a structured LLM-safe markdown prompt block for utility and emergency provider instructions.
-    """
-
-    body = f"""
-City: {city}  
-Zip: {zip_code}  
-Internet Provider: {internet}  
-Electricity Provider: {electricity}  
-Natural Gas Provider: {gas}  
-Water Provider: {water}  
-
-
-Please retrieve:
-- Company Description
-- Contact Info
-- Emergency Steps
----
-
-## ⚡ Electricity – {electricity}
-### Power Outage Response Guide:
-- Company Description
-- Contact Info
-- Emergency Steps
-
----
-
-## 🔥 Natural Gas – {gas}
-### Gas Leak Response Guide:
-- Company Description
-- Contact Info
-- Emergency Steps
-
----
-
-## 💧 Water – {water}
-### Water Outage or Leak Guide:
-- Company Description
-- Contact Info
-- Emergency Steps
-
----
-
-## 🌐 Internet – {internet}
-### Internet Outage Response Guide:
-- Company Description
-- Contact Info
-- Emergency Steps
-
----
-
-✅ When done, format clearly using markdown. Keep content actionable and well-structured.
-""".strip()
-
-    return body
-
 def wrap_with_claude_style_formatting(user_prompt: str) -> str:
     """
     Wraps the raw user prompt with tone and formatting instructions
@@ -285,7 +217,6 @@ Now continue with the user's instruction below.
 
 {user_prompt.strip()}
 """.strip()
-
 
 def utility_provider_lookup_prompt(city: str, zip_code: str, internet: str = "") -> str:
     prompt = f"""
@@ -371,21 +302,6 @@ Use markdown headers (##) and bold labels (**Label:**) for clarity.
 """
     return prompt.strip()
 
-
-def utility_prompt(city: str, zip_code: str, internet: str, electricity: str, gas: str, water: str) -> str:
-    return f"""
-City: {city}
-Zip: {zip_code}
-Internet Provider: {internet}
-Electricity Provider: {electricity}
-Natural Gas Provider: {gas}
-Water Provider: {water}
-
-Please retrieve:
-- Company Description
-- Contact Info
-- Emergency Steps
-""".strip()
 
 TEMPLATE_MAP = {
     "mail": {

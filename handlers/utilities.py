@@ -1,8 +1,9 @@
 ### Leve 1 - Home
-from utils.prompt_block_utils import generate_all_prompt_blocks
+#from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
 import re
-from mistralai import Mistral, UserMessage, SystemMessage
+import io
+from docx import Document
 import os
 import pandas as pd
 from datetime import datetime, timedelta
@@ -15,16 +16,16 @@ from utils.preview_helpers import get_active_section_label
 from utils.data_helpers import (
     register_task_input, 
     get_answer, 
-    check_missing_utility_inputs,
     extract_and_log_providers
 )
-from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
+#from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, reset_all_session_state
 from prompts.templates import utility_provider_lookup_prompt, wrap_with_claude_style_formatting
 from utils.common_helpers import get_schedule_placeholder_mapping
 from utils.llm_cache_utils import get_or_generate_llm_output
 from utils.llm_helpers import call_openrouter_chat
 from utils.preview_helpers import render_provider_contacts
+from utils.docx_helpers import export_provider_docx, format_provider_markdown, render_runbook_section_output
 
 # --- Generate the AI prompt ---
 # Load from environment (default) or user input
@@ -345,21 +346,21 @@ def utilities():
             if st.session_state.get("utility_info_locked"):
                 st.subheader("🎉 Reward")
                 st.markdown("You've successfully confirmed all your utility providers! ✅")
+
 # Step 6: Display Raw LLM Output + Allow Download
-                llm_response = st.session_state.get("last_llm_output", "")
-                
-                if llm_response:
-                    st.markdown("### 🧾 Full LLM Output")
-                    st.code(llm_response, language="markdown")
-
-                    # Download button
-                    st.download_button(
-                        label="📥 Download LLM Output",
-                        data=llm_response,
-                        file_name="utility_provider_output.md",
-                        mime="text/markdown"
-                    )
+                providers = st.session_state.get("utility_providers", {})
+                if not providers:
+                    st.info("⚠️ No utility provider data available.")
                 else:
-                    st.info("No LLM output available to display or download.")
+                    markdown = format_provider_markdown(providers)
+                    docx_bytes = export_provider_docx(providers)
 
-        
+                    render_runbook_section_output(
+                        markdown_str=markdown,
+                        docx_bytes_io=docx_bytes,
+                        title="Utility Providers",
+                        filename_prefix="utility_providers"
+                    )
+
+
+                        
