@@ -24,6 +24,7 @@ from prompts.templates import utility_provider_lookup_prompt, wrap_with_claude_s
 from utils.common_helpers import get_schedule_placeholder_mapping
 from utils.llm_cache_utils import get_or_generate_llm_output
 from utils.llm_helpers import call_openrouter_chat
+from utils.preview_helpers import render_provider_contacts
 
 # --- Generate the AI prompt ---
 # Load from environment (default) or user input
@@ -112,12 +113,6 @@ def query_utility_providers(section: str, test_mode: bool = False) -> dict:
     if internet and internet.strip().lower() in ["", "⚠️ not provided", "n/a"]:
         internet = ""  # Let LLM fill it in
 
-    if st.session_state.get("enable_debug_mode"):
-        st.markdown("### 🧪 Debug: Utility Query Inputs fetching from get_answer(), data saved by register_task")
-        st.write("📍 City:", city)
-        st.write("📮 ZIP Code:", zip_code)
-        st.write("🌐 Internet Provider:", internet)
-
     if test_mode:
         return {
             "electricity": "Austin Energy",
@@ -173,28 +168,59 @@ def register_provider_input(label: str, value: str, section: str):
     st.session_state.setdefault("task_inputs", []).append(task_row)
 
 def get_corrected_providers(results: dict) -> dict:
-        updated = {}
-        label_to_key = {
-            "Electricity": "electricity",
-            "Natural Gas": "natural_gas",
-            "Water": "water"
-        }
+    """
+    Allow user to review and optionally correct provider name, phone, email, address.
+    Emergency Steps are view-only.
+    """
+    updated = {}
+    label_to_key = {
+        "Electricity": "electricity",
+        "Natural Gas": "natural_gas",
+        "Water": "water",
+        "Internet": "internet"
+    }
 
-        for label in label_to_key:
-            key = label_to_key[label]
-            current_value = results.get(key, "")
-            correct_flag = st.checkbox(f"Correct {label} Provider", value=False)
-            corrected = st.text_input(
-                f"{label} Provider",
-                value=current_value,
-                disabled=not correct_flag
-            )
-            if correct_flag and corrected != current_value:
-                register_provider_input(label, corrected)
-                st.session_state[f"{key}_provider"] = corrected
-            updated[key] = corrected if correct_flag else current_value
+    for label, key in label_to_key.items():
+        current = results.get(key, {})
+        name = current.get("name", "")
+        phone = current.get("contact_phone", "")
+        email = current.get("contact_email", "")
+        address = current.get("contact_address", "")
+        emergency = current.get("emergency_steps", "")
 
-        return updated
+        with st.expander(f"🔧 Validate or Update {label} Provider", expanded=False):
+            st.markdown(f"### 🛠️ {label} Provider")
+
+            correct_name = st.checkbox(f"✏️ Correct Provider Name ({name})", value=False, key=f"{key}_name_check")
+            name_input = st.text_input(f"{label} Provider Name", value=name, disabled=not correct_name, key=f"{key}_name")
+            
+            correct_phone = st.checkbox(f"✏️ Correct Phone", value=False, key=f"{key}_phone_check")
+            phone_input = st.text_input("Phone", value=phone, disabled=not correct_phone, key=f"{key}_phone")
+            
+            correct_email = st.checkbox(f"✏️ Correct Email", value=False, key=f"{key}_email_check")
+            email_input = st.text_input("Email", value=email, disabled=not correct_email, key=f"{key}_email")
+
+            correct_address = st.checkbox(f"✏️ Correct Address", value=False, key=f"{key}_address_check")
+            address_input = st.text_area("Address", value=address, disabled=not correct_address, key=f"{key}_address")
+
+            st.markdown(f"🚨 **Emergency Steps (Read-Only):**  \n{emergency or '—'}")
+
+            updated[key] = {
+                "name": name_input if correct_name else name,
+                "contact_phone": phone_input if correct_phone else phone,
+                "contact_email": email_input if correct_email else email,
+                "contact_address": address_input if correct_address else address,
+                "contact_website": current.get("contact_website", ""),
+                "description": current.get("description", ""),
+                "emergency_steps": emergency  # do not change
+            }
+
+            # ✅ Update session state for each corrected field
+            if correct_name:
+                register_provider_input(label, name_input)
+                st.session_state[f"{key}_provider"] = name_input
+
+    return updated
 
 def fetch_utility_providers(section: str):
     results = query_utility_providers(section=section)
@@ -205,15 +231,6 @@ def fetch_utility_providers(section: str):
     st.session_state["natural_gas_provider"] = results.get("natural_gas", "")
     st.session_state["water_provider"] = results.get("water", "")
     st.session_state["internet_provider"] = results.get("internet", "")
-
-    if st.session_state.get("enable_debug_mode"):
-        st.markdown("### 🧪 Debug: query_utility_providers")
-        st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
-        st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
-        st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
-        st.write("💧 Water:", st.session_state.get("water_provider"))
-        st.write("🌐 Internet:", st.session_state.get("internet_provider"))
-        st.write("🤖 Using Model:", st.session_state.get("llm_model", "claude-3-haiku"))
     return results
 
 def update_session_state_with_providers(updated):
@@ -261,72 +278,88 @@ def utilities():
         st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
         st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
         st.write("💧 Water:", st.session_state.get("water_provider"))
+        st.write("🌐 Internet:", st.session_state.get("internet_provider"))
+        st.write("🤖 Using Model:", st.session_state.get("llm_model", "openai/gpt-4o:online"))
+        if "llm_usage_log" in st.session_state:
+            latest = st.session_state["llm_usage_log"][-1]
+            st.markdown("### 📊 LLM Token Usage")
+            st.json(latest)
+
+        if "last_web_citations" in st.session_state:
+            st.markdown("### 🌐 Web Search Citations (OpenRouter)")
+            for cite in st.session_state["last_web_citations"]:
+                url = cite["url_citation"].get("url", "")
+                domain = url.split("/")[2] if "://" in url else url
+                st.markdown(f"- [{domain}]({url})")
 
 # Step 3: Display resulting LLM retrieved Utility Providers
     if st.session_state.get("show_provider_corrections"):
+        st.markdown("### 📇 Retrieved Utility Providers")
+        
+        # 🧱 Visual contact display (read-only)
+        render_provider_contacts(section=section)
+
+        # ✍️ Correction form
         current_results = st.session_state.get("utility_providers", {
             "electricity": "",
             "natural_gas": "",
-            "water": ""
+            "water": "",
+            "internet": ""
         })
         updated = get_corrected_providers(current_results)
-
-        if st.session_state.get("enable_debug_mode", False):
-            debug_all_sections_input_capture_with_summary(["home", "emergency_kit"])
+        
+        # ✅ Save temp corrections to session state
+        st.session_state["corrected_utility_providers"] = updated
 
 # Step 4: Save Utility Providers (with validation)
-        if st.button("💾 Save Utility Providers"):
-            missing = check_missing_utility_inputs()
+    if st.button("✅ Confirm All Utility Info"):
+        required_utilities = ["electricity", "natural_gas", "water", "internet"]
+        required_fields = ["name", "contact_phone", "contact_email", "contact_address"]
+
+        missing_fields = {}
+
+        for key in required_utilities:
+            provider = st.session_state.get("utility_providers", {}).get(key, {})
+            missing = [field for field in required_fields if not provider.get(field)]
             if missing:
-                st.warning(f"⚠️ Missing required fields: {', '.join(missing)}")
-            else:
-                update_session_state_with_providers(updated)
-                st.session_state["utility_providers_saved"] = True
-                st.success("✅ Utility providers updated!")
+                missing_fields[key] = missing
+
+        if missing_fields:
+            st.warning("⚠️ Missing required info:")
+            for utility, fields in missing_fields.items():
+                st.markdown(f"- **{utility.title()}**: missing {', '.join(fields)}")
+        else:
+            st.session_state["confirmed_utility_providers"] = updated
+            st.session_state["utility_info_locked"] = True
+            st.success("🔒 Utility provider info confirmed and saved.")
+
+            # ✅ Show output in debug mode
+            if st.session_state.get("enable_debug_mode"):
+                st.markdown("### 🧪 Debug: Saved Providers")
+                st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
+                st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
+                st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
+                st.write("💧 Water:", st.session_state.get("water_provider"))
+
+# Step 5: Return Reward
+            if st.session_state.get("utility_info_locked"):
                 st.subheader("🎉 Reward")
+                st.markdown("You've successfully confirmed all your utility providers! ✅")
+# Step 6: Display Raw LLM Output + Allow Download
+                llm_response = st.session_state.get("last_llm_output", "")
+                
+                if llm_response:
+                    st.markdown("### 🧾 Full LLM Output")
+                    st.code(llm_response, language="markdown")
 
-                # ✅ Show output in debug mode
-                if st.session_state.get("enable_debug_mode"):
-                    st.markdown("### 🧪 Debug: Saved Providers")
-                    st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
-                    st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
-                    st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
-                    st.write("💧 Water:", st.session_state.get("water_provider"))
-    
-# Step 5: Generate prompt blocks if Utility Providers are saved
-    if st.session_state.get("utility_providers_saved"):
-        blocks = generate_all_prompt_blocks(section)
-            # ✅ Automatically generate prompt blocks once providers are saved
-        st.session_state[f"{section}_runbook_blocks"] = blocks
-        st.subheader("🎉 Reward")
-        
-        if st.session_state.get("enable_debug_mode"):
-            st.markdown("### 🧾 Prompt Preview")
-            for block in blocks:
-                st.code(block, language="markdown")
-        #Step 2: Generate DOCX
-        include_priority = st.session_state.get("include_priority", True) # Ensure default for include_priority
+                    # Download button
+                    st.download_button(
+                        label="📥 Download LLM Output",
+                        data=llm_response,
+                        file_name="utility_provider_output.md",
+                        mime="text/markdown"
+                    )
+                else:
+                    st.info("No LLM output available to display or download.")
 
-        def generate_utilities_docx():
-            blocks = generate_all_prompt_blocks(section)
-            st.session_state[f"{section}_runbook_blocks"] = blocks  # ✅ Store for debug
-            return generate_docx_from_prompt_blocks(
-                section=section,
-                blocks=blocks,
-                schedule_sources=get_schedule_placeholder_mapping(),
-                include_heading=False,
-                include_priority=include_priority,
-                use_llm=True,
-                api_key=os.getenv("MISTRAL_TOKEN"),
-                doc_heading="🔌 Utilities Emergency Runbook",
-                debug=st.session_state.get("enable_debug_mode", False),
-            )
-
-        maybe_generate_runbook(
-            section=section,
-            generator_fn=generate_utilities_docx,
-            doc_heading="🔌 Utilities Emergency Runbook",
-            filename="utilities_emergency_runbook",
-            button_label="📥 Generate Runbook"
-        )
         

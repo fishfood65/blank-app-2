@@ -769,6 +769,8 @@ def extract_and_log_providers(content: str, section: str) -> dict:
         description = re.search(r"\*\*Description:\*\* (.*)", block)
         phone = re.search(r"\*\*Phone:\*\* (.*)", block)
         website = re.search(r"\*\*Website:\*\* (.*)", block)
+        email = re.search(r"\*\*Email:\*\* (.*)", block)
+        address = re.search(r"\*\*Address:\*\* (.*)", block)
         emergency = re.search(r"\*\*Emergency Steps:\*\* (.*)", block)
 
         return {
@@ -776,6 +778,8 @@ def extract_and_log_providers(content: str, section: str) -> dict:
             "description": description.group(1).strip() if description else "",
             "contact_phone": phone.group(1).strip() if phone else "",
             "contact_website": website.group(1).strip() if website else "",
+            "contact_email": email.group(1).strip() if email else "",
+            "contact_address": address.group(1).strip() if address else "",
             "emergency_steps": emergency.group(1).strip() if emergency else "",
         }
 
@@ -802,6 +806,8 @@ def extract_and_log_providers(content: str, section: str) -> dict:
             register_input_only(f"{name} Description", parsed.get("description", ""), section=section)
             register_input_only(f"{name} Contact Phone", parsed.get("contact_phone", ""), section=section)
             register_input_only(f"{name} Contact Website", parsed.get("contact_website", ""), section=section)
+            register_input_only(f"{name} Contact Email", parsed.get("contact_email", ""), section=section)
+            register_input_only(f"{name} Contact Address", parsed.get("contact_address", ""), section=section)
             register_input_only(f"{name} Emergency Steps", parsed.get("emergency_steps", ""), section=section)
 
     # ✅ Save full dict for re-use

@@ -71,6 +71,8 @@ def call_openrouter_chat(prompt: str) -> str:
         if not content:
             st.error("❌ LLM response did not contain usable content.")
             return None
+        
+        st.session_state["last_llm_output"] = content  # ✅ Save raw LLM output
 
         # ✅ Attempt to extract usage data (if available)
         usage_data = response_json.get("usage", {})  # <--- This line defines usage_data

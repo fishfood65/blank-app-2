@@ -155,5 +155,7 @@ def render_provider_contacts(section: str = "utilities"):
         with st.expander(f"📇 View {name} Contact Info", expanded=False):
             st.markdown(f"**📄 Description:** {info.get('description', '—')}")
             st.markdown(f"**📞 Phone:** {info.get('contact_phone', '—')}")
+            st.markdown(f"**📧 Email:** {info.get('contact_email', '—')}")
+            st.markdown(f"**🏢 Address:** {info.get('contact_address', '—')}")
             st.markdown(f"**🌐 Website:** {info.get('contact_website', '—')}")
             st.markdown(f"**🚨 Emergency Steps:** {info.get('emergency_steps', '—')}")
