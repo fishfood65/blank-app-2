@@ -27,9 +27,9 @@ def critical_documents_flow(
         generate_kit_tab()
 
 def get_handler(section_key: str, subsection_key: str | None = None):
-    if section_key == "home":
-        from handlers.home import home
-        return home
+    if section_key == "utilities":
+        from handlers.utilities import utilities
+        return utilities
 
     elif section_key == "emergency_kit":
         from handlers.emergency_kit import emergency_kit_utilities
@@ -59,7 +59,7 @@ def get_handler(section_key: str, subsection_key: str | None = None):
     return None
 
 PAGE_MAP = {
-    "home": "01_Home",
+    "utilities": "01_Utilities",
     "mail_trash": "02_Mail_Trash",
     "emergency_kit": "03_Emergency_Kit",
     "bonus_level": "04_Bonus_Level",

@@ -204,7 +204,7 @@ def utilities_emergency_prompt_template(
     gas: str,
     water: str,
     *,
-    section: str = "home",
+    section: str = "utilities",
     debug: bool = False
 ) -> str:
     """
@@ -263,8 +263,32 @@ Please retrieve:
 
     return body
 
-def utility_provider_lookup_prompt(city: str, zip_code: str, internet: str = "") -> str:
+def wrap_with_claude_style_formatting(user_prompt: str) -> str:
+    """
+    Wraps the raw user prompt with tone and formatting instructions
+    tailored for GPT-4o to behave more like Claude.
+    """
     return f"""
+You are a helpful assistant writing clear, practical, and human-friendly emergency documentation.
+
+Use the following tone and formatting guidelines:
+- Speak in **natural, concise language**.
+- Use **markdown** for structure: `##` for sections, `**bold**` for labels, `-` for bullets.
+- Be direct but **not robotic**. Write like you’re preparing a guide for a trusted house sitter.
+- When citing external information (like web search results), **use markdown links**:  
+  Example: [pge.com](https://www.pge.com/safety)  
+- NEVER make up provider names or steps — if unknown, say so explicitly.
+
+Now continue with the user's instruction below.
+
+---
+
+{user_prompt.strip()}
+""".strip()
+
+
+def utility_provider_lookup_prompt(city: str, zip_code: str, internet: str = "") -> str:
+    prompt = f"""
 You are a reliable assistant helping users prepare emergency documentation.
 
 Given the following location:
@@ -293,7 +317,7 @@ For each provider, return the following:
 
 - **Company Name**
 - **Brief Company Description**
-- **Customer Contact Info (phone and web)**
+- **Customer Contact Info (phone, web, email, and address)**
 - **Emergency Response Instructions** (e.g., power outage, gas leak, water main break)
 
 Format clearly in labeled sections like:
@@ -305,6 +329,8 @@ Format clearly in labeled sections like:
 **Contact Info:**  
 - **Phone:** <phone number>  
 - **Website:** <website URL> 
+- **Email:** <email address>
+- **Address:** <street address, city, state, zip code>
 **Emergency Steps:** <brief instructions>
 
 ---
@@ -313,7 +339,9 @@ Format clearly in labeled sections like:
 **Description:** <short description>  
 **Contact Info:**  
 - **Phone:** <phone number>  
-- **Website:** <website URL> 
+- **Website:** <website URL>
+- **Email:** <email address>
+- **Address:** <street address, city, state, zip code> 
 **Emergency Steps:** <brief instructions>
 
 ---
@@ -322,14 +350,24 @@ Format clearly in labeled sections like:
 **Description:** <short description>  
 **Contact Info:**  
 - **Phone:** <phone number>  
-- **Website:** <website URL> 
+- **Website:** <website URL>
+- **Email:** <email address>
+- **Address:** <street address, city, state, zip code>  
 **Emergency Steps:** <brief instructions>  
+
 ---
 
-## 🌐 Internet – """ + (f"{internet}" if internet else "<Company Name>") + """  
+## 🌐 Internet – {internet if internet else "<Company Name>"}
 **Description:** <short description>  
-**Contact Info:** <phone or URL>  
+**Contact Info:** 
+- **Phone:** <phone number>  
+- **Website:** <website URL>
+- **Email:** <email address>
+- **Address:** <street address, city, state, zip code>  
 **Outage/Support Instructions:** <brief steps>
+
+Use markdown headers (##) and bold labels (**Label:**) for clarity.
+
 """
     return prompt.strip()
 

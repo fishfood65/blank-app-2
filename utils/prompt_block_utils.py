@@ -80,7 +80,7 @@ def generate_all_prompt_blocks(section: str) -> List[str]:
     debug = st.session_state.get("enable_debug_mode", False)
 
     prompt_registry = {
-        "home": [
+        "utilities": [
             ("Utilities and Emergency Services", lambda: utilities_emergency_runbook_prompt(section=section, debug=debug) or
                 fallback_utilities_emergency_prompt(section=section))
         ],
@@ -182,13 +182,13 @@ def utilities_emergency_runbook_prompt(section: str = "home", debug: bool = Fals
 
     return None
 
-def fallback_utilities_emergency_prompt(section: str = "home") -> str:
+def fallback_utilities_emergency_prompt(section: str = "utilities") -> str:
     return utilities_emergency_runbook_prompt(section=section, debug=False)
 
-def emergency_kit_utilities_runbook_prompt(section: str = "home", debug: bool = False) -> str:
-    city = get_answer(key="City", section="home") or ""
-    zip_code = get_answer(key="ZIP Code", section="home") or ""
-    internet = get_answer(key="Internet Provider", section="home") or ""
+def emergency_kit_utilities_runbook_prompt(section: str = "utilities", debug: bool = False) -> str:
+    city = get_answer(key="City", section="utilities") or ""
+    zip_code = get_answer(key="ZIP Code", section="utilities") or ""
+    internet = get_answer(key="Internet Provider", section="utilities") or ""
 
     emergency_kit_status = get_answer(key="Do you have an Emergency Kit?", section="emergency_kit") or "No"
     emergency_kit_location = get_answer(key="Where is (or where will) the Emergency Kit be located?", section="emergency_kit") or ""

@@ -12,6 +12,7 @@ from utils.task_schedule_utils_updated import extract_and_schedule_all_tasks, ex
 from utils.debug_scheduler_input import debug_schedule_task_input
 from utils.preview_helpers import display_enriched_task_preview
 from verify_blocks import is_content_meaningful
+from utils.preview_helpers import render_provider_contacts
 
 DEFAULT_COMMON_SECTIONS = set(SECTION_METADATA.keys())
 
@@ -69,9 +70,10 @@ def debug_task_input_capture_with_answers_tabs(section: str):
         st.subheader("📎 input_data")
         st.dataframe(input_data)
         
-        from utils.debug_utils import log_section_input_debug
         counts = log_section_input_debug(section, min_entries=8)
         st.write("🔍 Returned counts object:", counts)
+
+        render_provider_contacts(section="utilities")
 
     with tabs[1]:
         st.subheader("🔍 get_answer() Lookup Results")
@@ -258,42 +260,6 @@ def debug_task_input_capture_with_answers_tabs(section: str):
             k: v for k, v in st.session_state.items()
             if k.endswith("_schedule_df") and isinstance(v, pd.DataFrame)
         }
-    with tabs [10]: # 🧠 LLM Cache Viewer"
-        st.subheader("🧠 LLM Cache Files")
-        cache_dir = Path("llm_cache")
-        cache_dir.mkdir(exist_ok=True)
-
-        cache_records = []
-        for f in cache_dir.glob("*.json"):
-            try:
-                with open(f, "r") as file:
-                    data = json.load(file)
-                    cache_records.append({
-                        "Hash (File)": f.stem,
-                        "Model": data.get("model", "unknown"),
-                        "Timestamp": data.get("timestamp", "unknown"),
-                        "Prompt Preview": data.get("prompt", "")[:80] + "..." if "prompt" in data else "",
-                    })
-            except Exception as e:
-                cache_records.append({
-                    "Hash (File)": f.stem,
-                    "Model": "❌ Error reading file",
-                    "Timestamp": "N/A",
-                    "Prompt Preview": str(e)
-                })
-
-        if cache_records:
-            df = pd.DataFrame(cache_records)
-            st.dataframe(df)
-            st.download_button(
-                "📥 Download LLM Cache Summary",
-                data=df.to_csv(index=False),
-                file_name="llm_cache_summary.csv",
-                mime="text/csv"
-            )
-        else:
-            st.info("🗃️ No cache files found yet in `llm_cache/`.")
-
         # Combine all scheduled rows
         if schedule_dfs:
             scheduled_df = pd.concat(schedule_dfs.values(), ignore_index=True)
@@ -328,6 +294,55 @@ def debug_task_input_capture_with_answers_tabs(section: str):
             
             st.markdown("#### 🧾 Available columns in scheduled_df")
             st.write(scheduled_df.columns.tolist())
+
+    with tabs [10]: # 🧠 LLM Cache Viewer and LLM Usage
+        st.subheader("🧠 LLM Cache Files")
+        cache_dir = Path("llm_cache")
+        cache_dir.mkdir(exist_ok=True)
+
+        cache_records = []
+        for f in cache_dir.glob("*.json"):
+            try:
+                with open(f, "r") as file:
+                    data = json.load(file)
+                    cache_records.append({
+                        "Hash (File)": f.stem,
+                        "Model": data.get("model", "unknown"),
+                        "Timestamp": data.get("timestamp", "unknown"),
+                        "Prompt Preview": data.get("prompt", "")[:80] + "..." if "prompt" in data else "",
+                    })
+            except Exception as e:
+                cache_records.append({
+                    "Hash (File)": f.stem,
+                    "Model": "❌ Error reading file",
+                    "Timestamp": "N/A",
+                    "Prompt Preview": str(e)
+                })
+
+        if cache_records:
+            df = pd.DataFrame(cache_records)
+            st.dataframe(df)
+            st.download_button(
+                "📥 Download LLM Cache Summary",
+                data=df.to_csv(index=False),
+                file_name="llm_cache_summary.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("🗃️ No cache files found yet in `llm_cache/`.")
+        
+        st.markdown("### 📊 LLM Usage")
+        usage = st.session_state.get("last_usage")
+        if usage:
+            st.write(f"Model: `{usage.get('model')}`")
+            st.write(f"Prompt Tokens: `{usage.get('prompt_tokens')}`")
+            st.write(f"Response Tokens: `{usage.get('response_tokens')}`")
+            st.write(f"Total Tokens: `{usage.get('total_tokens')}`")
+            st.write(f"Timestamp: `{usage.get('timestamp')}`")
+        else:
+            st.info("No LLM usage recorded yet.")
+
+
 
 
 def debug_single_get_answer(section: str, key: str):

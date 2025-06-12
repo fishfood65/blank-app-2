@@ -337,7 +337,7 @@ def mail_trash():
     with st.expander("🧠 Session State (After Reset)"):
         st.json({k: str(v) for k, v in st.session_state.items()})
 
-    section = st.session_state.get("section", "home")
+    section = st.session_state.get("section", "utilities")
 
     st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")
 

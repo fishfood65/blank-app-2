@@ -65,15 +65,23 @@ def capture_input(
     unique_key = kwargs.get("key", default_key)
     kwargs["key"] = unique_key
 
+    # Optional: dynamic default value via callable
+    value_fn = kwargs.pop("value_fn", None)
+    if callable(value_fn):
+        kwargs["value"] = value_fn()
+
     # Auto-fill value from get_answer()
-    if autofill:
+    elif autofill:
         default_value = get_answer(key=label, section=section)
         if default_value is not None and "value" not in kwargs:
             kwargs["value"] = default_value
-
+        
         # Prevent .value for incompatible widgets
-        if input_fn in [st.radio, st.selectbox, st.multiselect] and "value" in kwargs:
-            kwargs.pop("value")
+        if hasattr(input_fn, "__name__") and input_fn.__name__ in [st.radio, st.selectbox, st.multiselect] and "value" in kwargs:
+            kwargs.pop("value", None)
+    
+    # Optional: set default placeholder for clarity
+    kwargs.setdefault("placeholder", f"Enter your {label.lower()}")
 
     # Render input widget
     value = input_fn(label, *args, **kwargs)
@@ -117,11 +125,68 @@ def capture_input(
     section_entries = [e for e in section_entries if e.get("key") != unique_key]
     section_entries.append(entry)
     st.session_state["input_data"][section] = section_entries
-
-    log_interaction("input", label, value, section)
+    
+    try:
+        log_interaction("input", label, value, section)
+    except Exception as e:
+        if st.session_state.get("enable_debug_mode"):
+                st.error(f"❌ log_interaction failed: {e}")
     autosave_input_data()
 
     return value
+
+def update_or_log_task(
+    question: str,
+    answer: str,
+    section: str,
+    task_type: str = None,
+    is_freq: bool = False,
+    key: Optional[str] = None,
+    area: str = "home",
+    canonical_map: Optional[dict] = None,
+    overwrite_label: Optional[str] = None,
+):
+    """
+    Logs a task input in session state, replacing any existing task with the same key.
+
+    Args:
+        question (str): The input label shown to the user.
+        answer (str): The user's response.
+        section (str): The logical section (e.g. "utilities", "trash").
+        task_type (str): Logical category of task (e.g. "utilities").
+        is_freq (bool): Whether the task has a frequency.
+        key (str): Optional key override. Defaults to sanitized label or canonical.
+        area (str): High-level category ("home", "pets", etc.)
+        canonical_map (dict): Optional mapping from question → canonical key.
+        overwrite_label (str): Optional new label to display (while keeping canonical key).
+    """
+    if not answer or str(answer).strip().lower() in ["", "⚠️ not provided", "n/a"]:
+        return
+
+    final_question = overwrite_label or question
+
+    # Canonical or default key
+    if canonical_map:
+        canonical_key = canonical_map.get(question.lower(), key or sanitize_label(question))
+    else:
+        canonical_key = key or sanitize_label(question)
+
+    new_entry = {
+        "question": final_question,
+        "answer": answer.strip(),
+        "key": canonical_key,
+        "category": section,
+        "section": section,
+        "area": area,
+        "task_type": task_type,
+        "is_freq": is_freq,
+        "timestamp": datetime.now().isoformat()
+    }
+
+    task_inputs = st.session_state.setdefault("task_inputs", [])
+    task_inputs = [t for t in task_inputs if t.get("key") != canonical_key]
+    task_inputs.append(new_entry)
+    st.session_state["task_inputs"] = task_inputs
 
 # Wrapper for task-based inputs
 def register_task_input(
@@ -131,6 +196,7 @@ def register_task_input(
     is_freq: bool = False,
     task_type: str = None,
     key: str = None,  # ✅ Explicit key
+    area: str = "home", # ✅ NEW: Promote `area` to argument
     *args,
     **kwargs
 ):
@@ -148,48 +214,43 @@ def register_task_input(
         key (str): Optional key to ensure matching across inputs and get_answer().
         *args, **kwargs: Passed through to capture_input().
     """
+    # ✅ Use or generate consistent key
+    key = key or f"{section}_{sanitize_label(label)}"
+    kwargs["key"] = key
+
+    # ✅ Add metadata (task control block)
     metadata = {
         "is_task": True,
         "task_label": label,
         "is_freq": is_freq,
-        "area": "home",
+        "area": area,
         "section": section,
         "task_type": task_type,
     }
     kwargs["metadata"] = metadata
 
-    # Generate or reuse key
-    if key:
-        kwargs["key"] = key
-    else:
-        key = f"{section}_{sanitize_label(label)}"
-        kwargs["key"] = key  # Pass into capture_input
-
+    # ✅ Capture user input
     value = capture_input(label, input_fn, section=section, *args, **kwargs)
 
     if value not in (None, ""):
         timestamp = datetime.now().isoformat()
 
-        # ✅ Overwrite or insert task entry with same key
-        if metadata["is_task"]:
-            task_inputs = st.session_state.setdefault("task_inputs", [])
-            task_inputs = [t for t in task_inputs if t.get("key") != key]  # Remove old
-            task_inputs.append({
-                "question": label,
-                "answer": value,
-                "category": section,
-                "section": section,
-                "area": metadata["area"],
-                "task_type": metadata["task_type"],
-                "is_freq": metadata["is_freq"],
-                "key": key,
-                "timestamp": timestamp,
-            })
-            st.session_state["task_inputs"] = task_inputs  # ✅ Reassign updated list
+        # ✅ Delegate to canonical task logging function
+        update_or_log_task(
+            question=label,
+            answer=value,
+            section=section,
+            task_type=task_type,
+            is_freq=is_freq,
+            key=key,
+            area=area,
+            canonical_map=kwargs.get("canonical_map"),
+            overwrite_label=kwargs.get("overwrite_label")
+        )
 
-        # ✅ Overwrite or insert input entry with same key
+        # ✅ Input data block (mirrors task_inputs)
         input_data = st.session_state.setdefault("input_data", {}).setdefault(section, [])
-        input_data = [i for i in input_data if i.get("key") != key]  # Remove old
+        input_data = [i for i in input_data if i.get("key") != key]
         input_data.append({
             "question": label,
             "answer": value,
@@ -197,9 +258,49 @@ def register_task_input(
             "key": key,
             "timestamp": timestamp,
         })
-        st.session_state["input_data"][section] = input_data  # ✅ Reassign updated list
+        st.session_state["input_data"][section] = input_data  # ✅ Always reassign
 
     return value
+
+def register_input_only(
+    label: str,
+    value: str,
+    section: str,
+    key: str = None,
+    metadata: dict = None,
+    *,
+    allow_empty: bool = False
+):
+    """
+    Logs a non-task input entry in `input_data`, but skips `task_inputs`.
+
+    Args:
+        label (str): Display label or question.
+        value (str): User or LLM-provided answer.
+        section (str): Which section it belongs to.
+        key (str, optional): Optional key for deduplication.
+        metadata (dict, optional): Optional metadata dictionary.
+        allow_empty (bool): If True, store even if value is empty.
+    """
+    if not allow_empty and (not value or str(value).strip() == ""):
+        return
+
+    key = key or f"{section}_{sanitize_label(label)}"
+    timestamp = datetime.now().isoformat()
+
+    input_entry = {
+        "question": label,
+        "answer": value.strip(),
+        "section": section,
+        "key": key,
+        "timestamp": timestamp,
+        "metadata": metadata or {},
+    }
+
+    section_entries = st.session_state.setdefault("input_data", {}).setdefault(section, [])
+    section_entries = [e for e in section_entries if e.get("key") != key]
+    section_entries.append(input_entry)
+    st.session_state["input_data"][section] = section_entries
 
 def sanitize(text):
     if not isinstance(text, str):
@@ -228,7 +329,7 @@ def get_answer(
     Nested_parent/nested_child is prioritized before task_inputs or input_data
 
     Args:
-        section (str): Logical section name (e.g., "home", "emergency_kit").
+        section (str): Logical section name (e.g., "utilities", "emergency_kit").
         key (str): The question label or key to retrieve.
         nested_parent (str): Optional session_state parent (e.g., "input_data").
         nested_child (str): Optional nested dict under parent.
@@ -289,7 +390,7 @@ def get_answer(
     return None
 
 
-def check_missing_utility_inputs(section="home"):
+def check_missing_utility_inputs(section="utilities"):
     """
     Checks for missing required fields for utility runbook generation.
     Returns a list of missing field labels.
@@ -650,20 +751,64 @@ def log_provider_result(label, value, section="Utility Providers"):
         "section": section
     })
 
-def extract_providers_from_text(content: str) -> dict:
+def extract_and_log_providers(content: str, section: str) -> dict:
     """
-    Pure function that extracts provider names from a text string.
-    Returns a dict with electricity, natural_gas, and water keys.
-    """
-    def extract(label):
-        match = re.search(rf"{label} Provider:\s*(.+)", content, re.IGNORECASE)
-        return match.group(1).strip() if match else "Not found"
+    Parses LLM output and logs structured provider metadata.
 
-    return {
-        "electricity": extract("Electricity"),
-        "natural_gas": extract("Natural Gas"),
-        "water": extract("Water")
+    Returns:
+        dict: Structured provider info with name, description, contact, and emergency info.
+    """
+
+    def extract_block(keyword: str) -> str:
+        pattern = rf"## .*{keyword}.*?---"
+        match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
+        return match.group(0).strip(" -") if match else ""
+
+    def parse_block(block: str) -> dict:
+        name_match = re.search(r"## [^\–\-]+[\–\-]\s*(.*)", block)
+        description = re.search(r"\*\*Description:\*\* (.*)", block)
+        phone = re.search(r"\*\*Phone:\*\* (.*)", block)
+        website = re.search(r"\*\*Website:\*\* (.*)", block)
+        emergency = re.search(r"\*\*Emergency Steps:\*\* (.*)", block)
+
+        return {
+            "name": name_match.group(1).strip() if name_match else "",
+            "description": description.group(1).strip() if description else "",
+            "contact_phone": phone.group(1).strip() if phone else "",
+            "contact_website": website.group(1).strip() if website else "",
+            "emergency_steps": emergency.group(1).strip() if emergency else "",
+        }
+
+    utility_keywords = {
+        "electricity": "Electricity",
+        "natural_gas": "Natural Gas",
+        "water": "Water",
+        "internet": "Internet",
     }
+
+    structured_results = {}
+
+    for key, label in utility_keywords.items():
+        block = extract_block(label)
+        parsed = parse_block(block)
+        structured_results[key] = parsed
+
+        name = parsed.get("name", "")
+        if name:
+            st.session_state[f"{key}_provider"] = name
+            register_input_only(f"{label} Provider", name, section=section)
+
+            # ✅ Register extra fields
+            register_input_only(f"{name} Description", parsed.get("description", ""), section=section)
+            register_input_only(f"{name} Contact Phone", parsed.get("contact_phone", ""), section=section)
+            register_input_only(f"{name} Contact Website", parsed.get("contact_website", ""), section=section)
+            register_input_only(f"{name} Emergency Steps", parsed.get("emergency_steps", ""), section=section)
+
+    # ✅ Save full dict for re-use
+    st.session_state["utility_providers"] = structured_results
+    st.session_state["utility_provider_metadata"] = structured_results
+
+    return structured_results
 
 def generate_category_keywords_from_labels(input_data):
     """Auto-generate category keywords based on recurring words in labels."""
@@ -702,7 +847,89 @@ def section_has_valid_input(section: str, min_entries: int = 1) -> bool:
     total = count_regular + count_tasks
     return total >= min_entries
 
+def register_provider_input(label: str, value: str, section: str):
+    if not label or not isinstance(label, str):
+        raise ValueError("Provider label must be a non-empty string.")
 
+    if not isinstance(value, str) or value.strip().lower() in ["", "not found", "n/a"]:
+        return
+
+    # Register as structured input data
+    input_data = st.session_state.setdefault("input_data", {})
+    section_data = input_data.setdefault(section, [])
+
+    # Remove duplicates first
+    section_data = [entry for entry in section_data if entry["question"] != f"{label} Provider"]
+    section_data.append({
+        "question": f"{label} Provider",
+        "answer": value.strip()
+    })
+    input_data[section] = section_data
+
+    # Track in task_inputs
+    task_row = {
+        "question": f"{label} Provider",
+        "answer": value.strip(),
+        "category": section,
+        "section": section,
+        "area": "home",
+        "task_type": "info",
+        "is_freq": False
+    }
+    st.session_state.setdefault("task_inputs", []).append(task_row)
+
+def update_or_log_task(
+    question: str,
+    answer: str,
+    section: str,
+    task_type: str = None,
+    is_freq: bool = False,
+    key: Optional[str] = None,
+    area: str = "home",
+    canonical_map: Optional[dict] = None,
+    overwrite_label: Optional[str] = None,
+):
+    """
+    Logs a task input in session state, replacing any existing task with the same key.
+
+    Args:
+        question (str): The input label shown to the user.
+        answer (str): The user's response.
+        section (str): The logical section (e.g. "utilities", "trash").
+        task_type (str): Logical category of task (e.g. "utilities").
+        is_freq (bool): Whether the task has a frequency.
+        key (str): Optional key override. Defaults to sanitized label or canonical.
+        area (str): High-level category ("home", "pets", etc.)
+        canonical_map (dict): Optional mapping from question → canonical key.
+        overwrite_label (str): Optional new label to display (while keeping canonical key).
+    """
+    if not answer or str(answer).strip().lower() in ["", "⚠️ not provided", "n/a"]:
+        return
+
+    final_question = overwrite_label or question
+
+    # Canonical or default key
+    if canonical_map:
+        canonical_key = canonical_map.get(question.lower(), key or sanitize_label(question))
+    else:
+        canonical_key = key or sanitize_label(question)
+
+    new_entry = {
+        "question": final_question,
+        "answer": answer.strip(),
+        "key": canonical_key,
+        "category": section,
+        "section": section,
+        "area": area,
+        "task_type": task_type,
+        "is_freq": is_freq,
+        "timestamp": datetime.now().isoformat()
+    }
+
+    task_inputs = st.session_state.setdefault("task_inputs", [])
+    task_inputs = [t for t in task_inputs if t.get("key") != canonical_key]
+    task_inputs.append(new_entry)
+    st.session_state["task_inputs"] = task_inputs
 
 
 

@@ -15,21 +15,21 @@ from utils.preview_helpers import get_active_section_label
 from utils.data_helpers import (
     register_task_input, 
     get_answer, 
-    extract_providers_from_text, 
-    check_missing_utility_inputs
+    check_missing_utility_inputs,
+    extract_and_log_providers
 )
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, reset_all_session_state
-from prompts.templates import utility_provider_lookup_prompt
+from prompts.templates import utility_provider_lookup_prompt, wrap_with_claude_style_formatting
 from utils.common_helpers import get_schedule_placeholder_mapping
 from utils.llm_cache_utils import get_or_generate_llm_output
-from utils.llm_helpers import call_openrouter_chat 
+from utils.llm_helpers import call_openrouter_chat
 
 # --- Generate the AI prompt ---
 # Load from environment (default) or user input
 api_key = os.getenv("OPENROUTER_TOKEN") or st.text_input("Enter your OpenRouter API key:", type="password")
 referer = os.getenv("OPENROUTER_REFERER", "https://example.com")
-model_name = "anthropic/claude-3-haiku"  # You can make this dynamic if needed
+model_name = "openai/gpt-4o:online"  # You can make this dynamic if needed
 
 # Show success/error message
 if api_key:
@@ -54,7 +54,8 @@ def get_home_inputs(section: str):
         section=section,
         value=st.session_state.get("City", ""),
         key="City",  # Ensures value stored in st.session_state["City"]
-        task_type="Location Info"
+        task_type="Location Info",
+        required=True
     )
 
     zip_code = register_task_input(
@@ -63,7 +64,8 @@ def get_home_inputs(section: str):
         section=section,
         value=st.session_state.get("ZIP Code", ""),
         key="ZIP Code",
-        task_type="Location Info"
+        task_type="Location Info",
+        required=True
     )
 
     internet_provider = register_task_input(
@@ -72,13 +74,17 @@ def get_home_inputs(section: str):
         section=section,
         value=st.session_state.get("Internet Provider", ""),
         key="Internet Provider",
-        task_type="Utilities"
+        task_type="Utilities",
+        required=False
     )
 
+    if not internet_provider or internet_provider.lower() in ["⚠️ not provided", "n/a", ""]:
+        st.warning("⚠️ No Internet Provider given — will let LLM try to infer it.")
+
     # Optional: mirror into top-level keys (but not required for get_answer)
-    st.session_state["city"] = city
-    st.session_state["zip_code"] = zip_code
-    st.session_state["internet_provider"] = internet_provider
+    st.session_state["home_city"] = city
+    st.session_state["home_zip_code"] = zip_code
+    st.session_state["home_internet_provider"] = internet_provider
 
     return city, zip_code, internet_provider
 
@@ -91,14 +97,19 @@ def query_utility_providers(section: str, test_mode: bool = False) -> dict:
         test_mode (bool): If True, return hardcoded results for testing.
 
     Returns:
-        dict: A dictionary containing utility provider names.
+        dict: Structured provider metadata, with keys like electricity, water, gas, etc.
+
     """
     city = get_answer(key="City", section=section, verbose=True)
     zip_code = get_answer(key="ZIP Code", section=section, verbose=True)
     internet = get_answer("Internet Provider", section, verbose = True)
 
+    if not city or not zip_code:
+        st.warning("⚠️ Missing City or ZIP Code. Cannot query providers.")
+        return {}
+
     # Normalize "⚠️ Not provided"
-    if internet.strip().lower() in ["", "⚠️ not provided", "n/a"]:
+    if internet and internet.strip().lower() in ["", "⚠️ not provided", "n/a"]:
         internet = ""  # Let LLM fill it in
 
     if st.session_state.get("enable_debug_mode"):
@@ -117,9 +128,10 @@ def query_utility_providers(section: str, test_mode: bool = False) -> dict:
 
     # Build and send the prompt
     prompt = utility_provider_lookup_prompt(city, zip_code,internet)
+    wrapped_prompt = wrap_with_claude_style_formatting(prompt)
 
     try:
-        content = call_openrouter_chat(prompt)
+        content = get_or_generate_llm_output(prompt, generate_fn=lambda: call_openrouter_chat(wrapped_prompt))
         if not content:
             st.warning("⚠️ No content returned from LLM.")
             return {}
@@ -160,23 +172,6 @@ def register_provider_input(label: str, value: str, section: str):
     }
     st.session_state.setdefault("task_inputs", []).append(task_row)
 
-def extract_and_log_providers(content: str, section: str) -> dict:
-    """
-    Extracts provider names and logs them using structured metadata.
-    """
-    providers = extract_providers_from_text(content)
-
-    register_provider_input("Electricity", providers["electricity"], section=section)
-    register_provider_input("Natural Gas", providers["natural_gas"], section=section)
-    register_provider_input("Water", providers["water"], section=section)
-
-    # Store for retrieval
-    st.session_state["utility_providers"] = providers
-    for key, val in providers.items():
-        st.session_state[f"{key}_provider"] = val
-
-    return providers
-
 def get_corrected_providers(results: dict) -> dict:
         updated = {}
         label_to_key = {
@@ -204,12 +199,20 @@ def get_corrected_providers(results: dict) -> dict:
 def fetch_utility_providers(section: str):
     results = query_utility_providers(section=section)
     st.session_state["utility_providers"] = results
+
+    # ✅ Save individual providers into session_state for easier access downstream
+    st.session_state["electricity_provider"] = results.get("electricity", "")
+    st.session_state["natural_gas_provider"] = results.get("natural_gas", "")
+    st.session_state["water_provider"] = results.get("water", "")
+    st.session_state["internet_provider"] = results.get("internet", "")
+
     if st.session_state.get("enable_debug_mode"):
         st.markdown("### 🧪 Debug: query_utility_providers")
         st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
         st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
         st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
         st.write("💧 Water:", st.session_state.get("water_provider"))
+        st.write("🌐 Internet:", st.session_state.get("internet_provider"))
         st.write("🤖 Using Model:", st.session_state.get("llm_model", "claude-3-haiku"))
     return results
 
@@ -225,8 +228,8 @@ def update_session_state_with_providers(updated):
             st.write("💧 Water:", st.session_state.get("water_provider"))
 
 # --- Main Function Start ---
-def home():
-    section = "home"
+def utilities():
+    section = "utilities"
     generate_key = f"generate_runbook_{section}"  # Define it early
 
     #st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")

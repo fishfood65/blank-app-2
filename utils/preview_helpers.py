@@ -16,7 +16,7 @@ def get_active_section_label(section_key: str) -> str:
     return SECTION_METADATA.get(section_key, {}).get("label", section_key)
 
 
-def display_enriched_task_preview(combined_df: pd.DataFrame, section: str = "home"):
+def display_enriched_task_preview(combined_df: pd.DataFrame, section: str = "utilities"):
     """
     Show enriched & scheduled tasks grouped by (question, answer, clean_task),
     with inline edit buttons for each.
@@ -53,12 +53,7 @@ def display_enriched_task_preview(combined_df: pd.DataFrame, section: str = "hom
             edit_button_redirect(row=group_df.iloc[0], i=i, page_map=page_map, _rendered_keys=_rendered_keys)
 
 
-def sanitize_key(text: str) -> str:
-    """Removes emojis/special chars and spaces for use as a Streamlit key."""
-    return re.sub(r'[^a-zA-Z0-9_]', '', text.replace(" ", "_"))
-
-
-def edit_button_redirect(row, _rendered_keys, i=None, page_map=None, fallback_section: str = "home"):
+def edit_button_redirect(row, _rendered_keys, i=None, page_map=None, fallback_section: str = "utilities"):
     """
     Displays a row-level edit button. Sets session_state['current_page'] on click.
 
@@ -104,7 +99,7 @@ def edit_button_redirect(row, _rendered_keys, i=None, page_map=None, fallback_se
         PAGE_MAP.get(section) or
         PAGE_MAP.get(task_type) or
         PAGE_MAP.get(fallback_section) or
-        "01_Home.py"
+        "01_Utilities.py"
     )
 
     if st.button(f"✏️ Edit '{label}'", key=button_key):
@@ -137,3 +132,28 @@ def normalize_for_map(text):
     text = re.sub(r'\(.*?\)', '', text)  # remove parentheses and contents
     text = re.sub(r'[^a-z0-9_]+', '_', text)  # replace non-alphanumeric with underscore
     return text.strip('_')  # remove leading/trailing underscores
+
+def render_provider_contacts(section: str = "utilities"):
+    """
+    Renders a visual contact card layout for each utility provider in session state.
+    """
+
+    providers = st.session_state.get("utility_providers", {})
+    if not providers:
+        st.info("No utility provider metadata found.")
+        return
+
+    st.markdown("## 🔌 Utility Provider Contact Info")
+
+    for utility_key, info in providers.items():
+        name = info.get("name", "").strip()
+        if not name:
+            continue
+
+        st.markdown(f"### 🛠️ {utility_key.replace('_', ' ').title()}: {name}")
+
+        with st.expander(f"📇 View {name} Contact Info", expanded=False):
+            st.markdown(f"**📄 Description:** {info.get('description', '—')}")
+            st.markdown(f"**📞 Phone:** {info.get('contact_phone', '—')}")
+            st.markdown(f"**🌐 Website:** {info.get('contact_website', '—')}")
+            st.markdown(f"**🚨 Emergency Steps:** {info.get('emergency_steps', '—')}")

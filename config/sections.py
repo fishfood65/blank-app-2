@@ -1,13 +1,13 @@
 
 SECTION_METADATA: dict[str, dict] = {
-    "home": {
-        "label": "🏠 Home Setup",
-        "icon": "🏠",
+    "utilities": {
+        "label": "🔌 Utilities Setup",
+        "icon": "🔌",
         "level": 1,
         "visible": True,
         "enabled": True,
         "requires_llm": True,
-        "progress_key": "home",
+        "progress_key": "utilites",
     },
     "emergency_kit": {
         "label": "🧰 Emergency Kit",

@@ -20,7 +20,6 @@ from utils.data_helpers import (
     get_filtered_dates,
     select_runbook_date_range,
     register_task_input,
-    extract_providers_from_text,
     check_missing_utility_inputs
 )
 from utils.runbook_generator_helpers import (

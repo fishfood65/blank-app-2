@@ -40,7 +40,7 @@ if st.session_state.get("enable_debug_mode"):
     
     api_key_present = bool(os.getenv("OPENROUTER_TOKEN"))
     referer_value = os.getenv("OPENROUTER_REFERER", "❌ Not set")
-    model_name = "anthropic/claude-3-haiku"  # Or make this dynamic if needed
+    model_name = "openai/gpt-4o:online"  # Or make this dynamic if needed
 
     st.write("🔑 **API Key Loaded:**", "✅ Yes" if api_key_present else "❌ No")
     st.write("🌐 **Referer Header:**", referer_value)
