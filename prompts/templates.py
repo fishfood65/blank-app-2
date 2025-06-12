@@ -263,28 +263,76 @@ Please retrieve:
 
     return body
 
-def utility_provider_lookup_prompt(city: str, zip_code: str) -> str:
+def utility_provider_lookup_prompt(city: str, zip_code: str, internet: str = "") -> str:
     return f"""
 You are a reliable assistant helping users prepare emergency documentation.
 
 Given the following location:
 - City: {city}
-- ZIP Code: {zip_code}
+- ZIP Code: {zip_code}"""
 
-Please list the **primary public utility providers** for:
+    if internet:
+        prompt += f"\n- Internet Provider: {internet} (provided by user — please confirm if correct)"
+    else:
+        prompt += "\n- Internet Provider: (not provided)"
+
+    prompt += """
+
+Please identify the **primary public utility providers** for:
 
 1. Electricity  
 2. Natural Gas  
-3. Water  
+3. Water"""
+    
+    if not internet:
+        prompt += "\n4. Internet (if known)"
 
-For each, return only the company name, clearly labeled.
+    prompt += """
 
-Format your response exactly like this:
+For each provider, return the following:
 
-Electricity Provider: <company name>  
-Natural Gas Provider: <company name>  
-Water Provider: <company name>
-""".strip()
+- **Company Name**
+- **Brief Company Description**
+- **Customer Contact Info (phone and web)**
+- **Emergency Response Instructions** (e.g., power outage, gas leak, water main break)
+
+Format clearly in labeled sections like:
+
+---
+
+## ⚡ Electricity – <Company Name>  
+**Description:** <short description>  
+**Contact Info:**  
+- **Phone:** <phone number>  
+- **Website:** <website URL> 
+**Emergency Steps:** <brief instructions>
+
+---
+
+## 🔥 Natural Gas – <Company Name>
+**Description:** <short description>  
+**Contact Info:**  
+- **Phone:** <phone number>  
+- **Website:** <website URL> 
+**Emergency Steps:** <brief instructions>
+
+---
+
+## 💧 Water – <Company Name>
+**Description:** <short description>  
+**Contact Info:**  
+- **Phone:** <phone number>  
+- **Website:** <website URL> 
+**Emergency Steps:** <brief instructions>  
+---
+
+## 🌐 Internet – """ + (f"{internet}" if internet else "<Company Name>") + """  
+**Description:** <short description>  
+**Contact Info:** <phone or URL>  
+**Outage/Support Instructions:** <brief steps>
+"""
+    return prompt.strip()
+
 
 def utility_prompt(city: str, zip_code: str, internet: str, electricity: str, gas: str, water: str) -> str:
     return f"""

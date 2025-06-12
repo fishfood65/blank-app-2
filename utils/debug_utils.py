@@ -57,6 +57,7 @@ def debug_task_input_capture_with_answers_tabs(section: str):
         "📦 Raw _schedule_df Snapshots",
         "🔍 Merge Debug Tools",
         "🔗 Task vs Schedule Trace"
+        "🧠 LLM Cache Viewer"
         ])
 
     with tabs[0]:
@@ -255,6 +256,41 @@ def debug_task_input_capture_with_answers_tabs(section: str):
             k: v for k, v in st.session_state.items()
             if k.endswith("_schedule_df") and isinstance(v, pd.DataFrame)
         }
+    with tabs [10]: # 🧠 LLM Cache Viewer"
+        st.subheader("🧠 LLM Cache Files")
+        cache_dir = Path("llm_cache")
+        cache_dir.mkdir(exist_ok=True)
+
+        cache_records = []
+        for f in cache_dir.glob("*.json"):
+            try:
+                with open(f, "r") as file:
+                    data = json.load(file)
+                    cache_records.append({
+                        "Hash (File)": f.stem,
+                        "Model": data.get("model", "unknown"),
+                        "Timestamp": data.get("timestamp", "unknown"),
+                        "Prompt Preview": data.get("prompt", "")[:80] + "..." if "prompt" in data else "",
+                    })
+            except Exception as e:
+                cache_records.append({
+                    "Hash (File)": f.stem,
+                    "Model": "❌ Error reading file",
+                    "Timestamp": "N/A",
+                    "Prompt Preview": str(e)
+                })
+
+        if cache_records:
+            df = pd.DataFrame(cache_records)
+            st.dataframe(df)
+            st.download_button(
+                "📥 Download LLM Cache Summary",
+                data=df.to_csv(index=False),
+                file_name="llm_cache_summary.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("🗃️ No cache files found yet in `llm_cache/`.")
 
         # Combine all scheduled rows
         if schedule_dfs:
@@ -349,36 +385,22 @@ def debug_single_get_answer(section: str, key: str):
 
     st.error(f"❌ No label match for key `{sanitized_key}` in section `{section}`.")
 
+def clear_llm_cache():
+    cache_dir = Path("llm_cache")
+    if cache_dir.exists():
+        for f in cache_dir.glob("*.json"):
+            f.unlink()
+        st.success("🧼 LLM cache cleared.")
 
-def clear_all_session_data():
+def reset_all_session_state():
     """
     Clears all Streamlit session state data, including input_data, task_inputs,
-    and any dynamically stored keys. Use this to reset the app state completely.
+    and any dynamically stored keys.
     """
-    known_keys_to_clear = [
-        "input_data",
-        "task_inputs",
-        "combined_home_schedule_df",
-        "mail_schedule_df",
-        "trash_schedule_df",
-        "homeowner_kit_stock",
-        "not_selected_items",
-        "utility_providers",
-        "generated_prompt",
-        "runbook_text",
-        "runbook_buffer",
-        "user_confirmation",
-        "runbook_date_range",
-        # Add any additional known keys here
-    ]
-
-    # Clear all known keys explicitly
-    for key in known_keys_to_clear:
-        st.session_state.pop(key, None)
-
-    # Clear any remaining keys dynamically
     for key in list(st.session_state.keys()):
-        st.session_state.pop(key, None)
+        del st.session_state[key]
+    st.success("🔄 Session state cleared.")
+    st.rerun()
 
     st.success("🧹 All session state has been cleared.")
 

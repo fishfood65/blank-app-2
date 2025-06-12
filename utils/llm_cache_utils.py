@@ -23,6 +23,12 @@ def hash_block_content(block: str) -> str:
     return hashlib.sha256(block.encode("utf-8")).hexdigest()
 
 def get_or_generate_llm_output(prompt: str, generate_fn: Callable = None) -> str:
+    """
+    Retrieves a cached LLM output for the given prompt if available,
+    otherwise calls the provided function (or call_openrouter_chat) and caches the result.
+
+    Adds model name, timestamp, and debug indicators to the cache file.
+    """
     cache_dir = Path("llm_cache")
     cache_dir.mkdir(exist_ok=True)
     hash_key = hash_block_content(prompt)
@@ -31,16 +37,31 @@ def get_or_generate_llm_output(prompt: str, generate_fn: Callable = None) -> str
     if cache_file.exists():
         with open(cache_file, "r") as f:
             data = json.load(f)
+            if st.session_state.get("enable_debug_mode"):
+                st.markdown("### 🧠 Cached LLM Response Used")
+                st.write(f"📄 Cache File: `{cache_file.name}`")
+                st.json({"model": data.get("model", "unknown"), "timestamp": data.get("timestamp", "unknown")})
             return data.get("output", "")
 
-    # If no generate_fn passed, use default
+    # If no custom function provided, fall back to default OpenRouter call
     if generate_fn is None:
         generate_fn = lambda: call_openrouter_chat(prompt)
 
     output = generate_fn()
 
     if output:
+        metadata = {
+            "prompt": prompt,
+            "output": output,
+            "model": st.session_state.get("llm_model", "unknown"),
+            "timestamp": datetime.utcnow().isoformat()
+        }
         with open(cache_file, "w") as f:
-            json.dump({"prompt": prompt, "output": output}, f)
+            json.dump(metadata, f, indent=2)
+
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown("### 🧠 New LLM Response Cached")
+            st.write(f"📄 Cache File: `{cache_file.name}`")
+            st.json({"model": metadata["model"], "timestamp": metadata["timestamp"]})
 
     return output

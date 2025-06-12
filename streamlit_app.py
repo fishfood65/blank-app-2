@@ -1,5 +1,5 @@
 import streamlit as st
-from utils.debug_utils import debug_all_sections_input_capture_with_summary
+from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_llm_cache, reset_all_session_state
 import os
 
 # ------------------------------------------------------------------
@@ -27,6 +27,10 @@ with st.sidebar.expander("⚙️ Developer Options", expanded=False):
     st.checkbox("🐞 Enable Debug Mode", key="enable_debug_mode", value=False)
     st.checkbox("📆 Show Schedule Snapshot in Preview", key="show_schedule_snapshot", value=False)
     st.selectbox("🤖 LLM Model", ["anthropic/claude-3-haiku", "openai/gpt-3.5-turbo", "mistralai/mistral-7b-instruct"], key="llm_model")
+    if st.button("🧹 Clear LLM Cache"):
+        clear_llm_cache()
+    if st.button("🔄 Reset All App State"):
+        reset_all_session_state()
 
 # ✅ Then the debug check happens — safely reads the key
 if st.session_state.get("enable_debug_mode"):

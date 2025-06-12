@@ -19,7 +19,7 @@ from utils.data_helpers import (
     check_missing_utility_inputs
 )
 from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
-from utils.debug_utils import debug_all_sections_input_capture_with_summary, clear_all_session_data
+from utils.debug_utils import debug_all_sections_input_capture_with_summary, reset_all_session_state
 from prompts.templates import utility_provider_lookup_prompt
 from utils.common_helpers import get_schedule_placeholder_mapping
 from utils.llm_cache_utils import get_or_generate_llm_output
@@ -95,20 +95,28 @@ def query_utility_providers(section: str, test_mode: bool = False) -> dict:
     """
     city = get_answer(key="City", section=section, verbose=True)
     zip_code = get_answer(key="ZIP Code", section=section, verbose=True)
+    internet = get_answer("Internet Provider", section, verbose = True)
+
+    # Normalize "⚠️ Not provided"
+    if internet.strip().lower() in ["", "⚠️ not provided", "n/a"]:
+        internet = ""  # Let LLM fill it in
 
     if st.session_state.get("enable_debug_mode"):
         st.markdown("### 🧪 Debug: Utility Query Inputs fetching from get_answer(), data saved by register_task")
         st.write("📍 City:", city)
         st.write("📮 ZIP Code:", zip_code)
+        st.write("🌐 Internet Provider:", internet)
 
     if test_mode:
         return {
             "electricity": "Austin Energy",
             "natural_gas": "Atmos Energy",
-            "water": "Austin Water"
+            "water": "Austin Water",
+            "internet": "Comcast"
         }
 
-    prompt = utility_provider_lookup_prompt(city, zip_code)
+    # Build and send the prompt
+    prompt = utility_provider_lookup_prompt(city, zip_code,internet)
 
     try:
         content = call_openrouter_chat(prompt)
@@ -223,9 +231,6 @@ def home():
 
     #st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")
     #switch_section(section)
-
-    if st.button("🧼 Reset All Data"):
-        clear_all_session_data()
 
     st.subheader("Let's gather some information. Please enter your details:")
    

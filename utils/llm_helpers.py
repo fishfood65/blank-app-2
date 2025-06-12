@@ -44,14 +44,21 @@ def call_openrouter_chat(prompt: str) -> str:
             "https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=20
+            timeout=timeout
         )
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
+
+    except requests.Timeout:
+        st.error(f"❌ OpenRouter request timed out after {timeout} seconds.")
+        return None
+    
     except requests.exceptions.RequestException as e:
         st.error(f"❌ OpenRouter API error: {e}")
-        if response is not None and response.content:
-            st.markdown("### 📩 Response Content (Raw)")
-            st.code(response.content.decode(), language="json")
+        if hasattr(e, "response") and e.response is not None:
+            try:
+                st.code(e.response.text, language="json")
+            except:
+                pass
         return None
 
