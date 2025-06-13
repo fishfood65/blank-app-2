@@ -249,7 +249,9 @@ For each provider, return the following:
 - **Company Name**
 - **Brief Company Description**
 - **Customer Contact Info (phone, web, email, and address)**
-- **Emergency Response Instructions** (e.g., power outage, gas leak, water main break)
+- **Emergency Response Instructions** - - **Emergency Steps** – If known, include clear response instructions (e.g., what to do during a power outage or gas leak) or water main break or internet outage.  If provider is known (e.g., PG&E), check their official site for accurate safety steps.
+  If not known, say: ⚠️ Emergency steps not available.
+
 
 Format clearly in labeled sections like:
 

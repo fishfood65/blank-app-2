@@ -168,7 +168,7 @@ def register_provider_input(label: str, value: str, section: str):
     }
     st.session_state.setdefault("task_inputs", []).append(task_row)
 
-def get_corrected_providers(results: dict) -> dict:
+def get_corrected_providers(results: dict, section: str) -> dict:
     """
     Allow user to review and optionally correct provider name, phone, email, address.
     Emergency Steps are view-only.
@@ -218,7 +218,7 @@ def get_corrected_providers(results: dict) -> dict:
 
             # ✅ Update session state for each corrected field
             if correct_name:
-                register_provider_input(label, name_input)
+                register_provider_input(label, name_input, section)
                 st.session_state[f"{key}_provider"] = name_input
 
     return updated
@@ -307,7 +307,7 @@ def utilities():
             "water": "",
             "internet": ""
         })
-        updated = get_corrected_providers(current_results)
+        updated = get_corrected_providers(current_results, section=section)
         
         # ✅ Save temp corrections to session state
         st.session_state["corrected_utility_providers"] = updated

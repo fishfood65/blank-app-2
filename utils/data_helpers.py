@@ -760,7 +760,7 @@ def extract_and_log_providers(content: str, section: str) -> dict:
     """
 
     def extract_block(keyword: str) -> str:
-        pattern = rf"## .*{keyword}.*?---"
+        pattern = rf"## .*{keyword}.*?(?=## |\Z)"
         match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
         return match.group(0).strip(" -") if match else ""
 
@@ -771,7 +771,7 @@ def extract_and_log_providers(content: str, section: str) -> dict:
         website = re.search(r"\*\*Website:\*\* (.*)", block)
         email = re.search(r"\*\*Email:\*\* (.*)", block)
         address = re.search(r"\*\*Address:\*\* (.*)", block)
-        emergency = re.search(r"\*\*Emergency Steps:\*\* (.*)", block)
+        emergency = re.search(r"\*\*Emergency Steps:\*\*(.*?)(\n\n|^## |\Z)", block, re.DOTALL)
 
         return {
             "name": name_match.group(1).strip() if name_match else "",
@@ -794,6 +794,11 @@ def extract_and_log_providers(content: str, section: str) -> dict:
 
     for key, label in utility_keywords.items():
         block = extract_block(label)
+
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown(f"### 🧪 Debug Block for `{label}`")
+            st.code(block or "⚠️ No block found", language="markdown")
+
         parsed = parse_block(block)
         structured_results[key] = parsed
 
