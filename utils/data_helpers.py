@@ -769,29 +769,29 @@ def clean_md_artifacts(text: str) -> str:
 # ✅ Recommended unified parser
 def parse_utility_block(block: str) -> dict:
     """
-    Extracts structured fields from a markdown-formatted utility provider block.
+    Extracts structured fields from a markdown-formatted utility provider block,
+    with markdown artifacts removed for all values.
     """
-    name_match = re.search(r"## [^\–\-]+[\–\-]\s*(.*)", block)
-    description = re.search(r"\*\*Description:\*\* (.*)", block)
-    phone = re.search(r"\*\*Phone:\*\* (.*)", block)
-    website = re.search(r"\*\*Website:\*\* (.*)", block)
-    email = re.search(r"\*\*Email:\*\* (.*)", block)
-    address = re.search(r"\*\*Address:\*\* (.*)", block)
-    emergency = re.search(r"\*\*Emergency Steps:\*\*\s*((?:.|\n)*?)(?=\n## |\Z)", block, re.DOTALL)
+    def extract_and_clean(pattern: str, multiline: bool = False) -> str:
+        flags = re.DOTALL if multiline else 0
+        match = re.search(pattern, block, flags)
+        return clean_md_artifacts(match.group(1).strip()) if match else ""
 
     return {
-        "name": clean_md_artifacts(name_match.group(1)) if name_match else "",
-        "description": description.group(1).strip() if description else "",
-        "contact_phone": phone.group(1).strip() if phone else "",
-        "contact_website": website.group(1).strip() if website else "",
-        "contact_email": email.group(1).strip() if email else "",
-        "contact_address": address.group(1).strip() if address else "",
-        "emergency_steps": emergency.group(1).strip() if emergency else "⚠️ Emergency steps not provided.",
+        "name": extract_and_clean(r"## [^\–\-]+[\–\-]\s*(.*)"),
+        "description": extract_and_clean(r"\*\*Description:\*\* (.*)"),
+        "contact_phone": extract_and_clean(r"\*\*Phone:\*\* (.*)"),
+        "contact_website": extract_and_clean(r"\*\*Website:\*\* (.*)"),
+        "contact_email": extract_and_clean(r"\*\*Email:\*\* (.*)"),
+        "contact_address": extract_and_clean(r"\*\*Address:\*\* (.*)"),
+        "emergency_steps": extract_and_clean(
+            r"\*\*Emergency Steps:\*\*\s*((?:.|\n)*?)(?=\n## |\Z)", multiline=True
+        ) or "⚠️ Emergency steps not provided."
     }
 
 def extract_provider_blocks(content: str) -> dict:
     """
-    Extracts raw markdown blocks for each utility type.
+    Extracts raw markdown blocks for each utility type using more precise headings.
     """
     utility_keywords = {
         "electricity": "Electricity",
@@ -802,11 +802,16 @@ def extract_provider_blocks(content: str) -> dict:
 
     blocks = {}
     for key, label in utility_keywords.items():
-        pattern = rf"## .*{label}.*?(?=## |\Z)"
+        # 🔧 More precise heading capture using non-greedy + stop-at-next-heading
+        pattern = rf"## [^\n]*{re.escape(label)}[^\n]*\n(.*?)(?=\n## |\Z)"
         match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
-        blocks[key] = match.group(0).strip(" -") if match else ""
+        if match:
+            blocks[key] = f"## {label} – " + match.group(0).strip()
+        else:
+            blocks[key] = ""
 
     return blocks
+
 
 def extract_and_log_providers(content: str, section: str) -> dict:
     """
@@ -823,8 +828,8 @@ def extract_and_log_providers(content: str, section: str) -> dict:
             continue  # Skip if block is empty or not returned
 
         if st.session_state.get("enable_debug_mode"):
-            st.markdown(f"### 🧪 Debug Block for `{label}`")
-            st.code(block, language="markdown")
+            st.markdown(f"### 🔎 Extracted Block for `{label}`")
+            st.code(block if block.strip() else "⚠️ No block found", language="markdown")
 
         parsed = parse_utility_block(block)
         structured_results[key] = parsed

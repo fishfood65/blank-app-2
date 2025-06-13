@@ -1,5 +1,6 @@
 ### Leve 1 - Home
 #from utils.prompt_block_utils import generate_all_prompt_blocks
+from typing import Optional
 import streamlit as st
 import re
 import io
@@ -10,22 +11,28 @@ from datetime import datetime, timedelta
 import re
 import time
 import io
+import hashlib
 import uuid
 import json
 from utils.preview_helpers import get_active_section_label
 from utils.data_helpers import (
     register_task_input, 
     get_answer, 
-    extract_and_log_providers
+    extract_and_log_providers,
+    parse_utility_block,
+    register_input_only
 )
 #from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, reset_all_session_state
-from prompts.templates import utility_provider_lookup_prompt, wrap_with_claude_style_formatting
+from prompts.templates import generate_single_provider_prompt, wrap_with_claude_style_formatting
 from utils.common_helpers import get_schedule_placeholder_mapping
 from utils.llm_cache_utils import get_or_generate_llm_output
 from utils.llm_helpers import call_openrouter_chat
 from utils.preview_helpers import render_provider_contacts
 from utils.docx_helpers import export_provider_docx, format_provider_markdown, render_runbook_section_output
+
+CACHE_DIR = "provider_cache"
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 # --- Generate the AI prompt ---
 # Load from environment (default) or user input
@@ -123,7 +130,7 @@ def query_utility_providers(section: str, test_mode: bool = False) -> dict:
         }
 
     # Build and send the prompt
-    prompt = utility_provider_lookup_prompt(city, zip_code,internet)
+    prompt = generate_single_provider_prompt(city, zip_code,internet)
     wrapped_prompt = wrap_with_claude_style_formatting(prompt)
 
     try:
@@ -168,6 +175,49 @@ def register_provider_input(label: str, value: str, section: str):
     }
     st.session_state.setdefault("task_inputs", []).append(task_row)
 
+def render_provider_correction_and_refresh(section: str = "utilities"):
+    """
+    Full controller: show correction forms, detect refresh flags,
+    re-fetch updated providers, and store results.
+    """
+
+    # Step 1: Ensure force_refresh_map exists
+    if "force_refresh_map" not in st.session_state:
+        st.session_state["force_refresh_map"] = {
+            "electricity": False,
+            "natural_gas": False,
+            "water": False,
+            "internet": False,
+        }
+
+    # Step 2: Get user corrections and refresh toggles
+    current_results = st.session_state.get("utility_providers", {})
+    updated = get_corrected_providers(current_results, section=section)
+
+    # Step 3: Show which providers are queued for refresh
+    force_refresh_map = st.session_state["force_refresh_map"]
+    queued = [k for k, v in force_refresh_map.items() if v]
+
+    if queued:
+        st.markdown("### 🔄 Queued for Refresh:")
+        st.write(", ".join(label.replace("_", " ").title() for label in queued))
+
+        # Optional: Confirm or auto-trigger fetch
+        if st.button("♻️ Refresh Queued Providers Now"):
+            # Step 4: Call LLM again for just the flagged providers
+            refreshed = fetch_utility_providers(section=section, force_refresh_map=force_refresh_map)
+
+            # Step 5: Overwrite stale entries with new data
+            for utility in queued:
+                updated[utility] = refreshed.get(utility, updated.get(utility, {}))
+                force_refresh_map[utility] = False  # Reset flag
+
+            st.success("✅ Refreshed successfully.")
+
+    # Step 6: Save corrected results
+    st.session_state["corrected_utility_providers"] = updated
+
+
 def get_corrected_providers(results: dict, section: str) -> dict:
     """
     Allow user to review and optionally correct provider name, phone, email, address.
@@ -206,6 +256,14 @@ def get_corrected_providers(results: dict, section: str) -> dict:
 
             st.markdown(f"🚨 **Emergency Steps (Read-Only):**  \n{emergency or '—'}")
 
+            # ✅ Refresh Button
+            refresh_clicked = st.button(f"🔁 Refresh {label}", key=f"refresh_{key}")
+            if refresh_clicked:
+                if "force_refresh_map" not in st.session_state:
+                    st.session_state["force_refresh_map"] = {}
+                st.session_state["force_refresh_map"][key] = True
+                st.success(f"{label} provider will be re-queried.")
+
             updated[key] = {
                 "name": name_input if correct_name else name,
                 "contact_phone": phone_input if correct_phone else phone,
@@ -223,15 +281,112 @@ def get_corrected_providers(results: dict, section: str) -> dict:
 
     return updated
 
-def fetch_utility_providers(section: str):
-    results = query_utility_providers(section=section)
-    st.session_state["utility_providers"] = results
+def get_provider_cache_path(utility: str, city: str, zip_code: str) -> str:
+    key = f"{utility}_{city.lower().strip()}_{zip_code}"
+    hashed = hashlib.sha256(key.encode()).hexdigest()
+    return os.path.join(CACHE_DIR, f"{utility}_{hashed}.json")
 
-    # ✅ Save individual providers into session_state for easier access downstream
-    st.session_state["electricity_provider"] = results.get("electricity", "")
-    st.session_state["natural_gas_provider"] = results.get("natural_gas", "")
-    st.session_state["water_provider"] = results.get("water", "")
-    st.session_state["internet_provider"] = results.get("internet", "")
+def load_provider_from_cache(utility: str, city: str, zip_code: str) -> str:
+    path = get_provider_cache_path(utility, city, zip_code)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    return ""
+
+def save_provider_to_cache(utility: str, city: str, zip_code: str, content: str):
+    path = get_provider_cache_path(utility, city, zip_code)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = None):
+    """
+    Queries the LLM one utility at a time and stores structured results in session_state.
+    Caches responses to avoid unnecessary re-queries.
+    """
+    if force_refresh_map is None:
+        force_refresh_map = {}
+
+    city = get_answer(key="City", section=section, verbose=True)
+    zip_code = get_answer(key="ZIP Code", section=section, verbose=True)
+    internet_input = get_answer(key="Internet Provider", section=section, verbose=True)
+
+    utilities = ["electricity", "natural_gas", "water", "internet"]
+    results = {}
+
+    for utility in utilities:
+        label = utility.replace("_", " ").title()
+        force_refresh = force_refresh_map.get(utility, False)
+
+        query_id = f"{utility}|{city}|{zip_code}|{internet_input}"
+        query_hash = hashlib.sha256(query_id.encode()).hexdigest()
+        session_cache_key = f"cached_llm_response_{utility}_{query_hash}"
+
+        raw_response = ""  # ✅ Initialize
+
+        # ✅ Try disk cache first
+        if not force_refresh:
+            raw_response = load_provider_from_cache(utility, city, zip_code)
+            if raw_response and st.session_state.get("enable_debug_mode"):
+                st.info(f"📁 Using disk cache for `{label}`")
+
+        # ✅ If not on disk, check session
+        if not raw_response and session_cache_key in st.session_state:
+            raw_response = st.session_state[session_cache_key]
+            if st.session_state.get("enable_debug_mode"):
+                st.info(f"♻️ Using session cache for `{utility}`")
+
+        # ✅ If no cache, call LLM
+        if not raw_response:
+            prompt = generate_single_provider_prompt(utility, city, zip_code, internet_input)
+
+            if st.session_state.get("enable_debug_mode"):
+                st.markdown(f"### ⚙️ Calling LLM for `{label}`")
+                st.code(prompt)
+
+            try:
+                with st.spinner(f"🔍 Looking up {label} provider..."):
+                    raw_response = call_openrouter_chat(prompt)
+                    # Cache to session and disk
+                    st.session_state[session_cache_key] = raw_response
+                    save_provider_to_cache(utility, city, zip_code, raw_response)
+            except Exception as e:
+                st.error(f"❌ Error querying {label}: {e}")
+                raw_response = ""
+
+        # Parse + log
+        parsed = parse_utility_block(raw_response)
+        results[utility] = parsed
+
+        # Debug output
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown(f"#### 🧾 Raw Response: {label}")
+            st.code(raw_response)
+            st.markdown(f"#### 📦 Parsed Fields: {label}")
+            st.json(parsed)
+
+        # ✅ Register inputs
+        name = parsed.get("name", "").strip()
+        if name:
+            st.session_state[f"{utility}_provider"] = name
+            register_input_only(f"{label} Provider", name, section=section)
+
+            prefix = f"{label} ({name})"
+            register_input_only(f"{prefix} Description", parsed.get("description", ""), section=section)
+            register_input_only(f"{prefix} Contact Phone", parsed.get("contact_phone", ""), section=section)
+            register_input_only(f"{prefix} Contact Website", parsed.get("contact_website", ""), section=section)
+            register_input_only(f"{prefix} Contact Email", parsed.get("contact_email", ""), section=section)
+            register_input_only(f"{prefix} Contact Address", parsed.get("contact_address", ""), section=section)
+            register_input_only(f"{prefix} Emergency Steps", parsed.get("emergency_steps", ""), section=section)
+
+    # ✅ Store results to session
+    st.session_state["utility_providers"] = results
+    st.session_state["utility_provider_metadata"] = results
+
+    # ✅ Auto-reset force_refresh_map so it doesn't persist across calls
+    if "force_refresh_map" in st.session_state:
+        for utility in utilities:
+            st.session_state["force_refresh_map"][utility] = False
+
     return results
 
 def update_session_state_with_providers(updated):
@@ -269,7 +424,8 @@ def utilities():
 
     if st.button("Find My Utility Providers"):
         with st.spinner("Querying providers from OpenRouter..."):
-            fetch_utility_providers(section=section)
+            force_refresh_map = st.session_state.get("force_refresh_map", {})
+            fetch_utility_providers(section=section, force_refresh_map=force_refresh_map)
             st.session_state["show_provider_corrections"] = True
             st.success("Providers stored in session state!")
   
@@ -296,21 +452,10 @@ def utilities():
 # Step 3: Display resulting LLM retrieved Utility Providers
     if st.session_state.get("show_provider_corrections"):
         st.markdown("### 📇 Retrieved Utility Providers")
-        
         # 🧱 Visual contact display (read-only)
         render_provider_contacts(section=section)
-
-        # ✍️ Correction form
-        current_results = st.session_state.get("utility_providers", {
-            "electricity": "",
-            "natural_gas": "",
-            "water": "",
-            "internet": ""
-        })
-        updated = get_corrected_providers(current_results, section=section)
-        
-        # ✅ Save temp corrections to session state
-        st.session_state["corrected_utility_providers"] = updated
+        # ✅ Step 2: Allow corrections + refresh
+        render_provider_correction_and_refresh(section=section)
 
 # Step 4: Save Utility Providers (with validation)
         if st.button("✅ Confirm All Utility Info"):
@@ -330,7 +475,8 @@ def utilities():
                 for utility, fields in missing_fields.items():
                     st.markdown(f"- **{utility.title()}**: missing {', '.join(fields)}")
             else:
-                st.session_state["confirmed_utility_providers"] = updated
+                corrected = st.session_state.get("corrected_utility_providers", {})
+                st.session_state["confirmed_utility_providers"] = corrected
                 st.session_state["utility_info_locked"] = True
                 st.success("🔒 Utility provider info confirmed and saved.")
 
@@ -359,7 +505,8 @@ def utilities():
                             markdown_str=markdown,
                             docx_bytes_io=docx_bytes,
                             title="Utility Providers",
-                            filename_prefix="utility_providers"
+                            filename_prefix="utility_providers",
+                            expand_preview=False #Optional: set True open by default
                         )
 
 

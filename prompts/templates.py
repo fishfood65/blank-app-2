@@ -218,6 +218,58 @@ Now continue with the user's instruction below.
 {user_prompt.strip()}
 """.strip()
 
+def generate_single_provider_prompt(
+    utility: str,
+    city: str,
+    zip_code: str,
+    internet: str = ""
+) -> str:
+    """
+    Generates a markdown-formatted prompt for one specific utility type.
+    """
+    utility_labels = {
+        "electricity": "⚡ Electricity",
+        "natural_gas": "🔥 Natural Gas",
+        "water": "💧 Water",
+        "internet": "🌐 Internet"
+    }
+
+    label = utility_labels.get(utility, utility.title())
+    internet_note = f"Internet Provider (user provided): {internet}" if utility == "internet" and internet else ""
+
+    heading = f"You are a reliable assistant generating emergency utility documentation for a household in:\n- City: {city}\n- ZIP Code: {zip_code}"
+    if internet_note:
+        heading += f"\n- {internet_note}"
+
+    step_request = """
+Please identify the **main {label} provider** for this location and return the following:
+
+- **Company Name**
+- **Brief Description**
+- **Contact Info (Phone, Website, Email, and Address)**
+- **Emergency Steps**: Provide **exactly five** clear, actionable safety steps in markdown bullet format.
+""".strip().format(label=label)
+
+    markdown_format = f"""
+Use this markdown format:
+
+## {label} – <Company Name>
+**Description:** <short description>  
+**Contact Info:**  
+- **Phone:** <phone number>  
+- **Website:** <URL>  
+- **Email:** <email address>  
+- **Address:** <street address, city, state, zip code>  
+**Emergency Steps:**  
+- Step 1  
+- Step 2  
+- Step 3  
+- Step 4  
+- Step 5
+""".strip()
+
+    return f"{heading}\n\n{step_request}\n\n{markdown_format}"
+
 def utility_provider_lookup_prompt(city: str, zip_code: str, internet: str = "") -> str:
     prompt = f"""
 You are a reliable assistant helping users prepare emergency documentation.
