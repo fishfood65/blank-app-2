@@ -12,7 +12,7 @@ from utils.task_schedule_utils_updated import extract_and_schedule_all_tasks, ex
 from utils.debug_scheduler_input import debug_schedule_task_input
 from utils.preview_helpers import display_enriched_task_preview
 from verify_blocks import is_content_meaningful
-from utils.preview_helpers import render_provider_contacts
+from utils.preview_helpers import debug_render_provider_contacts
 
 DEFAULT_COMMON_SECTIONS = set(SECTION_METADATA.keys())
 
@@ -59,11 +59,11 @@ def debug_task_input_capture_with_answers_tabs(section: str):
         "🧱 Raw Extracted Tasks", 
         "📦 Raw _schedule_df Snapshots",
         "🔍 Merge Debug Tools",
-        "🔗 Task vs Schedule Trace"
+        "🔗 Task vs Schedule Trace",
         "🧠 LLM Cache Viewer"
         ])
 
-    with tabs[0]:
+    with tabs[0]: # "🧾 Input Records",
         st.subheader("📌 task_inputs")
         st.dataframe([e for e in entries if e.get("section") == section])
 
@@ -73,9 +73,9 @@ def debug_task_input_capture_with_answers_tabs(section: str):
         counts = log_section_input_debug(section, min_entries=8)
         st.write("🔍 Returned counts object:", counts)
 
-        render_provider_contacts(section="utilities")
+        debug_render_provider_contacts(section="utilities")
 
-    with tabs[1]:
+    with tabs[1]: #"📬 get_answer() Results"
         st.subheader("🔍 get_answer() Lookup Results")
         for record in input_data:
             raw_label = record.get("question", "")
@@ -91,7 +91,7 @@ def debug_task_input_capture_with_answers_tabs(section: str):
             - **get_answer() Result**: `{val}`
             """)
 
-    with tabs[2]:
+    with tabs[2]: # "📖 Runbook Preview"
         runbook_text = st.session_state.get(f"{section}_runbook_text", "")
         runbook_preview_dispatcher(
             section=section,
@@ -326,7 +326,8 @@ def debug_task_input_capture_with_answers_tabs(section: str):
                 "📥 Download LLM Cache Summary",
                 data=df.to_csv(index=False),
                 file_name="llm_cache_summary.csv",
-                mime="text/csv"
+                mime="text/csv",
+                key=f"download_jason_{section}_cache"
             )
         else:
             st.info("🗃️ No cache files found yet in `llm_cache/`.")

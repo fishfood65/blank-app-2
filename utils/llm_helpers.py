@@ -21,8 +21,8 @@ def call_openrouter_chat(prompt: str) -> str:
 
     api_key = os.getenv("OPENROUTER_TOKEN")
     referer = os.getenv("OPENROUTER_REFERER", "https://example.com")
-    base_model = st.session_state.get("llm_model", "claude-3-haiku")
-    if ":online" not in base_model and "claude" not in base_model:
+    base_model = st.session_state.get("llm_model", "openai/gpt-4o")
+    if ":online" not in base_model and "openai/gpt-4o" not in base_model:
         model_name = base_model + ":online"
     else:
         model_name = base_model

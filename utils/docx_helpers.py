@@ -1,4 +1,5 @@
 from io import BytesIO
+import io
 from typing import Optional
 import streamlit as st
 from docx import Document
@@ -92,7 +93,7 @@ def add_provider_section_to_docx(doc: Document, providers: dict):
         add_field("Emergency Steps", "emergency_steps")
 
 # Export wrapper
-def export_provider_docx(providers: dict, output_path: str):
+def export_provider_docx(providers: dict, output_path: str= None):
     """
     Creates a full Document, adds all utility providers, and saves to disk.
     """
@@ -103,7 +104,14 @@ def export_provider_docx(providers: dict, output_path: str):
 
     add_provider_section_to_docx(doc, providers)
 
-    doc.save(output_path)
+    if output_path:
+        doc.save(output_path)
+        return None
+    else:
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        return buffer.read()
 
 def render_runbook_section_output(
     markdown_str: str,

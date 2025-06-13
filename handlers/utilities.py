@@ -104,7 +104,7 @@ def query_utility_providers(section: str, test_mode: bool = False) -> dict:
     """
     city = get_answer(key="City", section=section, verbose=True)
     zip_code = get_answer(key="ZIP Code", section=section, verbose=True)
-    internet = get_answer("Internet Provider", section, verbose = True)
+    internet = get_answer(key="Internet Provider", section=section, verbose = True)
 
     if not city or not zip_code:
         st.warning("⚠️ Missing City or ZIP Code. Cannot query providers.")

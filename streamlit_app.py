@@ -26,7 +26,7 @@ pg.run()                      # execute the selected page
 with st.sidebar.expander("⚙️ Developer Options", expanded=False):
     st.checkbox("🐞 Enable Debug Mode", key="enable_debug_mode", value=False)
     st.checkbox("📆 Show Schedule Snapshot in Preview", key="show_schedule_snapshot", value=False)
-    st.selectbox("🤖 LLM Model", ["anthropic/claude-3-haiku", "openai/gpt-3.5-turbo", "mistralai/mistral-7b-instruct"], key="llm_model")
+    st.selectbox("🤖 LLM Model", ["openai/gpt-4o:online", "anthropic/claude-3-haiku", "openai/gpt-3.5-turbo", "mistralai/mistral-7b-instruct"], key="llm_model")
     if st.button("🧹 Clear LLM Cache"):
         clear_llm_cache()
     if st.button("🔄 Reset All App State"):
