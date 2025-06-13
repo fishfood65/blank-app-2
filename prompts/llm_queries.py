@@ -19,7 +19,6 @@ from utils.data_helpers import (
 from prompts.templates import utility_provider_lookup_prompt
 import streamlit as st
 import re
-from mistralai import Mistral, UserMessage, SystemMessage
 from dotenv import load_dotenv
 import os
 import pandas as pd
