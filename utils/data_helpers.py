@@ -751,38 +751,48 @@ def log_provider_result(label, value, section="Utility Providers"):
         "section": section
     })
 
-def extract_and_log_providers(content: str, section: str) -> dict:
+def clean_md_artifacts(text: str) -> str:
     """
-    Parses LLM output and logs structured provider metadata.
-
-    Returns:
-        dict: Structured provider info with name, description, contact, and emergency info.
+    Cleans up common markdown formatting artifacts.
+    Removes:
+    - Asterisks `*`
+    - Markdown links `[label](url)`
+    - Extra whitespace
     """
+    # Remove markdown-style links [label](url) → label
+    text = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", text)
+    # Remove extra formatting characters
+    text = re.sub(r"[()*_`]", "", text)
+    return text.strip()
 
-    def extract_block(keyword: str) -> str:
-        pattern = rf"## .*{keyword}.*?(?=## |\Z)"
-        match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
-        return match.group(0).strip(" -") if match else ""
 
-    def parse_block(block: str) -> dict:
-        name_match = re.search(r"## [^\–\-]+[\–\-]\s*(.*)", block)
-        description = re.search(r"\*\*Description:\*\* (.*)", block)
-        phone = re.search(r"\*\*Phone:\*\* (.*)", block)
-        website = re.search(r"\*\*Website:\*\* (.*)", block)
-        email = re.search(r"\*\*Email:\*\* (.*)", block)
-        address = re.search(r"\*\*Address:\*\* (.*)", block)
-        emergency = re.search(r"\*\*Emergency Steps:\*\*(.*?)(\n\n|^## |\Z)", block, re.DOTALL)
+# ✅ Recommended unified parser
+def parse_utility_block(block: str) -> dict:
+    """
+    Extracts structured fields from a markdown-formatted utility provider block.
+    """
+    name_match = re.search(r"## [^\–\-]+[\–\-]\s*(.*)", block)
+    description = re.search(r"\*\*Description:\*\* (.*)", block)
+    phone = re.search(r"\*\*Phone:\*\* (.*)", block)
+    website = re.search(r"\*\*Website:\*\* (.*)", block)
+    email = re.search(r"\*\*Email:\*\* (.*)", block)
+    address = re.search(r"\*\*Address:\*\* (.*)", block)
+    emergency = re.search(r"\*\*Emergency Steps:\*\*\s*((?:.|\n)*?)(?=\n## |\Z)", block, re.DOTALL)
 
-        return {
-            "name": name_match.group(1).strip() if name_match else "",
-            "description": description.group(1).strip() if description else "",
-            "contact_phone": phone.group(1).strip() if phone else "",
-            "contact_website": website.group(1).strip() if website else "",
-            "contact_email": email.group(1).strip() if email else "",
-            "contact_address": address.group(1).strip() if address else "",
-            "emergency_steps": emergency.group(1).strip() if emergency else "",
-        }
+    return {
+        "name": clean_md_artifacts(name_match.group(1)) if name_match else "",
+        "description": description.group(1).strip() if description else "",
+        "contact_phone": phone.group(1).strip() if phone else "",
+        "contact_website": website.group(1).strip() if website else "",
+        "contact_email": email.group(1).strip() if email else "",
+        "contact_address": address.group(1).strip() if address else "",
+        "emergency_steps": emergency.group(1).strip() if emergency else "⚠️ Emergency steps not provided.",
+    }
 
+def extract_provider_blocks(content: str) -> dict:
+    """
+    Extracts raw markdown blocks for each utility type.
+    """
     utility_keywords = {
         "electricity": "Electricity",
         "natural_gas": "Natural Gas",
@@ -790,34 +800,70 @@ def extract_and_log_providers(content: str, section: str) -> dict:
         "internet": "Internet",
     }
 
+    blocks = {}
+    for key, label in utility_keywords.items():
+        pattern = rf"## .*{label}.*?(?=## |\Z)"
+        match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
+        blocks[key] = match.group(0).strip(" -") if match else ""
+
+    return blocks
+
+def extract_and_log_providers(content: str, section: str) -> dict:
+    """
+    Parses LLM output and logs structured provider metadata into session state.
+    Also registers each field for downstream usage and debugging.
+    """
+    blocks = extract_provider_blocks(content)
     structured_results = {}
 
-    for key, label in utility_keywords.items():
-        block = extract_block(label)
+    for key, block in blocks.items():
+        label = key.replace("_", " ").title()
+
+        if not block.strip():
+            continue  # Skip if block is empty or not returned
 
         if st.session_state.get("enable_debug_mode"):
             st.markdown(f"### 🧪 Debug Block for `{label}`")
-            st.code(block or "⚠️ No block found", language="markdown")
+            st.code(block, language="markdown")
 
-        parsed = parse_block(block)
+        parsed = parse_utility_block(block)
         structured_results[key] = parsed
+
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown(f"#### 🧪 Parsed Fields for `{label}`")
+            st.json(parsed)
 
         name = parsed.get("name", "")
         if name:
             st.session_state[f"{key}_provider"] = name
             register_input_only(f"{label} Provider", name, section=section)
 
-            # ✅ Register extra fields
-            register_input_only(f"{name} Description", parsed.get("description", ""), section=section)
-            register_input_only(f"{name} Contact Phone", parsed.get("contact_phone", ""), section=section)
-            register_input_only(f"{name} Contact Website", parsed.get("contact_website", ""), section=section)
-            register_input_only(f"{name} Contact Email", parsed.get("contact_email", ""), section=section)
-            register_input_only(f"{name} Contact Address", parsed.get("contact_address", ""), section=section)
-            register_input_only(f"{name} Emergency Steps", parsed.get("emergency_steps", ""), section=section)
+            # Use namespaced label to avoid overwrite collisions (e.g., PG&E for multiple)
+            prefix = f"{label} ({name})"
 
-    # ✅ Save full dict for re-use
+            register_input_only(f"{prefix} Description", parsed.get("description", ""), section=section)
+            register_input_only(f"{prefix} Contact Phone", parsed.get("contact_phone", ""), section=section)
+            register_input_only(f"{prefix} Contact Website", parsed.get("contact_website", ""), section=section)
+            register_input_only(f"{prefix} Contact Email", parsed.get("contact_email", ""), section=section)
+            register_input_only(f"{prefix} Contact Address", parsed.get("contact_address", ""), section=section)
+            register_input_only(f"{prefix} Emergency Steps", parsed.get("emergency_steps", ""), section=section)
+
+    # 🔁 Deduplicate emergency steps (if all are identical)
+    all_steps = [p["emergency_steps"] for p in structured_results.values() if p["emergency_steps"]]
+    if len(set(all_steps)) == 1 and all_steps:
+        shared = all_steps[0]
+        for provider in structured_results.values():
+            provider["emergency_steps"] = f"{shared}\n\n_(Same for all utilities)_"
+
+    # ✅ Save full structured result to session state
     st.session_state["utility_providers"] = structured_results
     st.session_state["utility_provider_metadata"] = structured_results
+
+    # 🧪 Add this right before return
+    if st.session_state.get("enable_debug_mode"):
+        st.markdown("### 🧾 Provider Names Summary")
+        names = {k: v.get("name", "—") for k, v in structured_results.items()}
+        st.json(names)
 
     return structured_results
 

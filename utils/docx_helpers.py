@@ -9,12 +9,20 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
 def format_provider_markdown(providers: dict) -> str:
-    """Return nicely formatted markdown string for utility provider info as tables."""
+    """
+    Returns markdown-formatted utility provider info using tables and icons.
+    Adds support for utility-specific extra fields like 'Outage Support' for Internet.
+    """
     icon_map = {
         "electricity": "⚡",
         "natural_gas": "🔥",
         "water": "💧",
         "internet": "🌐"
+    }
+
+    # Optional: extra fields by provider type
+    extra_fields = {
+        "internet": [("Outage Support", "emergency_steps", False, False)],
     }
 
     output = []
@@ -25,27 +33,40 @@ def format_provider_markdown(providers: dict) -> str:
             continue
 
         icon = icon_map.get(key, "📦")
-        section_title = f"### {icon} {key.replace('_', ' ').title()} – {name}"
+        label = key.replace("_", " ").title()
+        section_title = f"### {icon} {label} – {name}"
+
         table_lines = ["| Field | Value |", "|-------|--------|"]
 
-        def row(label, field, is_link=False):
+        def row(label, field, is_link=False, is_email=False):
             value = info.get(field, "").strip()
-            if value:
-                if is_link:
-                    return f"| **{label}** | [{value}]({value}) |"
-                else:
-                    return f"| **{label}** | {value} |"
-            return None
+            if not value:
+                return None
+            if is_link:
+                return f"| **{label}** | [{value}]({value}) |"
+            elif is_email and "@" in value:
+                return f"| **{label}** | [{value}](mailto:{value}) |"
+            else:
+                return f"| **{label}** | {value} |"
 
-        for label, field, is_link in [
-            ("Description", "description", False),
-            ("Phone", "contact_phone", False),
-            ("Website", "contact_website", True),
-            ("Email", "contact_email", False),
-            ("Address", "contact_address", False),
-            ("Emergency Steps", "emergency_steps", False)
-        ]:
-            line = row(label, field, is_link)
+        # Standard fields
+        standard_fields = [
+            ("Description", "description", False, False),
+            ("Phone", "contact_phone", False, False),
+            ("Website", "contact_website", True, False),
+            ("Email", "contact_email", False, True),
+            ("Address", "contact_address", False, False),
+            ("Emergency Steps", "emergency_steps", False, False),
+        ]
+
+        fields_to_render = (
+            extra_fields.get(key, []) + standard_fields
+            if key in extra_fields
+            else standard_fields
+        )
+
+        for label, field, is_link, is_email in fields_to_render:
+            line = row(label, field, is_link=is_link, is_email=is_email)
             if line:
                 table_lines.append(line)
 
@@ -53,6 +74,7 @@ def format_provider_markdown(providers: dict) -> str:
         output.append(section_block)
 
     return "\n\n---\n\n".join(output)
+
 
 # Utility function to add a single provider section to an existing doc
 def add_provider_section_to_docx(doc: Document, providers: dict):

@@ -145,12 +145,22 @@ def render_provider_contacts(section: str = "utilities"):
 
     st.markdown("## 🔌 Utility Provider Contact Info")
 
+    icons = {
+        "electricity": "⚡",
+        "natural_gas": "🔥",
+        "water": "💧",
+        "internet": "🌐"
+    }
+
     for utility_key, info in providers.items():
         name = info.get("name", "").strip()
         if not name:
             continue
 
-        st.markdown(f"### 🛠️ {utility_key.replace('_', ' ').title()}: {name}")
+        label = utility_key.replace("_", " ").title()
+        icon = icons.get(utility_key, "🔌")
+
+        st.markdown(f"### {icon} {label}: {name}")
 
         with st.expander(f"📇 View {name} Contact Info", expanded=False):
             st.markdown(f"**📄 Description:** {info.get('description', '—')}")
