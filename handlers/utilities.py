@@ -1,6 +1,7 @@
 ### Leve 1 - Home
 #from utils.prompt_block_utils import generate_all_prompt_blocks
 from typing import Optional
+import markdown_it
 import streamlit as st
 import re
 import io
@@ -498,12 +499,16 @@ def utilities():
                     if not providers:
                         st.info("⚠️ No utility provider data available.")
                     else:
-                        markdown = format_provider_markdown(providers)
+                        markdown_str = format_provider_markdown(providers)
                         docx_bytes = export_provider_docx(providers)
 
+                        if docx_bytes and markdown_str:
+                            st.session_state["utility_docx"] = docx_bytes
+                            st.session_state["utility_markdown"] = markdown_str
+
                         render_runbook_section_output(
-                            markdown_str=markdown,
-                            docx_bytes_io=docx_bytes,
+                            markdown_str=st.session_state.get("utility_markdown"),
+                            docx_bytes_io=st.session_state.get("utility_docx") ,
                             title="Utility Providers",
                             filename_prefix="utility_providers",
                             expand_preview=False #Optional: set True open by default

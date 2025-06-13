@@ -38,7 +38,7 @@ def format_provider_markdown(providers: dict) -> str:
 
         table_lines = ["| Field | Value |", "|-------|--------|"]
 
-        def row(label, field, is_link=False, is_email=False):
+        def row(label, field, is_link=False, is_email=False, multiline=False):
             value = info.get(field, "").strip()
             if not value:
                 return None
@@ -46,6 +46,9 @@ def format_provider_markdown(providers: dict) -> str:
                 return f"| **{label}** | [{value}]({value}) |"
             elif is_email and "@" in value:
                 return f"| **{label}** | [{value}](mailto:{value}) |"
+            elif multiline:
+                value_md = value.replace("\n", "<br>")
+                return f"| **{label}** | {value_md} |"
             else:
                 return f"| **{label}** | {value} |"
 
@@ -56,7 +59,6 @@ def format_provider_markdown(providers: dict) -> str:
             ("Website", "contact_website", True, False),
             ("Email", "contact_email", False, True),
             ("Address", "contact_address", False, False),
-            ("Emergency Steps", "emergency_steps", False, False),
         ]
 
         fields_to_render = (
@@ -65,15 +67,28 @@ def format_provider_markdown(providers: dict) -> str:
             else standard_fields
         )
 
-        for label, field, is_link, is_email in fields_to_render:
-            line = row(label, field, is_link=is_link, is_email=is_email)
+        for field_entry in fields_to_render:
+            if len(field_entry) == 4:
+                label, field, is_link, is_email = field_entry
+                multiline = False
+            else:
+                label, field, is_link, is_email, multiline = field_entry
+            line = row(label, field, is_link=is_link, is_email=is_email, multiline=multiline)
             if line:
                 table_lines.append(line)
 
         section_block = section_title + "\n" + "\n".join(table_lines)
+
+        # ✅ Append Emergency Steps (outside the table)
+        emergency = info.get("emergency_steps", "").strip()
+        if emergency:
+            emergency_md = "\n".join([f"- {line.strip()}" for line in emergency.splitlines() if line.strip()])
+            section_block += "\n\n### 🚨 Emergency Instructions\n" + emergency_md
+
         output.append(section_block)
 
-    return "\n\n---\n\n".join(output)
+    final_output = "\n\n---\n\n".join(output)
+    return "## 🛠️ Utility Providers Overview\n\n" + final_output
 
 
 # Utility function to add a single provider section to an existing doc
@@ -87,6 +102,12 @@ def add_provider_section_to_docx(doc: Document, providers: dict):
         "natural_gas": "🔥",
         "water": "💧",
         "internet": "🌐"
+    }
+
+    # Fields to render as a bullet list *below* the normal block
+    multiline_fields = {
+        "emergency_steps": "🚨 Emergency Instructions",
+        "outage_support": "📶 Outage Support Instructions"
     }
 
     for utility, info in providers.items():
@@ -112,7 +133,17 @@ def add_provider_section_to_docx(doc: Document, providers: dict):
         add_field("Email", "contact_email")
         add_field("Website", "contact_website")
         add_field("Address", "contact_address")
-        add_field("Emergency Steps", "emergency_steps")
+
+        # ✅ Multiline fields rendered as bulleted lists
+        for field_key, heading in multiline_fields.items():
+            value = info.get(field_key, "").strip()
+            if value:
+                lines = [line.strip() for line in value.splitlines() if line.strip()]
+                if lines:
+                    doc.add_paragraph("")  # spacer
+                    doc.add_heading(heading, level=3)
+                    for line in lines:
+                        doc.add_paragraph(line, style="List Bullet")        
 
 # Export wrapper
 def export_provider_docx(providers: dict, output_path: str= None):
@@ -120,8 +151,8 @@ def export_provider_docx(providers: dict, output_path: str= None):
     Creates a full Document, adds all utility providers, and saves to disk.
     """
     doc = Document()
-    doc.add_heading("📇 Utility Provider Information", level=1)
-    doc.add_paragraph("This section contains contact and emergency information for each utility provider.")
+    doc.add_heading("⚡🔥💧🌐 Utility Providers Emergency Guide", level=1)
+    doc.add_paragraph("The guide contains contact and emergency information for each utility provider.")
     doc.add_paragraph()
 
     add_provider_section_to_docx(doc, providers)
