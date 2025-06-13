@@ -782,7 +782,7 @@ def parse_utility_block(block: str) -> dict:
         "description": extract_and_clean(r"\*\*Description:\*\* (.*)"),
         "contact_phone": extract_and_clean(r"\*\*Phone:\*\* (.*)"),
         "contact_website": extract_and_clean(r"\*\*Website:\*\* (.*)"),
-        "contact_email": extract_and_clean(r"\*\*Email:\*\* (.*)"),
+        #"contact_email": extract_and_clean(r"\*\*Email:\*\* (.*)"),
         "contact_address": extract_and_clean(r"\*\*Address:\*\* (.*)"),
         "emergency_steps": extract_and_clean(
             r"\*\*Emergency Steps:\*\*\s*((?:.|\n)*?)(?=\n## |\Z)", multiline=True
@@ -849,7 +849,7 @@ def extract_and_log_providers(content: str, section: str) -> dict:
             register_input_only(f"{prefix} Description", parsed.get("description", ""), section=section)
             register_input_only(f"{prefix} Contact Phone", parsed.get("contact_phone", ""), section=section)
             register_input_only(f"{prefix} Contact Website", parsed.get("contact_website", ""), section=section)
-            register_input_only(f"{prefix} Contact Email", parsed.get("contact_email", ""), section=section)
+            #register_input_only(f"{prefix} Contact Email", parsed.get("contact_email", ""), section=section)
             register_input_only(f"{prefix} Contact Address", parsed.get("contact_address", ""), section=section)
             register_input_only(f"{prefix} Emergency Steps", parsed.get("emergency_steps", ""), section=section)
 

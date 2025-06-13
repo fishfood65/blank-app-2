@@ -23,3 +23,27 @@ TASK_TYPE_EMOJI = {
     "Recycling": "♻️",
     "Compost": "🌱",
 }
+
+SAVED_SECTIONS = [
+    {
+        "label": "Utility Providers",
+        "md_key": "utility_markdown",
+        "docx_key": "utility_docx",
+        "file_prefix": "utility_providers",
+        "icon": "⚡"
+    },
+    {
+        "label": "Emergency Kit",
+        "md_key": "emergency_markdown",
+        "docx_key": "emergency_docx",
+        "file_prefix": "emergency_kit",
+        "icon": "🧰"
+    },
+    {
+        "label": "Home Setup",
+        "md_key": "home_markdown",
+        "docx_key": "home_docx",
+        "file_prefix": "home_setup",
+        "icon": "🏡"
+    },
+]

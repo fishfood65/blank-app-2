@@ -236,7 +236,7 @@ def get_corrected_providers(results: dict, section: str) -> dict:
         current = results.get(key, {})
         name = current.get("name", "")
         phone = current.get("contact_phone", "")
-        email = current.get("contact_email", "")
+        #email = current.get("contact_email", "")
         address = current.get("contact_address", "")
         emergency = current.get("emergency_steps", "")
 
@@ -249,8 +249,8 @@ def get_corrected_providers(results: dict, section: str) -> dict:
             correct_phone = st.checkbox(f"✏️ Correct Phone", value=False, key=f"{key}_phone_check")
             phone_input = st.text_input("Phone", value=phone, disabled=not correct_phone, key=f"{key}_phone")
             
-            correct_email = st.checkbox(f"✏️ Correct Email", value=False, key=f"{key}_email_check")
-            email_input = st.text_input("Email", value=email, disabled=not correct_email, key=f"{key}_email")
+            #correct_email = st.checkbox(f"✏️ Correct Email", value=False, key=f"{key}_email_check")
+            #email_input = st.text_input("Email", value=email, disabled=not correct_email, key=f"{key}_email")
 
             correct_address = st.checkbox(f"✏️ Correct Address", value=False, key=f"{key}_address_check")
             address_input = st.text_area("Address", value=address, disabled=not correct_address, key=f"{key}_address")
@@ -268,7 +268,7 @@ def get_corrected_providers(results: dict, section: str) -> dict:
             updated[key] = {
                 "name": name_input if correct_name else name,
                 "contact_phone": phone_input if correct_phone else phone,
-                "contact_email": email_input if correct_email else email,
+                #"contact_email": email_input if correct_email else email,
                 "contact_address": address_input if correct_address else address,
                 "contact_website": current.get("contact_website", ""),
                 "description": current.get("description", ""),
@@ -375,7 +375,7 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
             register_input_only(f"{prefix} Description", parsed.get("description", ""), section=section)
             register_input_only(f"{prefix} Contact Phone", parsed.get("contact_phone", ""), section=section)
             register_input_only(f"{prefix} Contact Website", parsed.get("contact_website", ""), section=section)
-            register_input_only(f"{prefix} Contact Email", parsed.get("contact_email", ""), section=section)
+            #register_input_only(f"{prefix} Contact Email", parsed.get("contact_email", ""), section=section)
             register_input_only(f"{prefix} Contact Address", parsed.get("contact_address", ""), section=section)
             register_input_only(f"{prefix} Emergency Steps", parsed.get("emergency_steps", ""), section=section)
 
@@ -461,7 +461,7 @@ def utilities():
 # Step 4: Save Utility Providers (with validation)
         if st.button("✅ Confirm All Utility Info"):
             required_utilities = ["electricity", "natural_gas", "water", "internet"]
-            required_fields = ["name", "contact_phone", "contact_email", "contact_address"]
+            required_fields = ["name", "contact_phone", "contact_address"] #Removed "contact_email"
 
             missing_fields = {}
 

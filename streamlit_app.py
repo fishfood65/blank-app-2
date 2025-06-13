@@ -13,6 +13,7 @@ pages = [
     st.Page("pet_app_updated.py",     title="Pet Game",      icon="📋"),
     st.Page("home_app2.py", title="Home Guide Playground", icon="🏡"),
     #st.Page("home_app_05_23_modified.py",     title="Home Guide",      icon="🏡"),
+    st.Page("aggregated_runbook_generator.py", title="Customize Runbook", icon="📖"),
     st.Page("mychatapp.py",     title="Chat Q&A",      icon="🗣️")
 ]
 

@@ -165,10 +165,10 @@ def render_provider_contacts(section: str = "utilities"):
         with st.expander(f"📇 View {name} Contact Info", expanded=False):
             st.markdown(f"**📄 Description:** {info.get('description', '—')}")
             st.markdown(f"**📞 Phone:** {info.get('contact_phone', '—')}")
-            st.markdown(f"**📧 Email:** {info.get('contact_email', '—')}")
+            #st.markdown(f"**📧 Email:** {info.get('contact_email', '—')}")
             st.markdown(f"**🏢 Address:** {info.get('contact_address', '—')}")
             st.markdown(f"**🌐 Website:** {info.get('contact_website', '—')}")
-            st.markdown(f"**🚨 Emergency Steps:** {info.get('emergency_steps', '—')}")
+            st.markdown(f"**🚨 Emergency Steps:**  \n{info.get('emergency_steps', '—')}")
 
 def debug_render_provider_contacts(section: str = "utilities"):
     """
@@ -192,7 +192,37 @@ def debug_render_provider_contacts(section: str = "utilities"):
         with st.subheader(f"📇 View {name} Contact Info"):
             st.markdown(f"**📄 Description:** {info.get('description', '—')}")
             st.markdown(f"**📞 Phone:** {info.get('contact_phone', '—')}")
-            st.markdown(f"**📧 Email:** {info.get('contact_email', '—')}")
+            #st.markdown(f"**📧 Email:** {info.get('contact_email', '—')}")
             st.markdown(f"**🏢 Address:** {info.get('contact_address', '—')}")
             st.markdown(f"**🌐 Website:** {info.get('contact_website', '—')}")
             st.markdown(f"**🚨 Emergency Steps:** {info.get('emergency_steps', '—')}")
+
+def render_saved_section(label, md_key, docx_key, file_prefix):
+    markdown = st.session_state.get(md_key)
+    docx_bytes = st.session_state.get(docx_key)
+
+    # Determine status icon
+    if markdown or docx_bytes:
+        icon = "🟢"
+        status = "Available"
+    else:
+        icon = "🔴"
+        status = "Not Available"
+
+    st.markdown(f"### {icon} {label} ({status})")
+
+    # Render markdown if present
+    if markdown:
+        st.markdown(markdown, unsafe_allow_html=True)
+    else:
+        st.info("⚠️ Markdown not available for this section.")
+
+    # Offer DOCX download if present
+    if docx_bytes:
+        st.download_button(
+            label=f"📄 Download {file_prefix}.docx",
+            data=docx_bytes,
+            file_name=f"{file_prefix}.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+

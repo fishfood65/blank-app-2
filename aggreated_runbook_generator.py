@@ -2,17 +2,78 @@ import streamlit as st
 from utils.prompt_block_utils import generate_all_prompt_blocks
 from datetime import datetime
 from typing import List
+import os
 from config.sections import SECTION_METADATA, LLM_SECTIONS
 from utils.runbook_generator_helpers import (
     generate_docx_from_prompt_blocks,
     maybe_render_download,
 )
-import os
+from utils.preview_helpers import render_saved_section
+from config import SAVED_SECTIONS
+import pandas as pd
+
 ## Next Steps
 ### need to add validation logic to ensure data is present to generate custom prompt
 ### need to add pets to this
 ### need to add support for valid dates
-### need to check if sections can be aliased
+### need to check if sections can be 
+
+def render_saved_section_status_table(sections):
+    table_data = []
+
+    for section in sections:
+        label = section["label"]
+        icon = section.get("icon", "📄")
+        md = st.session_state.get(section["md_key"])
+        docx = st.session_state.get(section["docx_key"])
+        
+        status = "🟢 Available" if md or docx else "🔴 Missing"
+        table_data.append({
+            "Section": f"{icon} {label}",
+            "Status": status,
+            "Markdown": "✅" if md else "❌",
+            "DOCX": "✅" if docx else "❌",
+        })
+
+    df = pd.DataFrame(table_data)
+    st.markdown("### 🧾 Saved Sections Overview")
+    st.table(df)
+
+
+st.subheader("📄 View Previously Generated Sections")
+
+render_saved_section_status_table(SAVED_SECTIONS)
+
+tab1, tab2 = st.tabs(["🧾 Placeholder", "📄 View Previously Generated Sections"])
+
+    # Add more here if needed:
+    # render_saved_section("Emergency Kit", "emergency_markdown", "emergency_docx", "emergency_kit")
+
+# -- Tab 1: Previously Generated Output --
+with tab2:
+    render_saved_section(
+        label="Utility Providers",
+        md_key="utility_markdown",
+        docx_key="utility_docx",
+        file_prefix="utility_providers"
+    )
+
+    # Add more here if needed:
+    # render_saved_section("Emergency Kit", "emergency_markdown", "emergency_docx", "emergency_kit")
+
+
+
+
+
+
+
+
+
+
+
+
+
+################## old code
 
 def multi_section_runbook():
     st.header("📘 Multi-Section Emergency Runbook Generator")
