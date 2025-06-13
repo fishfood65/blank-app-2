@@ -141,6 +141,8 @@ def main():
         st.session_state["section"] = "home"
         st.rerun()
 
+    st.markdown(f"### 📂 Currently Viewing: `{section}`")
+
     #else:
         #if st.session_state.get("enable_debug_mode"):
         #    st.warning("⚠️ Section handler not defined.")

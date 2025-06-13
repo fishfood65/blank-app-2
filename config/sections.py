@@ -3,6 +3,7 @@ SECTION_METADATA: dict[str, dict] = {
     "utilities": {
         "label": "🔌 Utilities Setup",
         "icon": "🔌",
+        "area": "home",
         "level": 1,
         "visible": True,
         "enabled": True,
@@ -12,6 +13,7 @@ SECTION_METADATA: dict[str, dict] = {
     "emergency_kit": {
         "label": "🧰 Emergency Kit",
         "icon": "🧰",
+        "area": "home",
         "level": 2,
         "visible": True,
         "enabled": True,
@@ -21,6 +23,7 @@ SECTION_METADATA: dict[str, dict] = {
     "mail_trash": {
         "label": "📬 Mail & Trash",
         "icon": "📬",
+        "area": "home",
         "level": 3,
         "visible": True,
         "enabled": True,
@@ -30,6 +33,7 @@ SECTION_METADATA: dict[str, dict] = {
     "home_security": {
         "label": "🔐 Home Security",
         "icon": "🔐",
+        "area": "home",
         "level": 4,
         "visible": True,
         "enabled": True,
@@ -39,6 +43,7 @@ SECTION_METADATA: dict[str, dict] = {
     "emergency_kit_critical_documents": {
         "label": "📑 Critical Documents",
         "icon": "📑",
+        "area": "home",
         "level": 5,
         "visible": True,
         "enabled": True,
@@ -48,6 +53,7 @@ SECTION_METADATA: dict[str, dict] = {
     "bonus_level": {
         "label": "🎁 Bonus Level",
         "icon": "🎁",
+        "area": "home",
         "level": None,  # Optional/extra
         "visible": True,
         "enabled": True,
@@ -57,6 +63,7 @@ SECTION_METADATA: dict[str, dict] = {
     "runbook_date_range": {
         "label": "📅 Runbook Date Selection",
         "icon": "📅",
+        "area": "global",
         "level": None,  # Optional/extra
         "visible": False, # Helps hide it from sidebar rendering logic
         "enabled": True,
@@ -106,3 +113,11 @@ def get_all_sections(include_hidden: bool = False):
     if include_hidden:
         return list(SECTION_METADATA.keys())
     return [key for key, meta in SECTION_METADATA.items() if meta.get("visible", True)]
+
+def get_section_meta(section: str) -> dict:
+    return SECTION_METADATA.get(section, {})
+
+def get_area_for_section(section: str) -> str:
+    area = SECTION_METADATA.get(section, {}).get("area", "unknown")
+    return area
+

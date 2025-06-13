@@ -1401,3 +1401,75 @@ def extract_grouped_mail_task(valid_dates):
 
     #st.write("📬 [DEBUG] Structured Mail Tasks:", structured_tasks)
     return structured_tasks
+
+
+def update_or_log_task(
+    question: str,
+    answer: str,
+    section: str,
+    task_type: str = None,
+    is_freq: bool = False,
+    key: Optional[str] = None,
+    area: str = "home",
+    canonical_map: Optional[dict] = None,
+    overwrite_label: Optional[str] = None,
+):
+    """
+    Logs a task input in session state, replacing any existing task with the same key.
+
+    Args:
+        question (str): The input label shown to the user.
+        answer (str): The user's response.
+        section (str): The logical section (e.g. "utilities", "trash").
+        task_type (str): Logical category of task (e.g. "utilities").
+        is_freq (bool): Whether the task has a frequency.
+        key (str): Optional key override. Defaults to sanitized label or canonical.
+        area (str): High-level category ("home", "pets", etc.)
+        canonical_map (dict): Optional mapping from question → canonical key.
+        overwrite_label (str): Optional new label to display (while keeping canonical key).
+    """
+    if not answer or str(answer).strip().lower() in ["", "⚠️ not provided", "n/a"]:
+        return
+
+    final_question = overwrite_label or question
+
+    # Canonical or default key
+    if canonical_map:
+        canonical_key = canonical_map.get(question.lower(), key or sanitize_label(question))
+    else:
+        canonical_key = key or sanitize_label(question)
+
+    new_entry = {
+        "question": final_question,
+        "answer": answer.strip(),
+        "key": canonical_key,
+        "category": section,
+        "section": section,
+        "area": area,
+        "task_type": task_type,
+        "is_freq": is_freq,
+        "timestamp": datetime.now().isoformat()
+    }
+
+    task_inputs = st.session_state.setdefault("task_inputs", [])
+    task_inputs = [t for t in task_inputs if t.get("key") != canonical_key]
+    task_inputs.append(new_entry)
+    st.session_state["task_inputs"] = task_inputs
+
+def enrich_input_metadata(input_record: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Given a single input record (with at least a 'section' key),
+    enrich it by attaching the 'area' from SECTION_METADATA.
+    Supports 'global' sections cleanly.
+    """
+    section = input_record.get("section", "")
+    section_meta = SECTION_METADATA.get(section, {})
+    area = section_meta.get("area", "unknown")
+
+    # Add enriched fields
+    enriched = input_record.copy()
+    enriched.setdefault("metadata", {})
+    enriched["metadata"]["area"] = area
+    enriched["metadata"]["section"] = section
+
+    return enriched

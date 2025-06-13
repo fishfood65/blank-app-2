@@ -4,12 +4,12 @@ from datetime import datetime
 from typing import List
 import os
 from config.sections import SECTION_METADATA, LLM_SECTIONS
+from config.constants import SAVED_SECTIONS
 from utils.runbook_generator_helpers import (
     generate_docx_from_prompt_blocks,
     maybe_render_download,
 )
 from utils.preview_helpers import render_saved_section
-from config import SAVED_SECTIONS
 import pandas as pd
 
 ## Next Steps

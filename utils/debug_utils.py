@@ -4,7 +4,7 @@ import streamlit as st
 import json
 from typing import List, Optional
 from collections import Counter
-from .data_helpers import sanitize, get_answer, sanitize_label
+from .data_helpers import sanitize, get_answer, sanitize_label, get_all_input_records
 from config.sections import SECTION_METADATA
 from .runbook_generator_helpers import runbook_preview_dispatcher
 from .common_helpers import get_schedule_placeholder_mapping, get_schedule_utils
@@ -46,8 +46,8 @@ def debug_task_input_capture_with_answers_tabs(section: str):
     """
     Renders a tabbed interface to debug inputs, lookups, and session state for a given section.
     """
-    entries = st.session_state.get("task_inputs", [])
-    input_data = st.session_state.get("input_data", {}).get(section, [])
+    records = get_all_input_records(section)
+
     st.markdown(f"## 🔍 Debug for Section: `{section}`")
     tabs = st.tabs([
         "🧾 Input Records", 
@@ -64,31 +64,50 @@ def debug_task_input_capture_with_answers_tabs(section: str):
         ])
 
     with tabs[0]: # "🧾 Input Records",
-        st.subheader("📌 task_inputs")
-        st.dataframe([e for e in entries if e.get("section") == section])
-
-        st.subheader("📎 input_data")
-        st.dataframe(input_data)
+        if __name__ == "__main__" or "debug_get_answer" in st.session_state:
+            render_get_answer_debug()
+        st.subheader("📌 All Input Records (task_inputs + input_data)")
+        st.dataframe(records)
         
+        task_inputs = [r for r in records if r.get("source") == "task_inputs"]
+        input_only = [r for r in records if r.get("source") == "input_data"]
+
         counts = log_section_input_debug(section, min_entries=8)
         st.write("🔍 Returned counts object:", counts)
 
         debug_render_provider_contacts(section="utilities")
 
-    with tabs[1]: #"📬 get_answer() Results"
+    with tabs[1]:  # 📬 get_answer() Results
         st.subheader("🔍 get_answer() Lookup Results")
-        for record in input_data:
+
+        for record in records:
             raw_label = record.get("question", "")
             raw_key = record.get("key", "")
-            val = get_answer(key=raw_label, section=section, verbose=True)
+            instance_id = record.get("instance_id", None)
+
+            if not raw_label and not raw_key:
+                continue  # Skip blank entries
+
+            # Use instance_id if present
+            val = get_answer(
+                key=raw_label,
+                section=section,
+                instance_id=instance_id,
+                verbose=True
+            )
+
             sanitized_label = sanitize_label(raw_label)
             sanitized_key = sanitize_label(raw_key)
+            source = record.get("source", "unknown")
+
             st.markdown(f"""
+            - **Source**: `{source}`
             - **Label**: `{raw_label}`
             - **Key**: `{raw_key}`
             - **Sanitized Label**: `{sanitized_label}`
             - **Sanitized Key**: `{sanitized_key}`
-            - **get_answer() Result**: `{val}`
+            - **Instance ID**: `{instance_id or '—'}`
+            - **get_answer() Result**: `{val or '❌ Not found'}`
             """)
 
     with tabs[2]: # "📖 Runbook Preview"
@@ -107,17 +126,14 @@ def debug_task_input_capture_with_answers_tabs(section: str):
             st.markdown("---")
             st.markdown("### 🧪 Prompt Debug")
 
-            with st.markdown("🔹 Raw Prompt Blocks"):
-                for i, block in enumerate(debug_blocks):
+            st.markdown("🔹 Raw Prompt Blocks")
+            blocks = st.session_state.get(f"{section}_runbook_blocks", [])
+            if not blocks:
+                st.warning("⚠️ No prompt blocks found in session_state.")
+            else:
+                for i, block in enumerate(blocks):
                     st.markdown(f"**Block {i+1}**")
-                    blocks = st.session_state.get(f"{section}_runbook_blocks", [])
-                    if not blocks:
-                        st.warning("⚠️ No prompt blocks found in session_state.")
-                    else:
-                        for i, block in enumerate(blocks):
-                            st.markdown(f"**Block {i+1}**")
-                            st.code(block, language="markdown")
-
+                    st.code(block, language="markdown")
 
             with st.markdown("🔹 Markdown Output"):
                 for i, md in enumerate(debug_md_output):
@@ -241,8 +257,6 @@ def debug_task_input_capture_with_answers_tabs(section: str):
     with tabs[8]:  # 🔍 Merge Debug Tools
         st.subheader("🔍 Merge Context Debug")
 
-        from utils.debug_utils import debug_schedule_df_presence, debug_session_keys
-
         st.markdown("#### ✅ Detected *_schedule_df presence:")
         debug_schedule_df_presence()
 
@@ -343,8 +357,73 @@ def debug_task_input_capture_with_answers_tabs(section: str):
         else:
             st.info("No LLM usage recorded yet.")
 
+def render_get_answer_debug():
+    st.markdown("## 🧪 Debug: `get_answer()` Behavior")
 
+    with st.expander("📦 Sample Data Setup", expanded=False):
+        if st.button("Inject Sample Data"):
+            st.session_state["task_inputs"] = [
+                {
+                    "question": "Feed Dog",
+                    "answer": "1 cup of kibble",
+                    "key": "pets_feed_dog",
+                    "section": "pets",
+                    "area": "pets",
+                    "instance_id": "dog_fido",
+                    "shared": False,
+                    "required": True,
+                    "timestamp": "2025-06-13T18:00:00"
+                },
+                {
+                    "question": "Feed Dog",
+                    "answer": "2 scoops raw food",
+                    "key": "pets_feed_dog",
+                    "section": "pets",
+                    "area": "pets",
+                    "instance_id": "dog_bella",
+                    "shared": False,
+                    "required": True,
+                    "timestamp": "2025-06-13T18:00:01"
+                },
+                {
+                    "question": "Walk Dogs",
+                    "answer": "Both dogs go on a walk at 7AM",
+                    "key": "pets_walk_dogs",
+                    "section": "pets",
+                    "area": "pets",
+                    "shared": True,
+                    "required": False,
+                    "timestamp": "2025-06-13T18:01:00"
+                }
+            ]
+            st.session_state["input_data"] = {
+                "runbook_date_range": [
+                    {
+                        "question": "Start Date",
+                        "answer": "2025-07-01",
+                        "key": "runbook_date_range_start_date",
+                        "section": "runbook_date_range",
+                        "area": "home",
+                        "timestamp": "2025-06-13T18:02:00"
+                    }
+                ]
+            }
+            st.success("✅ Sample data injected.")
 
+    with st.expander("🧪 Run Tests", expanded=True):
+        results = [
+            ("dog_fido feed task", get_answer(key="Feed Dog", section="pets", instance_id="dog_fido")),
+            ("dog_bella feed task", get_answer(key="Feed Dog", section="pets", instance_id="dog_bella")),
+            ("Shared walk task", get_answer(key="Walk Dogs", section="pets", shared=True)),
+            ("Global fallback: Start Date", get_answer(key="Start Date", section="utilities", fallback_to_global=True)),
+            ("Missing task", get_answer(key="Nonexistent Task", section="pets", verbose=True)),
+        ]
+
+        for label, result in results:
+            if result is not None:
+                st.success(f"✅ {label} → {result}")
+            else:
+                st.warning(f"🛑 {label} → Not found")
 
 def debug_single_get_answer(section: str, key: str):
     st.markdown(f"### 🧪 Debug `get_answer(section='{section}', key='{key}')`")

@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import streamlit as st
 import json
 import csv
@@ -9,7 +9,8 @@ import plotly.express as px
 from uuid import uuid4
 import re
 from collections import defaultdict
-from config.sections import SECTION_METADATA
+from config.sections import SECTION_METADATA, get_section_meta
+from utils.event_logger import log_event
 
 DEFAULT_COMMON_SECTIONS = set(SECTION_METADATA.keys())
 
@@ -42,6 +43,58 @@ def log_interaction(action_type, label, value, section_name):
         "section": section_name
     })
 
+def get_all_input_records(
+    section: str = None,
+    *,
+    shared: bool = None,
+    instance_id: str = None,
+    area: str = None
+) -> list[dict]:
+    from config.sections import SECTION_METADATA
+
+    all_records = []
+
+    if area:
+        sections_to_include = [
+            s for s, meta in SECTION_METADATA.items()
+            if meta.get("area") == area
+        ]
+    elif section:
+        sections_to_include = [section]
+    else:
+        sections_to_include = list(SECTION_METADATA.keys())
+
+    for sec in sections_to_include:
+        task_inputs = st.session_state.get("task_inputs", [])
+        input_data = st.session_state.get("input_data", {}).get(sec, [])
+
+        for entry in task_inputs:
+            if entry.get("section") != sec:
+                continue
+            if shared is not None and entry.get("shared") != shared:
+                continue
+            if instance_id is not None and entry.get("instance_id") != instance_id:
+                continue
+            all_records.append({**entry, "source": "task_inputs"})
+
+        for entry in input_data:
+            if shared is not None and entry.get("shared") != shared:
+                continue
+            if instance_id is not None and entry.get("instance_id") != instance_id:
+                continue
+            all_records.append({**entry, "source": "input_data"})
+
+    return all_records
+
+def validate_input_entry(entry: dict) -> bool:
+    required_keys = ["question", "answer", "key", "section", "metadata"]
+    for key in required_keys:
+        if key not in entry:
+            return False
+    if "area" not in entry["metadata"]:
+        return False
+    return True
+
 def capture_input(
     label: str,
     input_fn,
@@ -60,7 +113,7 @@ def capture_input(
     Returns:
         The final processed input value.
     """
-    # Use explicit key or generate one
+    # 🧼 Key generation
     default_key = f"{section}_{sanitize_label(label)}"
     unique_key = kwargs.get("key", default_key)
     kwargs["key"] = unique_key
@@ -106,87 +159,91 @@ def capture_input(
 
     init_section(section)
 
-    entry = {
-        "question": label,
-        "answer": value,
-        "key": unique_key,  # ✅ required for get_answer to match
-        "timestamp": datetime.now().isoformat(),
-        "input_type": getattr(input_fn, "__name__", str(input_fn)),
-        "section": section,
-        "session_id": st.session_state.get("session_id"),
-        "required": required,
-        "metadata": metadata or {},
-    }
-
-    st.session_state.setdefault("input_data", {}).setdefault(section, [])
-
-    # ✅ Optional: overwrite previous entry for same key
-    section_entries = st.session_state["input_data"][section]
-    section_entries = [e for e in section_entries if e.get("key") != unique_key]
-    section_entries.append(entry)
-    st.session_state["input_data"][section] = section_entries
-    
+    log_input_entry(
+        label=label,
+        value=value,
+        section=section,
+        key=unique_key,
+        required=required,
+        metadata=metadata,
+        is_task=False  # Explicitly mark this as a non-task input
+    )
+        
     try:
         log_interaction("input", label, value, section)
     except Exception as e:
         if st.session_state.get("enable_debug_mode"):
-                st.error(f"❌ log_interaction failed: {e}")
+            st.error(f"❌ log_interaction failed: {e}")
     autosave_input_data()
 
     return value
 
-def update_or_log_task(
-    question: str,
-    answer: str,
+def log_input_entry(
+    label: str,
+    value: str,
     section: str,
-    task_type: str = None,
+    key: str = None,
+    *,
+    is_task: bool = False,
     is_freq: bool = False,
-    key: Optional[str] = None,
-    area: str = "home",
-    canonical_map: Optional[dict] = None,
-    overwrite_label: Optional[str] = None,
+    task_type: str = None,
+    area: str = None,
+    instance_id: str = None,
+    shared: bool = False,
+    required: bool = False,
+    metadata: dict = None
 ):
     """
-    Logs a task input in session state, replacing any existing task with the same key.
-
-    Args:
-        question (str): The input label shown to the user.
-        answer (str): The user's response.
-        section (str): The logical section (e.g. "utilities", "trash").
-        task_type (str): Logical category of task (e.g. "utilities").
-        is_freq (bool): Whether the task has a frequency.
-        key (str): Optional key override. Defaults to sanitized label or canonical.
-        area (str): High-level category ("home", "pets", etc.)
-        canonical_map (dict): Optional mapping from question → canonical key.
-        overwrite_label (str): Optional new label to display (while keeping canonical key).
+    Central logging function for both task and non-task inputs.
+    Adds standardized metadata, deduplicates by key, and stores in session state.
     """
-    if not answer or str(answer).strip().lower() in ["", "⚠️ not provided", "n/a"]:
+    value = value.strip()
+    if not value:
         return
 
-    final_question = overwrite_label or question
+    key = key or f"{section}_{sanitize_label(label)}"
+    metadata = dict(metadata) if metadata else {}
 
-    # Canonical or default key
-    if canonical_map:
-        canonical_key = canonical_map.get(question.lower(), key or sanitize_label(question))
-    else:
-        canonical_key = key or sanitize_label(question)
+    # 🧠 Infer area from SECTION_METADATA if not provided
+    if not area:
+        area = SECTION_METADATA.get(section, {}).get("area", "general")
 
-    new_entry = {
-        "question": final_question,
-        "answer": answer.strip(),
-        "key": canonical_key,
-        "category": section,
+    # ✨ Build structured input record
+    record = {
+        "question": label,
+        "answer": value,
+        "key": key,
         "section": section,
         "area": area,
         "task_type": task_type,
         "is_freq": is_freq,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "shared": shared,
+        "instance_id": instance_id,
+        "required": required,
+        "metadata": metadata,
     }
 
-    task_inputs = st.session_state.setdefault("task_inputs", [])
-    task_inputs = [t for t in task_inputs if t.get("key") != canonical_key]
-    task_inputs.append(new_entry)
-    st.session_state["task_inputs"] = task_inputs
+    # 📦 Store in session_state
+    if is_task:
+        task_inputs = st.session_state.setdefault("task_inputs", [])
+        task_inputs = [t for t in task_inputs if t.get("key") != key]
+        task_inputs.append(record)
+        st.session_state["task_inputs"] = task_inputs
+    else:
+        section_entries = st.session_state.setdefault("input_data", {}).setdefault(section, [])
+        section_entries = [e for e in section_entries if e.get("key") != key]
+        section_entries.append(record)
+        st.session_state["input_data"][section] = section_entries
+
+    # 🧾 Optional: Log event
+    log_event(
+        event_type="task_logged" if is_task else "input_logged",
+        data=record,
+        tag="task" if is_task else "input"
+    )
+
+    return record
 
 # Wrapper for task-based inputs
 def register_task_input(
@@ -196,7 +253,10 @@ def register_task_input(
     is_freq: bool = False,
     task_type: str = None,
     key: str = None,  # ✅ Explicit key
-    area: str = "home", # ✅ NEW: Promote `area` to argument
+    area: str = None,  # Auto-filled from SECTION_METADATA if None
+    instance_id: Optional[str] = None,
+    shared: bool = False,
+    required: bool = False,
     *args,
     **kwargs
 ):
@@ -212,53 +272,47 @@ def register_task_input(
         is_freq (bool): Whether this task is frequency-based.
         task_type (str): Optional logical type (e.g., 'mail', 'trash').
         key (str): Optional key to ensure matching across inputs and get_answer().
+        instance_id (str, optional): For named entity inputs (e.g., pet name, profile ID)
+        shared (bool): For inputs meant to apply across multiple entities
+        area (str, optional): High-level area (home, pets, finances). Inferred if not given.
         *args, **kwargs: Passed through to capture_input().
     """
+
     # ✅ Use or generate consistent key
     key = key or f"{section}_{sanitize_label(label)}"
     kwargs["key"] = key
 
-    # ✅ Add metadata (task control block)
-    metadata = {
+    # 📦 Canonical metadata (auto-enriched from SECTION_METADATA)
+    metadata = kwargs.pop("metadata", {})
+    metadata.update({
         "is_task": True,
         "task_label": label,
         "is_freq": is_freq,
-        "area": area,
+        "area": area,  # May be None; will be inferred by log_input_entry
         "section": section,
         "task_type": task_type,
-    }
-    kwargs["metadata"] = metadata
+        "shared": shared,
+    })
 
-    # ✅ Capture user input
-    value = capture_input(label, input_fn, section=section, *args, **kwargs)
+    # ✅ Capture user input widget
+    value = capture_input(label, input_fn, section, *args, metadata=metadata, **kwargs)
 
     if value not in (None, ""):
-        timestamp = datetime.now().isoformat()
-
-        # ✅ Delegate to canonical task logging function
-        update_or_log_task(
-            question=label,
-            answer=value,
+        # 🧠 Save task in session state
+        log_input_entry(
+            label=label,
+            value=value,
             section=section,
-            task_type=task_type,
-            is_freq=is_freq,
             key=key,
+            is_task=True,
+            is_freq=is_freq,
+            task_type=task_type,
             area=area,
-            canonical_map=kwargs.get("canonical_map"),
-            overwrite_label=kwargs.get("overwrite_label")
+            instance_id=instance_id,
+            shared=shared,
+            required=required,
+            metadata=metadata
         )
-
-        # ✅ Input data block (mirrors task_inputs)
-        input_data = st.session_state.setdefault("input_data", {}).setdefault(section, [])
-        input_data = [i for i in input_data if i.get("key") != key]
-        input_data.append({
-            "question": label,
-            "answer": value,
-            "section": section,
-            "key": key,
-            "timestamp": timestamp,
-        })
-        st.session_state["input_data"][section] = input_data  # ✅ Always reassign
 
     return value
 
@@ -269,6 +323,10 @@ def register_input_only(
     key: str = None,
     metadata: dict = None,
     *,
+    area: str = None,
+    instance_id: str = None,
+    shared: bool = False,
+    required: bool = False,
     allow_empty: bool = False
 ):
     """
@@ -285,22 +343,18 @@ def register_input_only(
     if not allow_empty and (not value or str(value).strip() == ""):
         return
 
-    key = key or f"{section}_{sanitize_label(label)}"
-    timestamp = datetime.now().isoformat()
-
-    input_entry = {
-        "question": label,
-        "answer": value.strip(),
-        "section": section,
-        "key": key,
-        "timestamp": timestamp,
-        "metadata": metadata or {},
-    }
-
-    section_entries = st.session_state.setdefault("input_data", {}).setdefault(section, [])
-    section_entries = [e for e in section_entries if e.get("key") != key]
-    section_entries.append(input_entry)
-    st.session_state["input_data"][section] = section_entries
+    return log_input_entry(
+        label=label,
+        value=value,
+        section=section,
+        key=key,
+        is_task=False,
+        area=area,
+        instance_id=instance_id,
+        shared=shared,
+        required=required,
+        metadata=metadata
+    )
 
 def sanitize(text):
     if not isinstance(text, str):
@@ -314,15 +368,72 @@ def sanitize(text):
         .replace("-", "_")
     )
 
+def _search_entries(
+    entries: list[dict],
+    norm_key: str,
+    section: str = None,
+    instance_id: str = None,
+    area: str = None,
+    shared: bool = None,
+    required: bool = None,
+    verbose: bool = False
+) -> str | None:
+    """
+    Search a list of structured entries for a matching key or label.
+
+    Args:
+        entries (list): List of input/task dict entries.
+        norm_key (str): Sanitized search key.
+        section (str): Optional section filter.
+        instance_id (str): Optional per-entity filter (e.g. dog_1).
+        area (str): Optional domain filter (e.g. home, pets).
+        shared (bool): Optional filter for shared inputs.
+        required (bool): Optional filter for required fields.
+        verbose (bool): If True, prints matches and reasons.
+
+    Returns:
+        str | None: Matched answer if found.
+    """
+    for entry in entries:
+        label_raw = entry.get("question", "")
+        key_raw = entry.get("key", "")
+
+        if sanitize(label_raw) != norm_key and sanitize(key_raw) != norm_key:
+            continue  # Skip if key doesn't match
+
+        if section and entry.get("section") != section:
+            continue
+        if instance_id and entry.get("instance_id") != instance_id:
+            continue
+        if area and entry.get("area") != area:
+            continue
+        if shared is not None and entry.get("shared") != shared:
+            continue
+        if required is not None and entry.get("required") != required:
+            continue
+
+        if verbose:
+            st.write(f"✅ Match found in entry: {entry}")
+        return entry.get("answer")
+
+    if verbose:
+        st.info(f"❌ No matching entry found for key='{norm_key}'")
+    return None
+
 def get_answer(
     *,
     key: str,
     section: str,
+    instance_id: str = None,
+    area: str = None,
+    shared: bool = None,
+    required: bool = None,
+    fallback_to_global: bool = True,
     nested_parent: str = None,
     nested_child: str = None,
     verbose: bool = False,
     common_sections: set = None
-) -> str | None:
+) -> str| None:
     """
     Retrieves the most recent answer for a given key in a section.
     Supports flat lookup, nested fallback, and optional verbose debugging.
@@ -360,30 +471,51 @@ def get_answer(
             return nested_val
 
     # 1️⃣ Look in st.session_state["task_inputs"]
-    entries = st.session_state.get("task_inputs", [])
-    for entry in entries:
-        if entry.get("section") != section:
-            continue
-        label_raw = entry.get("question", "")
-        key_raw = entry.get("key", "")
+    task_inputs = st.session_state.get("task_inputs", [])
+    answer = _search_entries(
+        entries=task_inputs,
+        norm_key=norm_key,
+        section=section,
+        instance_id=instance_id,
+        area=area,
+        shared=shared,
+        required=required,
+        verbose=verbose
+    )
+    if answer is not None:
+        return answer
 
-        if sanitize(label_raw) == norm_key or sanitize(key_raw) == norm_key:
-            if verbose:
-                st.write("🔍 Searching in `task_inputs`")
-                st.write(f"✅ Match found — label: `{label_raw}`, key: `{key_raw}`")
-            return entry.get("answer")
+    # 2️⃣ Look in input_data
+    section_inputs = st.session_state.get("input_data", {}).get(section, [])
+    answer = _search_entries(
+        entries=section_inputs,
+        norm_key=norm_key,
+        section=section,
+        instance_id=instance_id,
+        area=area,
+        shared=shared,
+        required=required,
+        verbose=verbose
+    )
 
-    # 2️⃣ Fallback to st.session_state["input_data"]
-    input_data = st.session_state.get("input_data", {}).get(section, [])
-    for entry in input_data:
-        label_raw = entry.get("question", "")
-        key_raw = entry.get("key", "")
+    if answer is not None:
+        return answer
 
-        if sanitize(label_raw) == norm_key or sanitize(key_raw) == norm_key:
-            if verbose:
-                st.write("🔍 Searching in `input_data`")
-                st.write(f"✅ Match found — label: `{label_raw}`, key: `{key_raw}`")
-            return entry.get("answer")
+    # 3️⃣ Fallback to global
+    if fallback_to_global:
+        global_entries = st.session_state.get("input_data", {}).get("global", [])
+        answer = _search_entries(
+            entries=global_entries,
+            norm_key=norm_key,
+            section=section,
+            instance_id=instance_id,
+            area=area,
+            shared=shared,
+            required=required,
+            verbose=verbose
+        )
+        if answer is not None:
+            return answer
 
     if verbose:
         st.warning(f"❌ No match found for key '{key}' in section '{section}'.")
