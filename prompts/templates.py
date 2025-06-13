@@ -234,7 +234,15 @@ def generate_single_provider_prompt(
         "internet": "🌐 Internet"
     }
 
+    utility_tips = {
+        "electricity": "Focus on power outages, avoiding downed lines, and safe generator use.",
+        "natural_gas": "Focus on leak detection, avoiding ignition sources, and safe evacuation.",
+        "water": "Focus on water shut-off, identifying leaks, and safe drinking water.",
+        "internet": "Focus on checking router status, contacting support, and using mobile data if needed."
+    }
+
     label = utility_labels.get(utility, utility.title())
+    tip = utility_tips.get(utility, "")
     internet_note = f"Internet Provider (user provided): {internet}" if utility == "internet" and internet else ""
 
     heading = f"You are a reliable assistant generating emergency utility documentation for a household in:\n- City: {city}\n- ZIP Code: {zip_code}"
@@ -246,10 +254,21 @@ Please identify the **main {label} provider** for this location and return the f
 
 - **Company Name**
 - **Brief Description**
-- **Contact Info (Phone, Website, Email, and Address)**
-- **Emergency Steps**: Provide **exactly five** clear, actionable safety steps in markdown bullet format.
+- **Contact Info**: Include Phone, Website, Email, and Address.
+- **Emergency Steps**: Provide **exactly five** clear, practical safety steps that a **homeowner or house sitter** can take during an emergency involving this utility.  
+  - Do **not** include field repair, technical, or hazardous tasks (e.g., downed wires, shutting off gas mains).
+  - Use **simple markdown bullet points**.
+  - {tip}
+
+If the provider cannot be found, return `"⚠️ Not Available"` for that section. 
 """.strip().format(label=label)
 
+    non_emergency_note = """
+Also include an optional **Non-Emergency Tips** section:
+- Provide 1–3 brief tips on billing, outage updates, or general service access.
+- Mark this section clearly.
+""".strip()
+    
     markdown_format = f"""
 Use this markdown format:
 
@@ -266,9 +285,13 @@ Use this markdown format:
 - Step 3  
 - Step 4  
 - Step 5
+
+**Non-Emergency Tips:**  
+- Tip 1  
+- Tip 2
 """.strip()
 
-    return f"{heading}\n\n{step_request}\n\n{markdown_format}"
+    return f"{heading}\n\n{step_request}\n\n{non_emergency_note}\n\n{markdown_format}"
 
 def utility_provider_lookup_prompt(city: str, zip_code: str, internet: str = "") -> str:
     prompt = f"""
