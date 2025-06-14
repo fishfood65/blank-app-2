@@ -24,36 +24,37 @@ def format_provider_markdown(providers: dict, version: str = "v1.0") -> str:
         "internet": "🌐"
     }
 
-    # Optional: extra fields by provider type
-    extra_fields = {
-      #  "internet": [("Outage Support", "emergency_steps", False, False)],
-    }
-
-        # 🔹 Date and version heading
+    # 🔹 Date and version heading
     today = datetime.today().strftime("%B %d, %Y")
     heading = (
-        "# 🛠️ Utility Providers Overview\n\n"
+        "# ⚡🔥💧🌐 Utility Providers Emergency Guide\n\n"
         f"📅 **Generated:** {today} | **Version:** {version}\n\n"
         "This guide includes a summary and detailed emergency info for each utility.\n"
     )
 
-    # 🔹 Build summary table
-    summary_lines = ["\n### 📋 Utility Provider Summary", "", "| Utility | Provider | Phone | Website |", "|---------|----------|-------|---------|"]
+    # 🔹 Summary Table
+    summary_lines = [
+        "### 🗂️ Utility Provider Summary", "",
+        "| Utility | Provider | Phone | Website |",
+        "|---------|----------|-------|---------|"
+    ]
     for key, info in providers.items():
         icon = icon_map.get(key, "📦")
-        name = info.get("name", "⚠️ Not provided").strip()
-        phone = info.get("contact_phone", "⚠️").strip()
+        name = info.get("name", "⚠️ Not Available").strip()
+        phone = info.get("contact_phone", "⚠️ Not Available").strip()
         website = info.get("contact_website", "").strip()
+        website_display = f"[{website}]({website})" if website.startswith("http") else website or "⚠️ Not Available"
 
-        # Format website as markdown link if valid
-        website_display = f"[{website}]({website})" if website.startswith("http") else website or "⚠️"
-        summary_lines.append(f"| {icon} {key.replace('_', ' ').title()} | {name} | {phone or '⚠️'} | {website_display} |")
+        summary_lines.append(
+            f"| {icon} {key.replace('_', ' ').title()} | {name} | {phone} | {website_display} |"
+        )
 
+    # 🔹 Detailed Sections
     output = []
 
     for key, info in providers.items():
         name = info.get("name", "").strip()
-        if not name:
+        if not name or name.lower() in ["⚠️ not available", "n/a", "not found"]:
             continue
 
         icon = icon_map.get(key, "📦")
@@ -64,7 +65,7 @@ def format_provider_markdown(providers: dict, version: str = "v1.0") -> str:
 
         def row(label, field, is_link=False, multiline=False): # Removed is_email=False
             value = info.get(field, "").strip()
-            if not value:
+            if not value or value.lower() in ["⚠️ not available", "n/a", "not found"]:
                 return None
             if is_link:
                 return f"| **{label}** | [{value}]({value}) |"
@@ -85,35 +86,34 @@ def format_provider_markdown(providers: dict, version: str = "v1.0") -> str:
             ("Address", "contact_address", False, False),
         ]
 
-        fields_to_render = extra_fields.get(key, []) + standard_fields
-
-        for field_entry in fields_to_render:
-            if len(field_entry) == 3:
-                label, field, is_link = field_entry  
-                multiline = False
-            elif len(field_entry) == 4:
-                label, field, is_link, multiline = field_entry
-            else:
-                raise ValueError(f"❌ Invalid field_entry in fields_to_render.\nExpected 3 or 4 elements, got {len(field_entry)}: {field_entry}")
-            line = row(label, field, is_link=is_link, multiline=multiline) # Removed is_email=is_email
+        for label_, field_, is_link_, multiline_ in standard_fields:
+            line = row(label_, field_, is_link_, multiline_)
             if line:
                 table_lines.append(line)
 
         section_block = section_title + "\n" + "\n".join(table_lines)
 
-        # ✅ Append Emergency Steps (outside the table)
+        # 🚨 Emergency Steps
         emergency = info.get("emergency_steps", "").strip()
-        if emergency:
-            emergency_md = "\n".join([
+        if emergency and emergency.lower() != "⚠️ not available":
+            formatted = "\n".join([
                 line.strip() if line.strip().startswith(("-", "•", "*")) else f"- {line.strip()}"
                 for line in emergency.splitlines() if line.strip()
             ])
-            section_block += "\n\n### 🚨 Emergency Instructions\n" + emergency_md
+            section_block += "\n\n### 🚨 Emergency Instructions\n" + formatted
+
+        # 🧾 Non-Emergency Tips
+        tips = info.get("non_emergency_tips", "").strip()
+        if tips and tips.lower() != "⚠️ not available":
+            formatted_tips = "\n".join([
+                line.strip() if line.strip().startswith(("-", "•", "*")) else f"- {line.strip()}"
+                for line in tips.splitlines() if line.strip()
+            ])
+            section_block += "\n\n### 🧾 Non-Emergency Tips\n" + formatted_tips
 
         output.append(section_block)
 
-    final_output = "\n\n---\n\n".join(output)
-    return "## 🛠️ Utility Providers Overview\n\n" + final_output
+    return "\n".join([heading] + summary_lines + ["\n---\n"] + output)
 
 def add_hyperlink(paragraph, url, text=None):
     """
@@ -190,7 +190,7 @@ def add_provider_summary_table(doc: Document, providers: dict):
         phone = info.get("contact_phone", "").strip()
         website = info.get("contact_website", "").strip()
 
-        if not name:
+        if not name or name.lower() == "⚠️ not available":
             continue
 
         icon = icon_map.get(utility, "🔌")
@@ -228,7 +228,7 @@ def add_provider_section_to_docx(doc: Document, providers: dict):
 
     for utility, info in providers.items():
         name = info.get("name", "").strip()
-        if not name:
+        if not name or name.lower() == "⚠️ not available":
             continue
 
         icon = icons.get(utility, "🔌")
@@ -263,7 +263,7 @@ def add_provider_section_to_docx(doc: Document, providers: dict):
         # ✅ Multiline fields rendered as bulleted lists
         for field_key, heading in multiline_fields.items():
             value = info.get(field_key, "").strip()
-            if value:
+            if value and value.lower() not in ["⚠️ not available", "n/a"]:
                 lines = [line.strip() for line in value.splitlines() if line.strip()]
                 if lines:
                     doc.add_paragraph("")  # spacer

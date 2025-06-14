@@ -17,11 +17,13 @@ import uuid
 import json
 from utils.preview_helpers import get_active_section_label
 from utils.data_helpers import (
+    normalize_provider_fields,
+    register_provider_input,
     register_task_input, 
     get_answer, 
     extract_and_log_providers,
     parse_utility_block,
-    register_input_only
+    register_input_only,
 )
 #from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, reset_all_session_state
@@ -58,24 +60,26 @@ def get_utilities_inputs(section: str):
     Returns:
         Tuple[str, str, str]: city, zip_code, and internet_provider
     """
-    city = register_task_input(
+    city = register_input_only(
         label="City",
         input_fn=st.text_input,
         section=section,
         value=st.session_state.get("City", ""),
         key="City",  # Ensures value stored in st.session_state["City"]
-        task_type="Location Info",
-        required=True
+        required=True,
+        area="home",
+        shared=True
     )
 
-    zip_code = register_task_input(
+    zip_code = register_input_only(
         label="ZIP Code",
         input_fn=st.text_input,
         section=section,
         value=st.session_state.get("ZIP Code", ""),
         key="ZIP Code",
-        task_type="Location Info",
-        required=True
+        required=True,
+        area="home",
+        shared=True
     )
 
     internet_provider = register_task_input(
@@ -84,8 +88,9 @@ def get_utilities_inputs(section: str):
         section=section,
         value=st.session_state.get("Internet Provider", ""),
         key="Internet Provider",
-        task_type="Utilities",
-        required=False
+        required=False,
+        area="home",
+        shared=True
     )
 
     if not internet_provider or internet_provider.lower() in ["⚠️ not provided", "n/a", ""]:
@@ -145,36 +150,6 @@ def query_utility_providers(section: str, test_mode: bool = False) -> dict:
 
     return extract_and_log_providers(content, section=section)
 
-def register_provider_input(label: str, value: str, section: str):
-    if not label or not isinstance(label, str):
-        raise ValueError("Provider label must be a non-empty string.")
-
-    if not isinstance(value, str) or value.strip().lower() in ["", "not found", "n/a"]:
-        return
-
-    # Register as structured input data
-    input_data = st.session_state.setdefault("input_data", {})
-    section_data = input_data.setdefault(section, [])
-
-    # Remove duplicates first
-    section_data = [entry for entry in section_data if entry["question"] != f"{label} Provider"]
-    section_data.append({
-        "question": f"{label} Provider",
-        "answer": value.strip()
-    })
-    input_data[section] = section_data
-
-    # Track in task_inputs
-    task_row = {
-        "question": f"{label} Provider",
-        "answer": value.strip(),
-        "category": section,
-        "section": section,
-        "area": "home",
-        "task_type": "info",
-        "is_freq": False
-    }
-    st.session_state.setdefault("task_inputs", []).append(task_row)
 
 def render_provider_correction_and_refresh(section: str = "utilities"):
     """
@@ -236,26 +211,44 @@ def get_corrected_providers(results: dict, section: str) -> dict:
         current = results.get(key, {})
         name = current.get("name", "")
         phone = current.get("contact_phone", "")
+        website = current.get("contact_website", "")
         #email = current.get("contact_email", "")
         address = current.get("contact_address", "")
+        description = current.get("description", "")
         emergency = current.get("emergency_steps", "")
+        tips = current.get("non_emergency_tips", "")
 
         with st.expander(f"🔧 Validate or Update {label} Provider", expanded=False):
             st.markdown(f"### 🛠️ {label} Provider")
-
+            
+            # Name
             correct_name = st.checkbox(f"✏️ Correct Provider Name ({name})", value=False, key=f"{key}_name_check")
             name_input = st.text_input(f"{label} Provider Name", value=name, disabled=not correct_name, key=f"{key}_name")
-            
+
+            # Phone            
             correct_phone = st.checkbox(f"✏️ Correct Phone", value=False, key=f"{key}_phone_check")
             phone_input = st.text_input("Phone", value=phone, disabled=not correct_phone, key=f"{key}_phone")
-            
+
+            # Email
             #correct_email = st.checkbox(f"✏️ Correct Email", value=False, key=f"{key}_email_check")
             #email_input = st.text_input("Email", value=email, disabled=not correct_email, key=f"{key}_email")
 
+            # Address
             correct_address = st.checkbox(f"✏️ Correct Address", value=False, key=f"{key}_address_check")
             address_input = st.text_area("Address", value=address, disabled=not correct_address, key=f"{key}_address")
 
-            st.markdown(f"🚨 **Emergency Steps (Read-Only):**  \n{emergency or '—'}")
+            # Website
+            correct_website = st.checkbox(f"✏️ Correct Website", value=False, key=f"{key}_website_check")
+            website_input = st.text_input("Website", value=website, disabled=not correct_website, key=f"{key}_website")
+
+            # Description
+            correct_description = st.checkbox(f"✏️ Correct Description", value=False, key=f"{key}_desc_check")
+            desc_input = st.text_area("Provider Description", value=description, disabled=not correct_description, key=f"{key}_desc")
+
+            # Read-only fields
+            st.markdown(f"🚨 **Emergency Steps (Read-Only):**\n{emergency or '—'}")
+            if tips and tips != "⚠️ Not Available":
+                st.markdown(f"💡 **Non-Emergency Tips:**\n{tips}")
 
             # ✅ Refresh Button
             refresh_clicked = st.button(f"🔁 Refresh {label}", key=f"refresh_{key}")
@@ -270,9 +263,10 @@ def get_corrected_providers(results: dict, section: str) -> dict:
                 "contact_phone": phone_input if correct_phone else phone,
                 #"contact_email": email_input if correct_email else email,
                 "contact_address": address_input if correct_address else address,
-                "contact_website": current.get("contact_website", ""),
-                "description": current.get("description", ""),
-                "emergency_steps": emergency  # do not change
+                "contact_website": website_input if correct_website else website,
+                "description": desc_input if correct_description else description,
+                "emergency_steps": emergency,  # do not change
+                "non_emergency_tips": tips
             }
 
             # ✅ Update session state for each corrected field
@@ -302,11 +296,13 @@ def save_provider_to_cache(utility: str, city: str, zip_code: str, content: str)
 def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = None):
     """
     Queries the LLM one utility at a time and stores structured results in session_state.
-    Caches responses to avoid unnecessary re-queries.
+    Uses disk + session cache to avoid redundant calls.
+    Logs all extracted data into input_data with shared visibility.
     """
     if force_refresh_map is None:
         force_refresh_map = {}
-
+        
+    # 🔍 Look up core location fields
     city = get_answer(key="City", section=section, verbose=True)
     zip_code = get_answer(key="ZIP Code", section=section, verbose=True)
     internet_input = get_answer(key="Internet Provider", section=section, verbose=True)
@@ -354,8 +350,9 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
                 st.error(f"❌ Error querying {label}: {e}")
                 raw_response = ""
 
-        # Parse + log
+        # Parse + normalize + log
         parsed = parse_utility_block(raw_response)
+        parsed = normalize_provider_fields(parsed)
         results[utility] = parsed
 
         # Debug output
@@ -369,15 +366,18 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
         name = parsed.get("name", "").strip()
         if name:
             st.session_state[f"{utility}_provider"] = name
-            register_input_only(f"{label} Provider", name, section=section)
+            register_input_only(
+                f"{label} Provider", name,
+                section=section, area="home", shared=True
+            )
 
             prefix = f"{label} ({name})"
-            register_input_only(f"{prefix} Description", parsed.get("description", ""), section=section)
-            register_input_only(f"{prefix} Contact Phone", parsed.get("contact_phone", ""), section=section)
-            register_input_only(f"{prefix} Contact Website", parsed.get("contact_website", ""), section=section)
-            #register_input_only(f"{prefix} Contact Email", parsed.get("contact_email", ""), section=section)
-            register_input_only(f"{prefix} Contact Address", parsed.get("contact_address", ""), section=section)
-            register_input_only(f"{prefix} Emergency Steps", parsed.get("emergency_steps", ""), section=section)
+            register_input_only(f"{prefix} Description", parsed.get("description", ""), section=section, area="home", shared=True)
+            register_input_only(f"{prefix} Contact Phone", parsed.get("contact_phone", ""), section=section, area="home", shared=True)
+            register_input_only(f"{prefix} Contact Website", parsed.get("contact_website", ""), section=section, area="home", shared=True)
+            #register_input_only(f"{prefix} Contact Email", parsed.get("contact_email", ""), section=section, area="home", shared=True)
+            register_input_only(f"{prefix} Contact Address", parsed.get("contact_address", ""), section=section, area="home", shared=True)
+            register_input_only(f"{prefix} Emergency Steps", parsed.get("emergency_steps", ""), section=section, area="home", shared=True)
 
     # ✅ Store results to session
     st.session_state["utility_providers"] = results

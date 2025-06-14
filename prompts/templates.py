@@ -235,40 +235,51 @@ def generate_single_provider_prompt(
     }
 
     utility_tips = {
-        "electricity": "Focus on power outages, avoiding downed lines, and safe generator use.",
-        "natural_gas": "Focus on leak detection, avoiding ignition sources, and safe evacuation.",
-        "water": "Focus on water shut-off, identifying leaks, and safe drinking water.",
-        "internet": "Focus on checking router status, contacting support, and using mobile data if needed."
+        "electricity": "Focus on **power outages**, avoiding **downed lines**, and **safe generator use**.",
+        "natural_gas": "Focus on **leak detection**, avoiding **ignition sources**, and **safe evacuation**.",
+        "water": "Focus on **shutting off water**, identifying **leaks**, and ensuring **safe drinking water**.",
+        "internet": "Focus on **router status**, **contacting support**, and using **mobile data** if needed."
     }
 
     label = utility_labels.get(utility, utility.title())
     tip = utility_tips.get(utility, "")
     internet_note = f"Internet Provider (user provided): {internet}" if utility == "internet" and internet else ""
 
-    heading = f"You are a reliable assistant generating emergency utility documentation for a household in:\n- City: {city}\n- ZIP Code: {zip_code}"
+    # Header block
+    heading = f"""You are a reliable assistant generating emergency utility documentation for a household in:
+- City: {city}
+- ZIP Code: {zip_code}"""
     if internet_note:
         heading += f"\n- {internet_note}"
 
-    step_request = """
+    # Instructions block
+    step_request = f"""
 Please identify the **main {label} provider** for this location and return the following:
 
 - **Company Name**
 - **Brief Description**
-- **Contact Info**: Include Phone, Website, Email, and Address.
-- **Emergency Steps**: Provide **exactly five** clear, practical safety steps that a **homeowner or house sitter** can take during an emergency involving this utility.  
-  - Do **not** include field repair, technical, or hazardous tasks (e.g., downed wires, shutting off gas mains).
-  - Use **simple markdown bullet points**.
-  - {tip}
+- **Contact Info**:
+    - Phone
+    - Website
+    - Email
+    - Address
 
-If the provider cannot be found, return `"⚠️ Not Available"` for that section. 
-""".strip().format(label=label)
+- **Emergency Steps**: Provide **exactly five** clear, practical safety steps that a **homeowner or house sitter** can take during a {label.lower()} emergency:
+    - Do **not** include technical, professional, or hazardous instructions (e.g., repairing lines, shutting off mains).
+    - Use **simple markdown bullet points**.
+    - {tip}
 
+If the provider cannot be found, return `"⚠️ Not Available"` for each missing field.
+""".strip()
+
+    # Optional non-emergency section
     non_emergency_note = """
 Also include an optional **Non-Emergency Tips** section:
-- Provide 1–3 brief tips on billing, outage updates, or general service access.
+- Provide 1–3 brief tips on billing, service status, or support.
 - Mark this section clearly.
 """.strip()
-    
+
+    # Format expectations
     markdown_format = f"""
 Use this markdown format:
 
@@ -278,7 +289,8 @@ Use this markdown format:
 - **Phone:** <phone number>  
 - **Website:** <URL>  
 - **Email:** <email address>  
-- **Address:** <street address, city, state, zip code>  
+- **Address:** <full address>  
+
 **Emergency Steps:**  
 - Step 1  
 - Step 2  
@@ -288,7 +300,7 @@ Use this markdown format:
 
 **Non-Emergency Tips:**  
 - Tip 1  
-- Tip 2
+- Tip 2  
 """.strip()
 
     return f"{heading}\n\n{step_request}\n\n{non_emergency_note}\n\n{markdown_format}"

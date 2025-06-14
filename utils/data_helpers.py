@@ -847,9 +847,8 @@ def interaction_dashboard():
 
 def log_provider_result(label, value, section="Utility Providers"):
     """
-    Logs a single provider result into input_data, with basic validation.
-    - Skips empty, 'not found', or 'n/a' values
-    - Raises an error for invalid labels
+    Lightweight wrapper for logging provider metadata using register_input_only().
+    Skips empty/placeholder values, adds shared fallback visibility.
     """
     if not label or not isinstance(label, str):
         raise ValueError("Provider label must be a non-empty string.")
@@ -857,31 +856,14 @@ def log_provider_result(label, value, section="Utility Providers"):
     if not isinstance(value, str) or value.strip().lower() in ["", "not found", "n/a"]:
         return  # Skip logging invalid or placeholder values
 
-    if "input_data" not in st.session_state:
-        st.session_state["input_data"] = {}
-    if section not in st.session_state["input_data"]:
-        st.session_state["input_data"][section] = []
-
-    st.session_state["input_data"][section].append({
-        "question": f"{label} Provider",
-        "answer": value,
-        "timestamp": datetime.now().isoformat()
-    })
-
-    if "interaction_log" not in st.session_state:
-        st.session_state["interaction_log"] = []
-    session_id = st.session_state.get("session_id", "anonymous")
-    user_id = st.session_state.get("user_id", "anonymous")
-
-    st.session_state["interaction_log"].append({
-        "timestamp": datetime.now().isoformat(),
-        "user_id": user_id,
-        "session_id": session_id,
-        "action": "autolog",
-        "question": f"{label} Provider",
-        "answer": value,
-        "section": section
-    })
+    register_input_only(
+        label=f"{label} Provider",
+        value=value,
+        section=section,
+        area="home",
+        shared=True,
+        required=False
+    )
 
 def clean_md_artifacts(text: str) -> str:
     """
@@ -918,8 +900,25 @@ def parse_utility_block(block: str) -> dict:
         "contact_address": extract_and_clean(r"\*\*Address:\*\* (.*)"),
         "emergency_steps": extract_and_clean(
             r"\*\*Emergency Steps:\*\*\s*((?:.|\n)*?)(?=\n## |\Z)", multiline=True
-        ) or "⚠️ Emergency steps not provided."
+        ) or "⚠️ Emergency steps not provided.",
+        "non_emergency_tips": extract_and_clean(
+            r"\*\*Non-Emergency Tips:\*\*\s*((?:.|\n)*?)(?=\n## |\Z)", multiline=True
+        ) or ""
     }
+def normalize_provider_fields(parsed: dict) -> dict:
+    """
+    Applies fallback replacement, deduplication, and formatting cleanup.
+    """
+    def normalize_val(val: str) -> str:
+        if not val or val.strip().lower() in ["n/a", "not found", "⚠️ not available"]:
+            return "⚠️ Not Available"
+        return val.strip()
+
+    for key in parsed:
+        if isinstance(parsed[key], str):
+            parsed[key] = normalize_val(parsed[key])
+
+    return parsed
 
 def extract_provider_blocks(content: str) -> dict:
     """
@@ -1042,35 +1041,54 @@ def section_has_valid_input(section: str, min_entries: int = 1) -> bool:
     return total >= min_entries
 
 def register_provider_input(label: str, value: str, section: str):
+    """
+    Logs a provider result into both `input_data` and `task_inputs` with full metadata.
+    Ensures no duplicates and consistent formatting for downstream functions like `get_answer()`.
+    """
     if not label or not isinstance(label, str):
         raise ValueError("Provider label must be a non-empty string.")
+    
+    if not isinstance(value, str) or value.strip().lower() in ["", "not found", "n/a", "⚠️ not available"]:
+        return  # Skip placeholder or missing values
 
-    if not isinstance(value, str) or value.strip().lower() in ["", "not found", "n/a"]:
-        return
+    value = value.strip()
+    question = f"{label} Provider"
+    timestamp = datetime.now().isoformat()
 
-    # Register as structured input data
+    # ✅ 1. Update input_data
     input_data = st.session_state.setdefault("input_data", {})
     section_data = input_data.setdefault(section, [])
 
-    # Remove duplicates first
-    section_data = [entry for entry in section_data if entry["question"] != f"{label} Provider"]
+    # Remove existing question if it exists
+    section_data = [entry for entry in section_data if entry.get("question") != question]
     section_data.append({
-        "question": f"{label} Provider",
-        "answer": value.strip()
+        "question": question,
+        "answer": value,
+        "timestamp": timestamp
     })
     input_data[section] = section_data
 
-    # Track in task_inputs
-    task_row = {
-        "question": f"{label} Provider",
-        "answer": value.strip(),
-        "category": section,
+    # ✅ 2. Update task_inputs
+    task_inputs = st.session_state.setdefault("task_inputs", [])
+    task_inputs = [
+        task for task in task_inputs
+        if not (task.get("question") == question and task.get("section") == section)
+    ]
+    task_inputs.append({
+        "question": question,
+        "answer": value,
+        "key": sanitize_label(question),
         "section": section,
-        "area": "home",
+        "area": "home",  # Optional: you can map from SECTION_METADATA if needed
+        "category": section,
         "task_type": "info",
-        "is_freq": False
-    }
-    st.session_state.setdefault("task_inputs", []).append(task_row)
+        "is_freq": False,
+        "timestamp": timestamp
+    })
+    st.session_state["task_inputs"] = task_inputs
+
+    # ✅ 3. Optional: update top-level key for direct lookup
+    st.session_state[sanitize_label(question)] = value
 
 def update_or_log_task(
     question: str,
