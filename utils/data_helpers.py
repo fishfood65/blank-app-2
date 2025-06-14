@@ -397,9 +397,12 @@ def _search_entries(
     for entry in entries:
         label_raw = entry.get("question", "")
         key_raw = entry.get("key", "")
+        label_sanitized = sanitize(label_raw)
+        key_sanitized = sanitize(key_raw)
 
-        if sanitize(label_raw) != norm_key and sanitize(key_raw) != norm_key:
-            continue  # Skip if key doesn't match
+        # ✅ Match on either sanitized question or key
+        if norm_key not in [label_sanitized, key_sanitized]:
+            continue
 
         if section and entry.get("section") != section:
             continue
@@ -421,7 +424,6 @@ def _search_entries(
     return None
 
 def get_answer(
-    *,
     key: str,
     section: str,
     instance_id: str = None,
@@ -520,6 +522,52 @@ def get_answer(
     if verbose:
         st.warning(f"❌ No match found for key '{key}' in section '{section}'.")
     return None
+
+def apply_provider_overrides(
+    parsed: dict,
+    user_override: dict,
+    fields_to_override: list = ["contact_phone", "contact_address", "contact_website", "description"]
+) -> Tuple[dict, bool, bool]:
+    """
+    Applies user-confirmed overrides to a parsed provider block.
+    
+    Args:
+        parsed (dict): The raw parsed LLM response (can be empty).
+        user_override (dict): The user's confirmed update from disk/session.
+        fields_to_override (list): Fields eligible for override (excluding 'name').
+
+    Returns:
+        Tuple[dict, bool, bool]: (updated parsed block, name_changed flag, needs_refresh flag)
+    """
+    if not user_override or not isinstance(user_override, dict):
+        return parsed, False, False
+
+    updated = parsed.copy()
+    name_before = parsed.get("name", "").strip()
+    name_after = user_override.get("name", "").strip()
+
+    name_changed = name_before and name_after and (name_before != name_after)
+    needs_refresh = False
+
+    if not name_changed:
+        # ✅ Use stored name + apply overrides
+        if name_after:
+            updated["name"] = name_after
+        for field in fields_to_override:
+            user_val = user_override.get(field, "").strip()
+            if user_val:
+                updated[field] = user_val
+    else:
+        # 🛠 Name was changed → assume rest of LLM block may be stale
+        updated["name"] = name_after
+        for field in fields_to_override:
+            existing_val = parsed.get(field, "").strip()
+            if not existing_val:
+                needs_refresh = True  # Field is missing after name change
+            updated.pop(field, None)  # Remove stale value
+
+    return updated, name_changed, needs_refresh
+
 
 
 def check_missing_utility_inputs(section="utilities"):

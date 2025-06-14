@@ -1,0 +1,16 @@
+{
+  "city": "San Jose",
+  "zip_code": "95148",
+  "utility": "natural_gas",
+  "updated_at": "2025-06-14T06:40:30.359074",
+  "data": {
+    "name": "Pacific Gas & Electric Company PG&E",
+    "contact_phone": "1-800-743-5000",
+    "contact_address": "77 Beale Street, San Francisco, CA 94105",
+    "contact_website": "pge.com",
+    "description": "Pacific Gas & Electric Company PG&E provides natural gas and electricity to most of the northern two-thirds of California, including San Jose. They are committed to delivering safe and reliable energy services to their customers.",
+    "emergency_steps": "- Alert everyone in the household and move to a safe location away from the immediate area of the gas leak.\n- Avoid using matches, flashlights, and other possible ignition sources near the suspected leak.\n- Do not use any electrical devices, including cell phones, until you are a safe distance away from the leak.\n- Call 9-1-1 for emergency assistance as soon as you are in a safe location.\n- After contacting emergency services, call PG&E at 1-800-743-5000 to report the gas leak.\n\nNon-Emergency Tips:  \n- Secure helium-filled metallic balloons with weights to prevent them from floating into powerlines, which can cause outages and fires.  \n- PG&E offers tips on how to prepare your home for summer to reduce energy use and save on bills.  \n- If you need help with your bill, PG&E provides various payment and savings solutions pge.com pge.com.",
+    "non_emergency_tips": "- Secure helium-filled metallic balloons with weights to prevent them from floating into powerlines, which can cause outages and fires.  \n- PG&E offers tips on how to prepare your home for summer to reduce energy use and save on bills.  \n- If you need help with your bill, PG&E provides various payment and savings solutions pge.com pge.com.",
+    "confirmed": true
+  }
+}

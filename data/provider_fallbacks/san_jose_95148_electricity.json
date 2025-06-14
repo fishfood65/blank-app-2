@@ -1,0 +1,16 @@
+{
+  "city": "San Jose",
+  "zip_code": "95148",
+  "utility": "electricity",
+  "updated_at": "2025-06-14T06:40:30.290635",
+  "data": {
+    "name": " Pacific Gas & Electric Company PG&E",
+    "contact_phone": "1-800-743-5000",
+    "contact_address": "77 Beale Street, San Francisco, CA 94105",
+    "contact_website": "pge.com",
+    "description": "Pacific Gas & Electric Company PG&E provides natural gas and electricity to most of the northern two-thirds of California, including San Jose. They are committed to delivering safe and reliable energy services to their customers.",
+    "emergency_steps": "- Use a cell phone or hard-wired phone as cordless phones may not work without electricity.  \n- Keep battery-operated flashlights on hand instead of candles to avoid fire hazards.  \n- Unplug or turn off all electric and heat-producing appliances to prevent damage when power is restored.  \n- Keep metal objects away from power lines to avoid outages or power surges.  \n- Stay at least 10 feet away from all electrical solar equipment and connections during an emergency.\n\nNon-Emergency Tips:  \n- Check the San Jos\u00e9 Clean Energy website for updates on service status and community programs.  \n- Consider opting for 100% renewable energy to contribute to the fight against climate change.",
+    "non_emergency_tips": "- Check the San Jos\u00e9 Clean Energy website for updates on service status and community programs.  \n- Consider opting for 100% renewable energy to contribute to the fight against climate change.",
+    "confirmed": true
+  }
+}

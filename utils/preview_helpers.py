@@ -139,6 +139,9 @@ def render_provider_contacts(section: str = "utilities"):
     """
 
     providers = st.session_state.get("utility_providers", {})
+    st.markdown("### 🐞 Debug: raw provider data")
+    st.json(providers)
+
     if not providers:
         st.info("No utility provider metadata found.")
         return
@@ -152,9 +155,11 @@ def render_provider_contacts(section: str = "utilities"):
         "internet": "🌐"
     }
 
-    for utility_key, info in providers.items():
+    for utility_key in ["electricity", "natural_gas", "water", "internet"]:
+        info = providers.get(utility_key, {})
         name = info.get("name", "").strip()
         if not name:
+            st.warning(f"{icon} {label} provider name not found. This will be refreshed silently.")
             continue
 
         label = utility_key.replace("_", " ").title()

@@ -1,0 +1,16 @@
+{
+  "city": "San Jose",
+  "zip_code": "95148",
+  "utility": "water",
+  "updated_at": "2025-06-14T06:40:30.435995",
+  "data": {
+    "name": "San Jose Water",
+    "contact_phone": "408-279-7900",
+    "contact_address": "110 West Taylor St., San Jose, CA 95110-2131",
+    "contact_website": "sjwater.com",
+    "description": "San Jose Water provides a safe and reliable water supply to the San Jose community, with a focus on customer service and emergency response.",
+    "emergency_steps": "- Locate and turn off the water shut-off valve to stop the water flow into the house.  \n- Identify visible leaks and place a container underneath to collect water, preventing damage.  \n- Use bottled water or boil tap water for at least one minute before drinking to ensure safety.  \n- Avoid using appliances that require water until the issue is resolved.  \n- Contact San Jose Water for further assistance and guidance on the situation.\n\nNon-Emergency Tips:  \n- For billing inquiries or to make payments, visit the billing and payments section on their website.  \n- Stay informed about service alerts and updates by checking the customer care section on their website.  \n- To start or stop water service, you can submit a request online or contact their customer service via phone or email sjwater.com.",
+    "non_emergency_tips": "- For billing inquiries or to make payments, visit the billing and payments section on their website.  \n- Stay informed about service alerts and updates by checking the customer care section on their website.  \n- To start or stop water service, you can submit a request online or contact their customer service via phone or email sjwater.com.",
+    "confirmed": true
+  }
+}
