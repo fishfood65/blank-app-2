@@ -1044,6 +1044,7 @@ def register_provider_input(label: str, value: str, section: str):
     """
     Logs a provider result into both `input_data` and `task_inputs` with full metadata.
     Ensures no duplicates and consistent formatting for downstream functions like `get_answer()`.
+    Automatically logs debug and analytics events.
     """
     if not label or not isinstance(label, str):
         raise ValueError("Provider label must be a non-empty string.")
@@ -1054,6 +1055,9 @@ def register_provider_input(label: str, value: str, section: str):
     value = value.strip()
     question = f"{label} Provider"
     timestamp = datetime.now().isoformat()
+
+    # ✅ Resolve area from section metadata
+    area = SECTION_METADATA.get(section, {}).get("area", section)
 
     # ✅ 1. Update input_data
     input_data = st.session_state.setdefault("input_data", {})
@@ -1079,7 +1083,7 @@ def register_provider_input(label: str, value: str, section: str):
         "answer": value,
         "key": sanitize_label(question),
         "section": section,
-        "area": "home",  # Optional: you can map from SECTION_METADATA if needed
+        "area": area,
         "category": section,
         "task_type": "info",
         "is_freq": False,
@@ -1089,6 +1093,22 @@ def register_provider_input(label: str, value: str, section: str):
 
     # ✅ 3. Optional: update top-level key for direct lookup
     st.session_state[sanitize_label(question)] = value
+    
+    # ✅ 4. Debug display
+    if st.session_state.get("enable_debug_mode"):
+        st.info(f"✅ Registered provider input: **{label}** = `{value}`")
+
+    # ✅ 5. Analytics/logging
+    log_event(
+        event_type="provider_input_registered",
+        data={
+            "question": question,
+            "answer": value,
+            "section": section,
+            "area": area
+        },
+        tag="provider_update"
+    )
 
 def update_or_log_task(
     question: str,

@@ -1,6 +1,12 @@
 import streamlit as st
-from datetime import datetime
+import os
+import json
 import uuid
+from datetime import datetime
+import streamlit as st
+
+LOG_DIR = "logs"
+LOG_FILE = os.path.join(LOG_DIR, "event_log.json")
 
 def log_event(
     event_type: str,
@@ -11,15 +17,9 @@ def log_event(
     tag: str = None,
 ):
     """
-    Logs an event to session_state for now (extendable to file/db later).
-
-    Args:
-        event_type (str): e.g. "input_logged", "task_updated"
-        data (dict): Any structured payload
-        user_id (str): Future-proof user identifier
-        session_id (str): Optional session ID
-        tag (str): Optional high-level tag/category
+    Logs an event to session_state and appends it to a local JSON file.
     """
+
     event = {
         "id": str(uuid.uuid4()),
         "event_type": event_type,
@@ -30,11 +30,26 @@ def log_event(
         "tag": tag or data.get("section") or "general",
     }
 
+    # Store in session memory
     events = st.session_state.setdefault("event_log", [])
     events.append(event)
     st.session_state["event_log"] = events
 
-    # 🔍 Optional: Print live during dev
+    # Store to disk
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+        if os.path.exists(LOG_FILE):
+            with open(LOG_FILE, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+        else:
+            existing = []
+        existing.append(event)
+        with open(LOG_FILE, "w", encoding="utf-8") as f:
+            json.dump(existing, f, indent=2)
+    except Exception as e:
+        if st.session_state.get("enable_debug_mode"):
+            st.warning(f"⚠️ Failed to write event log: {e}")
+
     if st.session_state.get("enable_debug_mode"):
         st.write("📥 Event logged:", event_type)
         st.json(event)

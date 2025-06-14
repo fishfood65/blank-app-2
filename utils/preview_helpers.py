@@ -233,4 +233,3 @@ def render_saved_section(label, md_key, docx_key, file_prefix):
             file_name=f"{file_prefix}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
-

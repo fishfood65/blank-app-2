@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import pandas as pd
 import streamlit as st
@@ -15,6 +16,17 @@ from verify_blocks import is_content_meaningful
 from utils.preview_helpers import debug_render_provider_contacts
 
 DEFAULT_COMMON_SECTIONS = set(SECTION_METADATA.keys())
+
+def render_llm_debug_info():
+    st.markdown("### 🧠 LLM Debug Info")
+
+    api_key_present = bool(os.getenv("OPENROUTER_TOKEN"))
+    referer_value = os.getenv("OPENROUTER_REFERER", "❌ Not set")
+    model_name = "openai/gpt-4o:online"  # Make dynamic if needed
+
+    st.write("🔑 **API Key Loaded:**", "✅ Yes" if api_key_present else "❌ No")
+    st.write("🌐 **Referer Header:**", referer_value)
+    st.write("🤖 **Model in Use:**", model_name)
 
 def debug_all_sections_input_capture_with_summary(sections: List[str]):
     """

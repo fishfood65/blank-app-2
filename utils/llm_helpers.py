@@ -4,6 +4,29 @@ import os
 import requests
 import streamlit as st
 import tiktoken
+import time
+import json
+
+
+LLM_USAGE_DIR = "llm_cache"
+LLM_USAGE_FILE = os.path.join(LLM_USAGE_DIR, "usage_log.jsonl")
+
+def append_llm_usage_log(entry: dict):
+    """
+    Appends a single LLM usage entry to disk in JSONL format.
+    Ensures directory exists and avoids duplicate writes for identical timestamps.
+    """
+    os.makedirs(LLM_USAGE_DIR, exist_ok=True)
+
+    if not isinstance(entry, dict):
+        raise ValueError("Entry must be a dictionary")
+
+    # Add a fallback timestamp if missing
+    entry.setdefault("timestamp", datetime.now().isoformat())
+
+    with open(LLM_USAGE_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
 
 def call_openrouter_chat(prompt: str) -> str:
 
@@ -97,7 +120,20 @@ def call_openrouter_chat(prompt: str) -> str:
             "timestamp": datetime.now().isoformat(),
             "prompt_preview": prompt[:200] # first 200 chars for debugging
         }
+        
+        # Append to cumulative log
+        log = st.session_state.setdefault("llm_usage_log", [])
+        log.append(usage_entry)
+        st.session_state["llm_usage_log"] = log
 
+        # ✅ Optional: Persist usage to disk for debug dashboard
+        try:
+            append_llm_usage_log(usage_entry)
+        except Exception as e:
+            if st.session_state.get("enable_debug_mode"):
+                st.warning(f"⚠️ Failed to write usage log to disk: {e}")
+
+        return content
         # Append to cumulative log
         log = st.session_state.setdefault("llm_usage_log", [])
         log.append(usage_entry)
@@ -118,3 +154,25 @@ def call_openrouter_chat(prompt: str) -> str:
                 pass
         return None
 
+# ⏳ Cooldown Helper
+def is_refresh_allowed(key: str, max_attempts: int = 3, cooldown_sec: int = 600) -> bool:
+    attempts = st.session_state.setdefault("provider_refresh_attempts", {})
+    timestamps = st.session_state.setdefault("provider_refresh_timestamps", {})
+    now = time.time()
+
+    last_attempt_time = timestamps.get(key, 0)
+    time_since_last = now - last_attempt_time
+
+    # Reset after cooldown
+    if time_since_last > cooldown_sec:
+        attempts[key] = 0
+
+    if attempts.get(key, 0) < max_attempts:
+        return True
+    return False
+
+# 🧪 Manual override
+if st.session_state.get("enable_debug_mode") and st.button("🔓 Override Refresh Lock"):
+    st.session_state["provider_refresh_attempts"] = {}
+    st.session_state["provider_refresh_timestamps"] = {}
+    st.success("✅ Refresh limits reset.")
