@@ -728,12 +728,6 @@ def handle_queued_provider_updates(section: str = "utilities"):
         extracted_name = name_match.group(1).strip() if name_match else name
         extracted_phone = phone_match.group(1).strip() if phone_match else phone
 
-        # Ensure required fields are prompted
-        if "name" in notes.lower() and "Name" not in requested_fields:
-            requested_fields.append("Name")
-        if "phone" in notes.lower() and "Phone" not in requested_fields:
-            requested_fields.append("Phone")
-
         # Sanitize values before sending to the LLM
         # Apply before prompt generation
         name = sanitize_value(name)
