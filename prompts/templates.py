@@ -305,6 +305,68 @@ Use this markdown format:
 
     return f"{heading}\n\n{step_request}\n\n{non_emergency_note}\n\n{markdown_format}"
 
+# --- Generate corrected provider prompt ---
+def generate_corrected_provider_prompt(
+    utility_key: str,
+    city: str,
+    zip_code: str,
+    user_name: str,
+    user_phone: str = None,
+    fields: list = None,
+    notes: str = ""
+) -> str:
+    label_map = {
+        "electricity": "Electricity",
+        "natural_gas": "Natural Gas",
+        "water": "Water",
+        "internet": "Internet"
+    }
+    utility_label = label_map.get(utility_key, utility_key.title())
+    field_list = ", ".join(fields or [])
+    user_notes = notes.strip()
+
+    lines = [
+        "You are a helpful assistant tasked with improving emergency utility documentation for a household in:",
+        f"- City: {city}",
+        f"- ZIP Code: {zip_code}",
+    ]
+
+    if fields:
+        lines.append(f"\nThe user would like to improve the following details for their **{utility_label}** provider: **{field_list}**.")
+    else:
+        lines.append(f"\nThe user believes the current information for **{utility_label}** may be incorrect and would like a refreshed provider profile.")
+    if user_name:
+        lines.append(f"The corrected provider name is: {user_name}")
+    if user_phone:
+        lines.append(f"The corrected provider phone number is: {user_phone}")
+    if user_notes:
+        lines.append(f"\nAdditional notes from the user: {user_notes}")
+
+    lines.append("\nPlease return the following fields in clean markdown:\n")
+    lines.append(f"""
+## {utility_label} – <Provider Name>
+**Description:** <brief company overview>  
+**Contact Info:**  
+- **Phone:** <number>  
+- **Website:** <URL>  
+- **Email:** <email address>  
+- **Address:** <full address>  
+
+**Emergency Steps:**  
+- Step 1  
+- Step 2  
+- Step 3  
+- Step 4  
+- Step 5
+
+**Non-Emergency Tips:**  
+- Tip 1  
+- Tip 2
+""".strip())
+
+    return "\n".join(lines)
+
+
 def utility_provider_lookup_prompt(city: str, zip_code: str, internet: str = "") -> str:
     prompt = f"""
 You are a reliable assistant helping users prepare emergency documentation.

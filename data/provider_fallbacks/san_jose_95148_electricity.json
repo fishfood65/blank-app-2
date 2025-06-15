@@ -1,16 +1,17 @@
 {
-  "city": "San Jose",
+  "city": "san jose",
   "zip_code": "95148",
   "utility": "electricity",
-  "updated_at": "2025-06-14T06:40:30.290635",
+  "updated_at": "2025-06-15T05:49:01.772984+00:00",
   "data": {
-    "name": " Pacific Gas & Electric Company PG&E",
-    "contact_phone": "1-800-743-5000",
+    "name": "Pacific Gas & Electric Company PG&E",
+    "contact_phone": "\u26a0\ufe0f Not Available",
     "contact_address": "77 Beale Street, San Francisco, CA 94105",
     "contact_website": "pge.com",
-    "description": "Pacific Gas & Electric Company PG&E provides natural gas and electricity to most of the northern two-thirds of California, including San Jose. They are committed to delivering safe and reliable energy services to their customers.",
-    "emergency_steps": "- Use a cell phone or hard-wired phone as cordless phones may not work without electricity.  \n- Keep battery-operated flashlights on hand instead of candles to avoid fire hazards.  \n- Unplug or turn off all electric and heat-producing appliances to prevent damage when power is restored.  \n- Keep metal objects away from power lines to avoid outages or power surges.  \n- Stay at least 10 feet away from all electrical solar equipment and connections during an emergency.\n\nNon-Emergency Tips:  \n- Check the San Jos\u00e9 Clean Energy website for updates on service status and community programs.  \n- Consider opting for 100% renewable energy to contribute to the fight against climate change.",
-    "non_emergency_tips": "- Check the San Jos\u00e9 Clean Energy website for updates on service status and community programs.  \n- Consider opting for 100% renewable energy to contribute to the fight against climate change.",
-    "confirmed": true
+    "description": "Pacific Gas & Electric Company PG&E is a leading utility provider in California, committed to delivering safe, reliable electricity to its customers. PG&E serves millions of households and businesses, focusing on safety and sustainability.",
+    "emergency_steps": "1. If you suspect a gas leak, do not use any electrical devices, as a spark could ignite the gas.  \n2. Evacuate the building immediately if you suspect a gas line is broken.  \n3. Once safely away from the building, call 9-1-1 to report the gas leak.  \n4. After contacting emergency services, call PG&E at 1-800-743-5000 to report the situation.  \n5. Avoid returning to the building until it is declared safe by authorities.\n\nNon-Emergency Tips:  \n- Have a backup phone that does not rely on electricity to ensure communication during outages.  \n- Spend time with friends or family during outages, or consider using a backup generator for essential needs pge.com.",
+    "non_emergency_tips": "- Have a backup phone that does not rely on electricity to ensure communication during outages.  \n- Spend time with friends or family during outages, or consider using a backup generator for essential needs pge.com.",
+    "timestamp": "2025-06-15T05:45:08.071953+00:00",
+    "source": "llm_batch"
   }
 }

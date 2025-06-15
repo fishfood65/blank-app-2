@@ -1,5 +1,5 @@
 # plan to consolidate all LLM cache utilities (retrieval, inspection, clearing, exporting) into one focused file.
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import json
 import hashlib
@@ -55,7 +55,7 @@ def get_or_generate_llm_output(prompt: str, generate_fn: Callable = None) -> str
             "prompt": prompt,
             "output": output,
             "model": st.session_state.get("llm_model", "unknown"),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         with open(cache_file, "w") as f:
             json.dump(metadata, f, indent=2)

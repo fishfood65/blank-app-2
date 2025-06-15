@@ -8,7 +8,7 @@ import io
 from docx import Document
 import os
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import re
 import time
 import io
@@ -29,11 +29,10 @@ from utils.data_helpers import (
 )
 #from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, reset_all_session_state
-from prompts.templates import generate_single_provider_prompt, wrap_with_claude_style_formatting
+from prompts.templates import generate_single_provider_prompt, wrap_with_claude_style_formatting, generate_corrected_provider_prompt
 from utils.common_helpers import get_schedule_placeholder_mapping
 from utils.llm_cache_utils import get_or_generate_llm_output
 from utils.llm_helpers import call_openrouter_chat
-from utils.preview_helpers import render_provider_contacts
 from utils.docx_helpers import export_provider_docx, format_provider_markdown, render_runbook_section_output
 from utils.event_logger import log_event
 from utils.llm_helpers import is_refresh_allowed
@@ -181,10 +180,9 @@ def auto_reset_refresh_status(utility: str, cooldown_minutes: int = 10):
     attempts = st.session_state.setdefault("provider_refresh_attempts", {})
 
     last_ts = timestamps.get(utility)
-    if last_ts is not None:
-        if now - last_ts >= cooldown_minutes * 60:
+    if last_ts is not None and now - last_ts >= cooldown_minutes * 60:
             attempts[utility] = 0
-            timestamps[utility] = 0
+            # ✅ Do NOT zero out the timestamp — it's needed to track future refresh cooldowns
             if st.session_state.get("enable_debug_mode"):
                 st.info(f"🔄 Cooldown expired for {utility}. Resetting attempts.")
             log_event(
@@ -234,6 +232,7 @@ def load_user_corrections(utility: str) -> dict:
     all_corrections = load_all_user_provider_corrections()
     return all_corrections.get(utility, {})
 
+# --- First-time provider fetch (uncorrected) ---
 def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = None):
     """
     Queries the LLM one utility at a time and stores structured results in session_state.
@@ -264,69 +263,35 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
         # Auto-reset refresh attempts if cooldown passed
         auto_reset_refresh_status(utility)
 
-        if force_refresh:
-            if not is_refresh_allowed(utility):
-                cooldown = get_remaining_cooldown(utility)
-                st.warning(f"⛔ Refresh limit reached for {label}. Try again later.  ⏳ Try again in {cooldown} minutes.")
-                log_event(
-                    event_type="refresh_blocked",
-                    data={
-                        "utility": utility,
-                        "label": label,
-                        "attempts": st.session_state["provider_refresh_attempts"].get(utility, 0),
-                        "cooldown_remaining_min": cooldown,
-                        "section": section
-                    },
-                    tag="cooldown"
-                )
-                continue
-
-            st.session_state["provider_refresh_attempts"].setdefault(utility, 0)
-            st.session_state["provider_refresh_attempts"][utility] += 1
-            st.session_state["provider_refresh_timestamps"][utility] = time.time()
-
-            log_event(
-                event_type="refresh_triggered",
-                data={
-                    "utility": utility,
-                    "label": label,
-                    "attempt_num": st.session_state["provider_refresh_attempts"][utility],
-                    "section": section
-                },
-                tag="refresh"
-            )
-
-        raw_response = ""  # ✅ Initialize
-
+        raw_response = "" # ✅ Initialize
+        
         # ✅ Try disk cache first
         if not force_refresh:
             raw_response = load_provider_from_cache(utility, city, zip_code)
             if raw_response and st.session_state.get("enable_debug_mode"):
                 st.info(f"📁 Using disk cache for `{label}`")
-
-        # ✅ If not on disk, check session
-        if not raw_response and session_cache_key in st.session_state:
-            raw_response = st.session_state[session_cache_key]
+       
+       # ✅ If not on disk, check session
+        if not raw_response:
+            raw_response = st.session_state.get(session_cache_key)
             if st.session_state.get("enable_debug_mode"):
                 st.info(f"♻️ Using session cache for `{utility}`")
-
+        
         # ✅ If no cache, call LLM
         if not raw_response:
             prompt = generate_single_provider_prompt(utility, city, zip_code, internet_input)
-
-            if st.session_state.get("enable_debug_mode"):
-                st.markdown(f"### ⚙️ Calling LLM for `{label}`")
-                st.code(prompt)
-
             try:
-                with st.spinner(f"🔍 Looking up {label} provider..."):
+                with st.spinner(f"🔍 Fetching {label} provider..."):
                     raw_response = call_openrouter_chat(prompt)
                     # Cache to session and disk
                     st.session_state[session_cache_key] = raw_response
                     save_provider_to_cache(utility, city, zip_code, raw_response)
+                log_event("llm_output_raw", {"utility": utility, "prompt": prompt, "response": raw_response, "section": section})
             except Exception as e:
-                st.error(f"❌ Error querying {label}: {e}")
+                st.error(f"❌ LLM call failed for {label}: {e}")
+                log_event("llm_error", {"utility": utility, "error": str(e), "section": section})
                 raw_response = ""
+                continue
 
         # Parse + normalize + log
         parsed = parse_utility_block(raw_response)
@@ -342,8 +307,10 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
                 raw_response = call_openrouter_chat(prompt)
                 save_provider_to_cache(utility, city, zip_code, raw_response)
                 parsed = parse_utility_block(raw_response)
+                log_event("llm_retry_success", {"utility": utility, "section": section})
             except Exception as e:
                 st.error(f"❌ Retry failed for {label}: {e}")
+                log_event("llm_retry_failed", {"utility": utility, "error": str(e), "section": section})
 
         # ✅ Step 4: Fallback if LLM retry still fails or metadata is incomplete
         fallback_used = False
@@ -368,77 +335,20 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
 
         # 🛡️ Mark fallback-incomplete providers for forced refresh on next run
         if fallback_used:
-            if "force_refresh_map" not in st.session_state:
-                st.session_state["force_refresh_map"] = {}
-            st.session_state["force_refresh_map"][utility] = True
-            
-        if fallback_used and st.session_state.get("enable_debug_mode"):
-            st.info(f"⚠️ `{label}` used fallback but is still missing fields — auto-refresh flagged.")
+            st.session_state.setdefault("force_refresh_map", {})[utility] = True
+            if st.session_state.get("enable_debug_mode"):
+                st.info(f"⚠️ `{label}` used fallback but is still missing fields — auto-refresh flagged.")
 
-
-        # ✅ Inject user corrections from disk (if available)
+        # Apply overrides
         if utility in user_corrections:
             parsed, name_changed, needs_refresh = apply_provider_overrides(parsed, user_corrections[utility])
-            
-            log_event(
-                event_type="provider_patch_applied",
-                data={
-                    "utility": utility, 
-                    "section": section, 
-                    "source": "user_disk",
-                    "name_changed": name_changed,
-                    "refresh_flagged": needs_refresh
-                    },
-                tag="correction"
-            )
+            log_event("provider_patch_applied", {"utility": utility, "name_changed": name_changed, "refresh_flagged": needs_refresh, "section": section})
 
-        # 🔧 Pull prior values if available — otherwise use safe defaults
-        prior = st.session_state.get("utility_providers", {}).get(utility, {})
-        
-        # 🔄 Merge emergency + non-emergency info (deduplicating if needed)
-        merged = prior.copy()
-        # Emergency steps are usually a single field
-        merged["emergency_steps"] = parsed.get("emergency_steps", prior.get("emergency_steps", ""))
-        
-        # Deduplicate non-emergency tips
-        tips_parsed = parsed.get("non_emergency_tips", "").strip()
-        tips_prior = prior.get("non_emergency_tips", "").strip()
-        if tips_parsed and tips_parsed != tips_prior:
-            merged["non_emergency_tips"] = tips_parsed
-        else:
-            merged["non_emergency_tips"] = tips_prior or tips_parsed
-
-        # Contact & metadata
-        for field in ["name", "description", "contact_phone", "contact_address", "contact_website"]:
-            merged[field] = parsed.get(field, prior.get(field, ""))
-
-        # 🔎 Validation and logging for fallback metadata fields
-        fallback_fields = ["name", "description", "contact_phone", "contact_address", "contact_website"]
-        for field in fallback_fields:
-            parsed_val = parsed.get(field, "").strip()
-            prior_val = prior.get(field, "").strip()
-            merged_val = merged.get(field, "").strip()
-
-            # If current parsed field is empty but prior value is used, it's a fallback
-            if not parsed_val and prior_val:
-                if st.session_state.get("enable_debug_mode"):
-                    st.warning(f"⚠️ Using fallback for `{field}` from prior session for `{label}`")
-                log_event(
-                    event_type="metadata_fallback_used",
-                    data={
-                        "utility": utility,
-                        "label": label,
-                        "field": field,
-                        "fallback_value": prior_val,
-                        "section": section
-                    },
-                    tag="fallback"
-                )
-
-        results[utility] = merged
+        parsed["timestamp"] = datetime.now(timezone.utc).isoformat()
+        parsed["source"] = parsed.get("source", "llm")
 
         if parsed.get("source") == "fallback":
-            save_provider_update_to_disk(utility, parsed)  # Save static fallback
+            save_provider_update_to_disk(city, zip_code, utility, parsed)  # Save static fallback
 
         # Debug output
         if st.session_state.get("enable_debug_mode"):
@@ -464,6 +374,8 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
             register_input_only(f"{prefix} Contact Address", parsed.get("contact_address", ""), section=section, area="home", shared=True)
             register_input_only(f"{prefix} Emergency Steps", parsed.get("emergency_steps", ""), section=section, area="home", shared=True)
 
+        results[utility] = parsed
+
     # ✅ Store results to session
     st.session_state["utility_providers"] = results
     st.session_state["utility_provider_metadata"] = results
@@ -475,15 +387,19 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
 
     return results
 
+def ensure_datetime_strings(obj):
+    """Recursively convert datetime objects to ISO strings."""
+    if isinstance(obj, dict):
+        return {k: ensure_datetime_strings(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [ensure_datetime_strings(i) for i in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    return obj
+
 def save_provider_update_to_disk(city: str, zip_code: str, utility: str, data: dict):
     """
     Saves corrected or validated provider info to a JSON file for fallback reuse.
-
-    Args:
-        city (str): City name (e.g., "San Jose")
-        zip_code (str): ZIP code (e.g., "95148")
-        utility (str): Utility type ("electricity", "water", etc.)
-        data (dict): Provider info (name, description, contact details, etc.)
     """
     fallback_dir = "data/provider_fallbacks"
     os.makedirs(fallback_dir, exist_ok=True)
@@ -497,259 +413,591 @@ def save_provider_update_to_disk(city: str, zip_code: str, utility: str, data: d
         "city": city,
         "zip_code": zip_code,
         "utility": utility,
-        "updated_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
         "data": data,
     }
 
-    with open(filepath, "w") as f:
-        json.dump(payload, f, indent=2)
+    safe_payload = ensure_datetime_strings(payload)
 
-    if "enable_debug_mode" in st.session_state and st.session_state["enable_debug_mode"]:
+    with open(filepath, "w") as f:
+        json.dump(safe_payload, f, indent=2)
+
+    if st.session_state.get("enable_debug_mode"):
         st.info(f"💾 Saved fallback: `{filename}`")
 
-def render_provider_correction_and_refresh(section: str = "utilities"):
-    # Step 1: Ensure refresh flags exist
-    if "force_refresh_map" not in st.session_state:
-        st.session_state["force_refresh_map"] = {
-            "electricity": False,
-            "natural_gas": False,
-            "water": False,
-            "internet": False,
-        }
-    # ✅ Step 2: Ensure editable provider state is initialized
-    if "corrected_utility_providers" not in st.session_state:
-        st.session_state["corrected_utility_providers"] = st.session_state.get("utility_providers", {}).copy()
+# utility_provider_ui.py
+# --- Display logic (read-only) ---
+def display_provider_contact_info(provider_data: dict):
+    if not provider_data:
+        st.warning("⚠️ No provider data available.")
+        return
 
-    # Step 3: Display editable correction form and collect updates
-    current_results = st.session_state.get("utility_providers", {})
-    updated = get_corrected_providers(current_results, section=section)
+    if provider_data.get("source") == "fallback":
+        st.warning("⚠️ _This entry used fallback data due to a failed LLM lookup._")
 
-    # Step 4: Check which utilities need a refresh
-    force_refresh_map = st.session_state["force_refresh_map"]
-    queued = [k for k, v in force_refresh_map.items() if v]
+    st.markdown(f"**📄 Description:** {provider_data.get('description', '—')}")
+    st.markdown(f"**📞 Phone:** {provider_data.get('contact_phone', '—')}")
+    st.markdown(f"**🏢 Address:** {provider_data.get('contact_address', '—')}")
+    st.markdown(f"**🌐 Website:** {provider_data.get('contact_website', '—')}")
 
-    if queued:
-        st.markdown("### 🔄 Queued for Update:")
-        st.write(", ".join(label.replace("_", " ").title() for label in queued))
+    st.markdown("**🚨 Emergency Steps:**")
+    st.markdown(provider_data.get("emergency_steps", "—"))
 
-        if st.button("♻️ Update Queued Providers Now"):
-            refreshed = fetch_utility_providers(section=section, force_refresh_map=force_refresh_map)
+    tips = provider_data.get("non_emergency_tips", "").strip()
+    if tips and tips != "⚠️ Not Available":
+        st.markdown("**💡 Non-Emergency Tips:**")
+        st.markdown(tips)
 
-            # Merge new emergency/non-emergency info back into the provider blocks
-            for utility in queued:
-                updated_block = updated.get(utility) or st.session_state.get("utility_providers", {}).get(utility, {}).copy()
-                updated_block["emergency_steps"] = refreshed.get(utility, {}).get("emergency_steps", updated_block.get("emergency_steps", ""))
-                updated_block["non_emergency_tips"] = refreshed.get(utility, {}).get("non_emergency_tips", updated_block.get("non_emergency_tips", ""))
-                force_refresh_map[utility] = False  # Reset flag
-                updated[utility] = updated_block  # Store merged block
+    if provider_data.get("source") == "fallback":
+        st.info("ℹ️ _Fields shown above may be incomplete or based on defaults. Consider retrying the lookup for updated information._")
 
-                if st.session_state.get("enable_debug_mode"):
-                    st.markdown(f"### 🔍 Merged Updated Block for {utility}")
-                    st.json(updated_block)
+# --- Editor logic (simplified UI) ---
+def render_provider_editor_table_view(utility_key: str, provider_data: dict, section: str = "utilities", simplified_mode: bool = True):
+    label = utility_key.replace("_", " ").title()
 
-        st.success("✅ Updated provider info successfully. Please review below.")
-
-
-    with st.expander("🔧 Debug / Developer Overrides", expanded=False):
-        if st.button("🧪 Override Refresh Limit"):
-            for utility in st.session_state.get("provider_refresh_attempts", {}):
-                st.session_state["provider_refresh_attempts"][utility] = 0
-                st.session_state["provider_refresh_timestamps"][utility] = 0
-            log_event(
-                event_type="override_refresh_limits",
-                data={
-                    "utilities_reset": list(st.session_state.get("provider_refresh_attempts", {}).keys()),
-                    "section": section
-                },
-                tag="dev_override"
-            )
-            st.success("🔁 Refresh attempt limits reset.")
-    
-    # Step 5: Re-render the updated form using refreshed data
-    st.session_state["corrected_utility_providers"] = updated
-    updated = get_corrected_providers(updated, section=section)  # <- Re-render with updated info
-
-def get_corrected_providers(results: dict, section: str) -> dict:
-    """
-    Allows user to review and optionally correct provider data.
-    Emergency Steps are view-only.
-    Prevents overwrites unless explicitly confirmed.
-    Displays refresh cooldown state.
-    """
-    updated = {}
-    label_to_key = {
-        "Electricity": "electricity",
-        "Natural Gas": "natural_gas",
-        "Water": "water",
-        "Internet": "internet"
+    # Divider and title
+    st.markdown("---")
+    utility_emojis = {
+        "electricity": "⚡",
+        "natural_gas": "🔥",
+        "water": "💧",
+        "internet": "🌐"
     }
-    # Retrieve city and zip from session
+    emoji = utility_emojis.get(utility_key, "🔧")
+    st.markdown(f"## {emoji} {label} Provider")
+
+    # Get location context
+    city = get_answer("City", section)
+    zip_code = get_answer("ZIP Code", section)
+    disabled = st.session_state.get("utilities_locked", False)
+
+    # Current provider data
+    name = provider_data.get("name", "")
+    phone = provider_data.get("contact_phone", "")
+    address = provider_data.get("contact_address", "")
+    website = provider_data.get("contact_website", "")
+    description = provider_data.get("description", "")
+    emergency = provider_data.get("emergency_steps", "")
+    tips = provider_data.get("non_emergency_tips", "")
+
+    # Helper to show ⚠️ for missing values
+    def warn_if_missing(value):
+        return value if str(value).strip() else "⚠️ Missing"
+
+    # Pre-select fields with missing values
+    preselected_fields = []
+    if not name: preselected_fields.append("Name")
+    if not phone: preselected_fields.append("Phone")
+    if not address: preselected_fields.append("Address")
+    if not website: preselected_fields.append("Website")
+
+    # Check if any prior user correction was entered for this utility
+    input_notes = st.session_state.get("provider_input_notes", {}).get(utility_key, {})
+    user_requested_fields = input_notes.get("fields", [])
+
+    # ✅ Inform user but allow manual override
+    if not preselected_fields and not user_requested_fields:
+        st.info("✅ All required provider info is present. No updates appear necessary.")
+
+    # Full width layout
+    st.markdown("#### ✏️ What would you like the AI to improve?")
+
+    fields_to_update = st.multiselect(
+        "Select fields to improve:",
+        options=["Name", "Phone", "Address", "Website"],
+        default=preselected_fields,
+        help="Choose anything that is missing or incorrect.",
+        key=f"{section}_{utility_key}_fields"
+    )
+
+    notes = st.text_area(
+        "Optional clarification (helps the AI respond better)",
+        placeholder=(
+            "e.g. 'Correct name is AT&T Fiber', "
+            "'Phone is missing, please include one', "
+            "'Find the nearest Xfinity store in San Jose, CA 95148'"
+        ),
+        key=f"{section}_{utility_key}_notes"
+    )
+
+    # Save user input for later use in LLM prompt
+    st.session_state.setdefault("provider_input_notes", {})
+    st.session_state["provider_input_notes"][utility_key] = {
+        "fields": fields_to_update,
+        "notes": notes.strip(),
+        "city": city,
+        "zip": zip_code,
+    }
+
+    if st.button(f"🔁 Update {label}", key=f"{section}_{utility_key}_update_btn", disabled=disabled):
+        st.session_state.setdefault("force_refresh_map", {})[utility_key] = True
+        st.success(f"{label} will be re-queried.")
+
+    def is_llm_provider_data_complete(llm_data: dict, required_fields: list = ["name", "contact_phone", "contact_address"]) -> bool:
+        for field in required_fields:
+            value = llm_data.get(field, "").strip().lower()
+            if not value or "⚠️" in value or "not available" in value:
+                return False
+        return True
+
+    # Show AI response if available
+    llm_data = st.session_state.get("utility_providers", {}).get(utility_key)
+    if llm_data:
+        st.markdown("#### ✅ Suggested Info (from AI)")
+        st.markdown(f"""
+        - **Name**: {llm_data.get("name", "—")}
+        - **Phone**: {llm_data.get("contact_phone", "—")}
+        - **Address**: {llm_data.get("contact_address", "—")}
+        - **Website**: {llm_data.get("contact_website", "—")}
+        """)
+
+    if llm_data:
+        if is_llm_provider_data_complete(llm_data):
+            st.success("✅ All required provider info is present. No updates appear necessary.")
+        else:
+            st.warning("⚠️ Some fields from the AI response are still missing. Consider retrying or updating manually.")
+
+        # Merge selected fields into corrected_utility_providers
+        corrected = st.session_state.setdefault("corrected_utility_providers", {})
+        current_entry = corrected.setdefault(utility_key, {})
+        for field in fields_to_update:
+            if field == "Name":
+                current_entry["name"] = llm_data.get("name", "")
+            elif field == "Phone":
+                current_entry["contact_phone"] = llm_data.get("contact_phone", "")
+            elif field == "Address":
+                current_entry["contact_address"] = llm_data.get("contact_address", "")
+            elif field == "Website":
+                current_entry["contact_website"] = llm_data.get("contact_website", "")
+
+        corrected[utility_key] = current_entry
+
+        # ✅ Save merged values
+        register_provider_input(label, current_entry.get("name", ""), section)
+        save_provider_update_to_disk(city, zip_code, utility_key, current_entry)
+        log_event("provider_saved_to_disk", {"utility": utility_key, "section": section}, tag="correction")
+        st.success(f"✅ Saved corrected info for {label} provider.")
+
+
+
+
+
+
+def old_render_provider_editor_table_view(utility_key: str, provider_data: dict, section: str = "utilities", simplified_mode: bool = True):
     city = get_answer(key="City", section=section)
     zip_code = get_answer(key="ZIP Code", section=section)
 
-    for utility, current in results.items():
-        label = utility.replace("_", " ").title()
-        name = current.get("name", "")
-        phone = current.get("contact_phone", "")
-        website = current.get("contact_website", "")
-        #email = current.get("contact_email", "")
-        address = current.get("contact_address", "")
-        description = current.get("description", "")
-        emergency = current.get("emergency_steps", "")
-        tips = current.get("non_emergency_tips", "")
+    label = utility_key.replace("_", " ").title()
+    name = provider_data.get("name", "")
+    phone = provider_data.get("contact_phone", "")
+    website = provider_data.get("contact_website", "")
+    address = provider_data.get("contact_address", "")
+    description = provider_data.get("description", "")
+    emergency = provider_data.get("emergency_steps", "")
+    tips = provider_data.get("non_emergency_tips", "")
+    disabled = st.session_state.get("utilities_locked", False)
+   
+    def render_with_badge(label, input_fn, field_key, value):
+        full_key = f"{section}_{utility_key}_{field_key}"
+        return input_fn(label, value=value, key=full_key, disabled=disabled)
 
-        # Cooldown tracking
-        auto_reset_refresh_status(utility)
-        attempts = st.session_state.get("provider_refresh_attempts", {}).get(utility, 0)
-        cooldown = get_remaining_cooldown(utility)
-        cooldown_active = attempts >= 3 and cooldown > 0
+        col1, col2 = st.columns([5, 1])
+        full_key = f"{section}_{utility_key}_{field_key}"
+        with col1:
+            return input_fn(label, value=value, key=full_key, disabled=disabled)
+        with col2:
+            if show_badge:
+                minutes_ago = int((time.time() - refreshed_at) / 60)
+                st.markdown(f"🆕\n<sub style='color:green;'>Refreshed {minutes_ago} min ago</sub>", unsafe_allow_html=True)
 
-        with st.expander(f"🔧 Validate or Update {label} Provider", expanded=False):
-            st.markdown(f"### 🛠️ {label} Provider")
-            st.markdown(f"**Current Provider**: {name or '⚠️ Not Available'}")
+    name_input = render_with_badge("Name", st.text_input, "name", name)
+    phone_input = render_with_badge("Phone", st.text_input, "phone", phone)
+    address_input = render_with_badge("Address", st.text_area, "address", address)
+    website_input = render_with_badge("Website", st.text_input, "website", website)
+    desc_input = render_with_badge("Provider Description", st.text_area, "desc", description)
 
-            st.markdown(f"⏱️ Update Attempts: `{attempts}`  |  Cooldown: `{cooldown} min remaining`")
-            st.markdown("🛈 Use **Update** to retrieve missing info or correct outdated details. Use **Confirm** after reviewing or editing provider details to save them..")
+    can_update = name_input.strip() != ""
+    if st.button(f"🔁 Update {label}", key=f"{section}_{utility_key}_update_btn", disabled=not can_update):
+        st.session_state.setdefault("force_refresh_map", {})[utility_key] = True
+        st.success(f"{label} will be re-queried.")
 
-            if cooldown_active:
-                st.warning(f"⛔ You must wait before updating this provider again.")
+    st.markdown(f"🚨 **Emergency Steps:**\n{emergency or '—'}")
+    if tips and tips != "⚠️ Not Available":
+        st.markdown(f"💡 **Non-Emergency Tips:**\n{tips}")
 
-            # 🔁 Update Button
-            update_clicked = st.button(f"🔁 Update {label}", key=f"update_{utility}")
-            if update_clicked:
-                if cooldown_active:
-                    st.warning(f"⏳ Cannot update {label} yet. Please wait.")
-                else:
-                    st.session_state.setdefault("force_refresh_map", {})[utility] = True
-                    st.success(f"{label} provider will be re-queried with updated info.")
+    if st.button(f"✅ Confirm {label}", key=f"{section}_{utility_key}_confirm_btn", disabled=disabled):
+        corrected = {
+            "name": name_input,
+            "contact_phone": phone_input,
+            "contact_address": address_input,
+            "contact_website": website_input,
+            "description": desc_input,
+            "emergency_steps": emergency,
+            "non_emergency_tips": tips,
+            "confirmed": True
+        }
+        st.session_state.setdefault("corrected_utility_providers", {})[utility_key] = corrected
+        register_provider_input(label, corrected["name"], section)
+        save_provider_update_to_disk(city, zip_code, utility_key, corrected)
+        log_event("provider_saved_to_disk", {"utility": utility_key, "section": section}, tag="correction")
+        st.success(f"✅ Saved corrected info for {label} provider.")
 
-            # ✅ Visual feedback if update was triggered earlier
-            if st.session_state.get("force_refresh_map", {}).get(utility):
-                st.info("🔄 Update requested. Changes will apply after refresh.")
+        # 🎉 Optional Step 5 reward
+        if all_providers_confirmed():
+            st.subheader("🎉 Congratulations")
+            st.markdown("You've successfully confirmed all your utility providers! ✅")
+            st.session_state["utility_info_locked"] = True
+            st.session_state["trigger_refresh_and_preview"] = True
+            st.rerun()
 
-            # Editable fields
-            
-            # Name
-            name_check = st.checkbox(f"✏️ Correct Provider Name ({name})", value=False, key=f"{utility}_name_check")
-            name_input = st.text_input(f"{label} Provider Name", value=name, disabled=not name_check, key=f"{utility}_name")
+    # 🛈 Show hint if still incomplete
+    if not all_providers_confirmed():
+        st.info("ℹ️ Please confirm all providers to continue.")
 
-            # Phone            
-            phone_check = st.checkbox(f"✏️ Correct Phone", value=False, key=f"{utility}_phone_check")
-            phone_input = st.text_input("Phone", value=phone, disabled=not phone_check, key=f"{utility}_phone")
+# --- Automatically run LLM updates if queued ---
+def is_usable_provider_response(data: dict, placeholder: str = "⚠️ Not Available") -> bool:
+    """
+    Returns True if at least 2 core fields are non-empty and not placeholders.
+    """
+    core_fields = ["name", "description", "contact_phone", "contact_address"]
+    valid_fields = [
+        v for k, v in data.items()
+        if k in core_fields and isinstance(v, str) and v.strip() != "" and v.strip() != placeholder
+    ]
+    return len(valid_fields) >= 2
 
-            # Email
-            #correct_email = st.checkbox(f"✏️ Correct Email", value=False, key=f"{key}_email_check")
-            #email_input = st.text_input("Email", value=email, disabled=not correct_email, key=f"{key}_email")
+def sanitize_provider_fields(data: dict, placeholder: str = "⚠️ Not Available") -> dict:
+    return {
+        k: ("" if isinstance(v, str) and placeholder in v else v)
+        for k, v in data.items()
+    }
 
-            # Address
-            address_check = st.checkbox(f"✏️ Correct Address", value=False, key=f"{utility}_address_check")
-            address_input = st.text_area("Address", value=address, disabled=not address_check, key=f"{utility}_address")
+def sanitize_value(val: str) -> Optional[str]:
+    return None if isinstance(val, str) and "⚠️" in val else val
 
-            # Website
-            website_check = st.checkbox(f"✏️ Correct Website", value=False, key=f"{utility}_website_check")
-            website_input = st.text_input("Website", value=website, disabled=not website_check, key=f"{utility}_website")
+# --- Handle queued provider updates (batched) ---
+def handle_queued_provider_updates(section: str = "utilities"):
+    import re
 
-            # Description
-            desc_check = st.checkbox(f"✏️ Correct Description", value=False, key=f"{utility}_desc_check")
-            desc_input = st.text_area("Provider Description", value=description, disabled=not desc_check, key=f"{utility}_desc")
+    force_refresh_map = st.session_state.get("force_refresh_map", {})
+    if not force_refresh_map:
+        return
 
-            # Read-only fields
-            st.markdown(f"🚨 **Emergency Steps (Read-Only):**\n{emergency or '—'}")
-            if tips and tips != "⚠️ Not Available":
-                st.markdown(f"💡 **Non-Emergency Tips:**\n{tips}")
+    city = get_answer("City", section)
+    zip_code = get_answer("ZIP Code", section)
+    internet = get_answer("Internet Provider", section)
 
-            # ✅ Require confirmation before applying
-            confirmed_key = f"{utility}_confirmed"
-            confirmed = st.checkbox("✅ I have reviewed and confirmed this provider info", key=confirmed_key)
+    prompts = []
+    utility_keys = []
 
-            # Determine final values 
-            final_name = name_input if name_check else name
-            final_block = {
-                "name": final_name, 
-                "contact_phone": phone_input if phone_check else phone,
-                #"contact_email": email_input if correct_email else email,
-                "contact_address": address_input if address_check else address,
-                "contact_website": website_input if website_check else website,
-                "description": desc_input if desc_check else description,
-                "emergency_steps": emergency,  # do not change
-                "non_emergency_tips": tips,
-                "confirmed": confirmed
-            }
+    for utility_key, should_refresh in force_refresh_map.items():
+        if not should_refresh:
+            continue
+        
+        label = utility_key.replace("_", " ").title()
+        st.info(f"🔁 Updating: {label}")
 
-            updated[utility] = final_block
+        provider_data = st.session_state.get("utility_providers", {}).get(utility_key, {})
+        corrected = st.session_state.get("corrected_utility_providers", {}).get(utility_key, {})
 
-            # ✅ Update session state for each corrected field
-            if name_check:
-                st.session_state[f"{utility}_provider"] = final_name
-                register_provider_input(label, final_name, section)
+        auto_reset_refresh_status(utility_key)
+        st.session_state["provider_refresh_attempts"].setdefault(utility_key, 0)
+        st.session_state["provider_refresh_attempts"][utility_key] += 1
+        st.session_state["provider_refresh_timestamps"][utility_key] = time.time()
 
-            # Auto-flag update if name changed AND metadata fields are missing
-            name_changed = name_check and name_input != name
-            meta_missing = not (phone or address or website)
-            if name_changed and meta_missing:
-                st.session_state.setdefault("force_refresh_map", {})[utility] = True
-                st.info("🔁 Auto-update triggered due to name change and missing info.")
-                if st.session_state.get("enable_debug_mode"):
-                    st.warning(f"⚠️ Name changed + metadata missing → update triggered for {label}")
-           
-            # ✅ Save correction to disk only if confirmed
-            if confirmed:
-                save_provider_update_to_disk(city, zip_code, utility, final_block)
-                log_event(
-                    event_type="provider_saved_to_disk",
-                    data={"utility": utility, "section": section},
-                    tag="correction"
-                )
-                # ✅ Update session provider entry immediately
-                st.session_state.setdefault["utility_providers", {}][utility] = final_block
-                st.session_state.setdefault["utility_provider_metadata",{}][utility] = final_block
+        requested_fields = corrected.get("requested_fields", [])
+        notes = corrected.get("input_notes", "")
+        name = corrected.get("name", "")
+        phone = corrected.get("contact_phone", "")
 
-                if st.session_state.get("enable_debug_mode"):
-                    st.markdown(f"### 🧩 Updated Entry for `{label}`")
-                    st.json(final_block)
+        name_correction_phrases = ["name is wrong", "name is incorrect", "correct name is", "should be called"]
+        for phrase in name_correction_phrases:
+            if phrase in notes.lower() and "Name" not in requested_fields:
+                requested_fields.append("Name")
+                break
 
-    return updated
+        phone_correction_phrases = ["phone is missing", "missing phone", "correct phone is", "update phone to"]
+        for phrase in phone_correction_phrases:
+            if phrase in notes.lower() and "Phone" not in requested_fields:
+                requested_fields.append("Phone")
+                break
 
-def update_session_state_with_providers(updated):
-    st.session_state["utility_providers"] = updated
-    for key, value in updated.items():
-        st.session_state[f"{key}_provider"] = value
+        # Fuzzy match correction notes
+        name_match = re.search(r"(?:correct name is|should be called)[:\s]+(.+?)([\.;\n]|$)", notes, re.IGNORECASE)
+        phone_match = re.search(r"(?:correct phone is|update phone to)[:\s]+([\d\-\(\)\s+]+)", notes, re.IGNORECASE)
+        extracted_name = name_match.group(1).strip() if name_match else name
+        extracted_phone = phone_match.group(1).strip() if phone_match else phone
+
+        # Ensure required fields are prompted
+        if "name" in notes.lower() and "Name" not in requested_fields:
+            requested_fields.append("Name")
+        if "phone" in notes.lower() and "Phone" not in requested_fields:
+            requested_fields.append("Phone")
+
+        # Sanitize values before sending to the LLM
+        # Apply before prompt generation
+        name = sanitize_value(name)
+        phone = sanitize_value(phone)
+
+        prompt = generate_corrected_provider_prompt(
+            utility_key=utility_key,
+            city=city,
+            zip_code=zip_code,
+            user_name=extracted_name,
+            user_phone=extracted_phone,
+            fields=requested_fields,
+            notes=notes
+        )
+
+        prompts.append((utility_key, prompt))
+        utility_keys.append(utility_key)
+
+    if not prompts:
+        st.info("ℹ️ No LLM calls made. No providers were queued for update.")
+        return
+
+    st.info(f"🔁 Updating: {', '.join([k.replace('_', ' ').title() for k in utility_keys])}")
+
+    if st.session_state.get("enable_debug_mode"):
+        st.markdown("### ⚙️ Batched LLM Prompts")
+        for utility_key, prompt in prompts:
+            st.markdown(f"#### `{utility_key}`")
+            st.code(prompt)
+
+    try:
+        with st.spinner("🔍 Contacting LLM for multiple providers..."):
+            combined_prompt = "\n\n".join(p[1] for p in prompts)
+            combined_response = call_openrouter_chat(combined_prompt)
+
         if st.session_state.get("enable_debug_mode"):
-            st.markdown("### 🧪 Debug: update_session_state_with_providers")
-            st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
-            st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
-            st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
-            st.write("💧 Water:", st.session_state.get("water_provider"))
+            st.markdown("### 📬 Raw Combined LLM Response")
+            st.code(combined_response)
+            st.session_state["raw_combined_llm_response"] = combined_response
+
+        response_blocks = combined_response.split("## ")
+        found_utilities = set()
+
+        def strip_emojis(text):
+            return re.sub(r"[\U00010000-\U0010ffff\u2600-\u26FF\u2700-\u27BF\u1F300-\u1F64F\u1F680-\u1F6FF]+", "", text)
+
+        for block in response_blocks:
+            block_full = "## " + block.strip()
+            matched = False
+            for utility_key in utility_keys:
+                label_name = utility_key.replace("_", " ").lower()
+                if strip_emojis(label_name) in strip_emojis(block.lower()):
+                    matched = True
+                    parsed = parse_utility_block(block_full)
+                    normalized = normalize_provider_fields(parsed)
+                    minimal_data = {
+                        k: normalized.get(k)
+                        for k in [
+                            "name", "contact_phone", "contact_address", "contact_website",
+                            "description", "emergency_steps", "non_emergency_tips"
+                        ]
+                        if k in normalized
+                    }
+                    minimal_data["timestamp"] = datetime.now(timezone.utc).isoformat()
+                    minimal_data["source"] = "llm_batch"
+
+                    # ✅ Optional: sanitize "⚠️ Not Available"
+                    minimal_data = sanitize_provider_fields(minimal_data)
+
+                    # ✅ Skip saving if all fields are still unusable
+                    if not is_usable_provider_response(minimal_data):
+                        if st.session_state.get("enable_debug_mode"):
+                            st.warning(f"⚠️ Skipping update for `{utility_key}` due to unusable LLM response.")
+                        continue
+
+                    st.session_state.setdefault("corrected_utility_providers", {})[utility_key] = minimal_data
+                    st.session_state.setdefault("utility_providers", {})[utility_key] = minimal_data
+                    save_provider_update_to_disk(city, zip_code, utility_key, minimal_data)
+                    DEFAULT_PROVIDER_MAP[utility_key] = minimal_data
+
+                    log_event(
+                        event_type="provider_refreshed",
+                        data={"utility": utility_key, "source": "llm_batch", "section": section},
+                        tag="refresh"
+                    )
+
+                    st.success(f"✅ Updated info for: {label}")
+                    if st.session_state.get("enable_debug_mode"):
+                        st.markdown(f"### 🧩 Parsed `{utility_key}` Block")
+                        st.json(parsed)
+                        st.markdown(f"### 🧽 Normalized `{utility_key}` Block")
+                        st.json(minimal_data)
+
+                    found_utilities.add(utility_key)
+                    break
+
+            if not matched:
+                if st.session_state.get("enable_debug_mode"):
+                    st.warning(f"⚠️ Unmatched block: {block[:60]}...")
+
+        if found_utilities:
+            st.success(f"✅ Updated info for: {', '.join(found_utilities)}")
+
+    except Exception as e:
+            st.error(f"❌ Failed to update {label}: {e}")
+            log_event("llm_error", {"utility": utility_key, "error": str(e), "section": section})
+
+    # Always reset all refresh triggers
+    for key in force_refresh_map:
+        force_refresh_map[key] = False
+
+# --- Helper to retrieve confirmed provider data ---
+def old_get_confirmed_provider(utility_key: str) -> dict:
+    return (
+        st.session_state.get("confirmed_utility_providers", {}).get(utility_key)
+        or st.session_state.get("corrected_utility_providers", {}).get(utility_key)
+        or st.session_state.get("utility_providers", {}).get(utility_key)
+        or {}
+    )
+def get_confirmed_provider(utility_key: str) -> dict:
+    # ✅ If finalized confirmed provider exists, always show it
+    confirmed = st.session_state.get("confirmed_utility_providers", {}).get(utility_key)
+    if confirmed:
+        return confirmed
+
+    # ✅ Use corrected version ONLY if it has real LLM output (e.g., a name and phone)
+    corrected = st.session_state.get("corrected_utility_providers", {}).get(utility_key, {})
+    real_keys = {
+        "name", "contact_phone", "contact_address", "contact_website",
+        "description", "emergency_steps", "non_emergency_tips"
+    }
+    has_real_data = any(k in corrected and corrected[k] and "⚠️" not in str(corrected[k]) for k in real_keys)
+    if has_real_data:
+        return corrected
+
+    # ✅ Fallback to LLM-provided or default static map (original unedited output)
+    return st.session_state.get("utility_providers", {}).get(utility_key, {})
+
+
+# --- Helper to check if all providers are confirmed ---
+def all_providers_confirmed(required_keys=["electricity", "natural_gas", "water", "internet"]) -> bool:
+    confirmed = st.session_state.get("confirmed_utility_providers", {})
+    for key in required_keys:
+        if not confirmed.get(key, {}).get("confirmed", False):
+            return False
+    return True
+
+# --- Table wrapper ---
+def render_provider_table(utility_key: str, section: str = "utilities"):
+    label = utility_key.replace("_", " ").title()
+    icon = {"electricity": "⚡", "natural_gas": "🔥", "water": "💧", "internet": "🌐"}.get(utility_key, "🔌")
+    provider_data = get_confirmed_provider(utility_key)
+
+    # 🧾 Section heading for each provider
+    st.markdown(f"## {icon} {label} Provider")
+    
+    # 🔄 Display table with two columns: contact info + editor
+    col1, col2 = st.columns([1, 1])
+
+    with col1:
+        st.markdown("### 📋 Retrieved Info")
+        display_provider_contact_info(provider_data)
+
+    with col2:
+        st.markdown("### ✏️ Review & Edit")
+        render_provider_editor_table_view(utility_key, provider_data, section=section)
+
+# --- Admin override tools ---
+def render_admin_refresh_override(section: str = "utilities"):
+    st.markdown("---")
+    with st.expander("🔧 Developer Tools: Refresh Limit Overrides", expanded=False):
+        attempts = st.session_state.get("provider_refresh_attempts", {})
+        cooldowns = {k: get_remaining_cooldown(k) for k in attempts}
+
+        if cooldowns:
+            st.markdown("### ⏱️ Current Cooldowns")
+            for utility, time_left in cooldowns.items():
+                st.markdown(f"- **{utility.title()}**: `{time_left} minutes remaining`")
+
+        if st.button("🔪 Override Refresh Limits Now"):
+            for utility in attempts:
+                st.session_state["provider_refresh_attempts"][utility] = 0
+                st.session_state["provider_refresh_timestamps"][utility] = 0
+
+            log_event("override_refresh_limits", {"utilities_reset": list(attempts.keys()), "section": section}, tag="dev_override")
+            st.success("🔁 All refresh attempt limits have been reset.")
+
+
+# --- Section jump UI ---
+def render_section_jump_buttons():
+    st.markdown("### 🔽 Jump to a Provider Section")
+    col1, col2, col3, col4 = st.columns(4)
+    if col1.button("⚡ Electricity"): st.session_state["scroll_target"] = "electricity"
+    if col2.button("🔥 Natural Gas"): st.session_state["scroll_target"] = "natural_gas"
+    if col3.button("💧 Water"): st.session_state["scroll_target"] = "water"
+    if col4.button("🌐 Internet"): st.session_state["scroll_target"] = "internet"
+
+# --- Unified table view controller ---
+def render_all_provider_tables(section: str = "utilities"):
+    handle_queued_provider_updates(section)
+
+    st.markdown("## 📇 Review and Edit Utility Providers")
+    for utility_key in ["electricity", "natural_gas", "water", "internet"]:
+        render_provider_table(utility_key, section=section)
+
+    st.markdown("---")
+    st.markdown("### ✅ Finalize All Provider Info")
+
+    if st.session_state.get("enable_debug_mode"):
+        render_admin_refresh_override(section=section)
+
+    if st.button("✅ Confirm All Utility Info"):
+        required_utilities = ["electricity", "natural_gas", "water", "internet"]
+        required_fields = ["name", "contact_phone", "contact_address"]
+
+        missing_fields = {}
+        corrected = st.session_state.get("corrected_utility_providers", {})
+
+        for key in required_utilities:
+            provider = corrected.get(key, {})
+            missing = [field for field in required_fields if not provider.get(field)]
+            if missing:
+                missing_fields[key] = missing
+
+        if missing_fields:
+            st.warning("⚠️ Missing required info:")
+            for utility, fields in missing_fields.items():
+                st.markdown(f"- **{utility.title()}**: missing {', '.join(fields)}")
+        else:
+            st.session_state["confirmed_utility_providers"] = corrected
+            st.session_state["utility_info_locked"] = True
+            st.success("🔐 Utility provider info confirmed and saved.")
+
+            if st.session_state.get("enable_debug_mode"):
+                st.markdown("### 🧪 Debug: Saved Providers")
+                st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
+                st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
+                st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
+                st.write("💧 Water:", st.session_state.get("water_provider"))
 
 # --- Main Function Start ---
 def utilities():
     section = "utilities"
     generate_key = f"generate_runbook_{section}"  # Define it early
 
-    #st.markdown(f"### Currently Viewing: {get_active_section_label(section)}")
-    #switch_section(section)
-
     st.subheader("Let's gather some information. Please enter your details:")
-   
-# Step 1: Input collection
-    # ✅ Call the function at runtime
+
+    # Step 1: Input collection
     city, zip_code, internet_provider = get_utilities_inputs(section)
 
-    if st.session_state.get("enable_debug_mode"): # DEBUG: get_utilities_inputs()
+    if st.session_state.get("enable_debug_mode"):
         st.markdown("### 🧪 Debug: get_utilities_inputs ")
         st.write("City:", city)
         st.write("ZIP Code:", zip_code)
         st.write("Internet Provider:", internet_provider)
 
-# Step 2: Fetch utility providers
-
+    # Step 2: Fetch utility providers
     if st.button("Find My Utility Providers"):
         with st.spinner("Querying providers from OpenRouter..."):
             force_refresh_map = st.session_state.get("force_refresh_map", {})
             fetch_utility_providers(section=section, force_refresh_map=force_refresh_map)
             st.session_state["show_provider_corrections"] = True
             st.success("Providers stored in session state!")
-  
+
     if st.session_state.get("enable_debug_mode"):
         st.markdown("### 🧪 Debug: Find Utility Providers")
         st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
@@ -770,69 +1018,63 @@ def utilities():
                 domain = url.split("/")[2] if "://" in url else url
                 st.markdown(f"- [{domain}]({url})")
 
-# Step 3: Display resulting LLM retrieved Utility Providers
+    # ✅ Auto-jump to Step 6 after rerun
+    if st.session_state.pop("trigger_refresh_and_preview", False):
+        st.session_state["utility_info_locked"] = True
+
+
+    with st.expander("🧪 Test Corrected Provider Prompt"):
+        test_prompt = generate_corrected_provider_prompt(
+            utility_key="electicity",
+            city="San Jose",
+            zip_code="95148",
+            user_name="Pacific Gas & Electric Company PG&E",
+            fields=["Name", "Phone", "Address"],
+            notes=""
+        )
+
+        st.markdown("### 📤 Prompt to Send")
+        st.code(test_prompt, language="markdown")
+
+        if st.button("🧠 Send Prompt to LLM"):
+            with st.spinner("📡 Sending to LLM..."):
+                try:
+                    response = call_openrouter_chat(test_prompt)
+                    st.success("✅ Response received!")
+                    st.markdown("### 📬 LLM Response")
+                    st.markdown(response)
+                except Exception as e:
+                    st.error(f"❌ LLM call failed: {e}")
+
+
+    # Step 3-5: Display and confirm LLM provider results and reward
     if st.session_state.get("show_provider_corrections"):
-        st.markdown("### 📇 Retrieved Utility Providers")
-        # 🧱 Visual contact display (read-only)
-        render_provider_contacts(section=section)
-        # ✅ Step 2: Allow corrections + refresh
-        render_provider_correction_and_refresh(section=section)
+        render_all_provider_tables(section=section)
 
-# Step 4: Save Utility Providers (with validation)
-        if st.button("✅ Confirm All Utility Info"):
-            required_utilities = ["electricity", "natural_gas", "water", "internet"]
-            required_fields = ["name", "contact_phone", "contact_address"] #Removed "contact_email"
+    # Step 6: 🎉 Reward + Download runbook (only shown after confirmation)
+    if st.session_state.get("utility_info_locked"):
+        st.subheader("📄 Download Utility Provider Runbook")
 
-            missing_fields = {}
+        providers = st.session_state.get("utility_providers", {})
+        if not providers:
+            st.info("⚠️ No utility provider data available.")
+            return
 
-            for key in required_utilities:
-                provider = st.session_state.get("utility_providers", {}).get(key, {})
-                missing = [field for field in required_fields if not provider.get(field)]
-                if missing:
-                    missing_fields[key] = missing
+        markdown_str = format_provider_markdown(providers)
+        docx_bytes = export_provider_docx(providers)
 
-            if missing_fields:
-                st.warning("⚠️ Missing required info:")
-                for utility, fields in missing_fields.items():
-                    st.markdown(f"- **{utility.title()}**: missing {', '.join(fields)}")
-            else:
-                corrected = st.session_state.get("corrected_utility_providers", {})
-                st.session_state["confirmed_utility_providers"] = corrected
-                st.session_state["utility_info_locked"] = True
-                st.success("🔒 Utility provider info confirmed and saved.")
+        if docx_bytes and markdown_str:
+            st.session_state["utility_docx"] = docx_bytes
+            st.session_state["utility_markdown"] = markdown_str
 
-                # ✅ Show output in debug mode
-                if st.session_state.get("enable_debug_mode"):
-                    st.markdown("### 🧪 Debug: Saved Providers")
-                    st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
-                    st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
-                    st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
-                    st.write("💧 Water:", st.session_state.get("water_provider"))
+        render_runbook_section_output(
+            markdown_str=st.session_state.get("utility_markdown"),
+            docx_bytes_io=st.session_state.get("utility_docx"),
+            title="Utility Providers",
+            filename_prefix="utility_providers",
+            expand_preview=False
+        )
 
-    # Step 5: Return Reward
-                if st.session_state.get("utility_info_locked"):
-                    st.subheader("🎉 Reward")
-                    st.markdown("You've successfully confirmed all your utility providers! ✅")
-
-    # Step 6: Display Raw LLM Output + Allow Download
-                    providers = st.session_state.get("utility_providers", {})
-                    if not providers:
-                        st.info("⚠️ No utility provider data available.")
-                    else:
-                        markdown_str = format_provider_markdown(providers)
-                        docx_bytes = export_provider_docx(providers)
-
-                        if docx_bytes and markdown_str:
-                            st.session_state["utility_docx"] = docx_bytes
-                            st.session_state["utility_markdown"] = markdown_str
-
-                        render_runbook_section_output(
-                            markdown_str=st.session_state.get("utility_markdown"),
-                            docx_bytes_io=st.session_state.get("utility_docx") ,
-                            title="Utility Providers",
-                            filename_prefix="utility_providers",
-                            expand_preview=False #Optional: set True open by default
-                        )
 
 
                         

@@ -133,52 +133,6 @@ def normalize_for_map(text):
     text = re.sub(r'[^a-z0-9_]+', '_', text)  # replace non-alphanumeric with underscore
     return text.strip('_')  # remove leading/trailing underscores
 
-def render_provider_contacts(section: str = "utilities"):
-    """
-    Renders a visual contact card layout for each utility provider in session state.
-    """
-
-    providers = st.session_state.get("utility_providers", {})
-    st.markdown("### 🐞 Debug: raw provider data")
-    st.json(providers)
-
-    if not providers:
-        st.info("No utility provider metadata found.")
-        return
-
-    st.markdown("## 🔌 Utility Provider Contact Info")
-
-    icons = {
-        "electricity": "⚡",
-        "natural_gas": "🔥",
-        "water": "💧",
-        "internet": "🌐"
-    }
-
-    for utility_key in ["electricity", "natural_gas", "water", "internet"]:
-        info = providers.get(utility_key, {})
-        name = info.get("name", "").strip()
-        if not name:
-            st.warning(f"{icon} {label} provider name not found. This will be refreshed silently.")
-            continue
-
-        label = utility_key.replace("_", " ").title()
-        icon = icons.get(utility_key, "🔌")
-
-        st.markdown(f"### {icon} {label}: {name}")
-
-        with st.expander(f"📇 View {name} Contact Info", expanded=False):
-            st.markdown(f"**📄 Description:** {info.get('description', '—')}")
-            st.markdown(f"**📞 Phone:** {info.get('contact_phone', '—')}")
-            #st.markdown(f"**📧 Email:** {info.get('contact_email', '—')}")
-            st.markdown(f"**🏢 Address:** {info.get('contact_address', '—')}")
-            st.markdown(f"**🌐 Website:** {info.get('contact_website', '—')}")
-            st.markdown(f"**🚨 Emergency Steps:**  \n{info.get('emergency_steps', '—')}")
-
-            non_emergency = info.get("non_emergency_tips", "").strip()
-            if non_emergency and non_emergency != "⚠️ Not Available":
-                st.markdown(f"**💡 Non-Emergency Tips:**  \n{non_emergency}")
-
 def debug_render_provider_contacts(section: str = "utilities"):
     """
     Renders a visual contact card layout for each utility provider in session state.

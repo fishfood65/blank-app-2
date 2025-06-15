@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 import streamlit as st
 
 LOG_DIR = "logs"
@@ -24,7 +24,7 @@ def log_event(
         "id": str(uuid.uuid4()),
         "event_type": event_type,
         "data": data,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "user_id": user_id or st.session_state.get("user_id", "anonymous"),
         "session_id": session_id or st.session_state.get("session_id", "unknown"),
         "tag": tag or data.get("section") or "general",

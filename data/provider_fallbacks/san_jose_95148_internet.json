@@ -1,16 +1,9 @@
 {
-  "city": "San Jose",
+  "city": "san jose",
   "zip_code": "95148",
   "utility": "internet",
-  "updated_at": "2025-06-14T06:40:30.531749",
+  "updated_at": "2025-06-15T05:49:01.930365+00:00",
   "data": {
-    "name": "Comcast",
-    "contact_phone": "1-800-XFINITY (1-800-934-6489)",
-    "contact_address": "\u26a0\ufe0f Not Available",
-    "contact_website": "xfinity.com",
-    "description": "Comcast is a leading provider of internet services, offering fast and reliable connections with various plans to suit different needs. They also offer bundled services including TV and phone options.",
-    "emergency_steps": "- Check if there is a known service outage in your area by visiting the Xfinity Response Center.\n- Restart your router by unplugging it, waiting 30 seconds, and plugging it back in.\n- Use mobile data to access the internet for critical tasks if your home internet is down.\n- Contact Xfinity support through their website or app for assistance with your internet service.\n- Sign up for outage alerts through the Xfinity app to stay informed about service status.\n\nNon-Emergency Tips:  \n- Consider signing up for the Xfinity 5-Year Price Guarantee to save on long-term costs with no annual contract xfinity.com.\n- Use Xfinity's digital tools to easily transfer your service if you move to a new location xfinity.com.",
-    "non_emergency_tips": "- Consider signing up for the Xfinity 5-Year Price Guarantee to save on long-term costs with no annual contract xfinity.com.\n- Use Xfinity's digital tools to easily transfer your service if you move to a new location xfinity.com.",
-    "confirmed": true
+    "contact_phone": "\u26a0\ufe0f Not Available"
   }
 }
