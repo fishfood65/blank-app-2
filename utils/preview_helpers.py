@@ -192,3 +192,40 @@ def render_saved_section(label, md_key, docx_key, file_prefix):
             file_name=f"{file_prefix}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
+
+# --- Display logic (read-only) ---
+def display_provider_contact_info(
+        provider_data: dict,
+        field_labels: dict = None,
+        section_title: str = "Provider Information",
+        fallback_note: str = "⚠️ _This entry used fallback data due to a failed lookup._"
+        ):
+    
+    if not provider_data:
+        st.warning("⚠️ No provider data available.")
+        return
+
+    if provider_data.get("source") == "fallback":
+        st.warning(fallback_note)
+
+    st.subheader(section_title)
+
+    field_labels = field_labels or {
+        "description": "📄 Description",
+        "contact_name": "👤 Contact Name", 
+        "contact_phone": "📞 Phone",
+        "contact_address": "🏢 Address",
+        "contact_website": "🌐 Website",
+        "emergency_steps": "🚨 Emergency Steps",
+        "non_emergency_tips": "💡 Non-Emergency Tips",
+        "notes": "📝 Notes"
+    }
+
+    for field, label in field_labels.items():
+        value = provider_data.get(field, "").strip()
+        if value and value != "⚠️ Not Available":
+            st.markdown(f"**{label}:**")
+            st.markdown(value)
+
+    if provider_data.get("source") == "fallback":
+        st.info("ℹ️ _Fields shown above may be incomplete or based on defaults. Consider retrying the lookup for updated information._")

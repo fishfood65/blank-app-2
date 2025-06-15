@@ -16,7 +16,7 @@ import hashlib
 import uuid
 import json
 from pathlib import Path
-from utils.preview_helpers import get_active_section_label
+from utils.preview_helpers import get_active_section_label, display_provider_contact_info
 from utils.data_helpers import (
     normalize_provider_fields,
     register_provider_input,
@@ -426,30 +426,6 @@ def save_provider_update_to_disk(city: str, zip_code: str, utility: str, data: d
         st.info(f"💾 Saved fallback: `{filename}`")
 
 # utility_provider_ui.py
-# --- Display logic (read-only) ---
-def display_provider_contact_info(provider_data: dict):
-    if not provider_data:
-        st.warning("⚠️ No provider data available.")
-        return
-
-    if provider_data.get("source") == "fallback":
-        st.warning("⚠️ _This entry used fallback data due to a failed LLM lookup._")
-
-    st.markdown(f"**📄 Description:** {provider_data.get('description', '—')}")
-    st.markdown(f"**📞 Phone:** {provider_data.get('contact_phone', '—')}")
-    st.markdown(f"**🏢 Address:** {provider_data.get('contact_address', '—')}")
-    st.markdown(f"**🌐 Website:** {provider_data.get('contact_website', '—')}")
-
-    st.markdown("**🚨 Emergency Steps:**")
-    st.markdown(provider_data.get("emergency_steps", "—"))
-
-    tips = provider_data.get("non_emergency_tips", "").strip()
-    if tips and tips != "⚠️ Not Available":
-        st.markdown("**💡 Non-Emergency Tips:**")
-        st.markdown(tips)
-
-    if provider_data.get("source") == "fallback":
-        st.info("ℹ️ _Fields shown above may be incomplete or based on defaults. Consider retrying the lookup for updated information._")
 
 # --- Editor logic (simplified UI) ---
 def render_provider_editor_table_view(utility_key: str, provider_data: dict, section: str = "utilities", simplified_mode: bool = True):

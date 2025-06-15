@@ -129,9 +129,11 @@ def capture_input(
         if default_value is not None and "value" not in kwargs:
             kwargs["value"] = default_value
         
-        # Prevent .value for incompatible widgets
-        if hasattr(input_fn, "__name__") and input_fn.__name__ in [st.radio, st.selectbox, st.multiselect] and "value" in kwargs:
-            kwargs.pop("value", None)
+        # Safe handling for incompatible widgets
+        widget_names = ["radio", "selectbox", "multiselect"]
+        fn_name = getattr(input_fn, "__name__", "")
+        if fn_name in widget_names and "value" in kwargs:
+            kwargs.pop("value")
     
     # Optional: set default placeholder for clarity
     kwargs.setdefault("placeholder", f"Enter your {label.lower()}")
@@ -156,6 +158,18 @@ def capture_input(
         except Exception as e:
             st.error(f"❌ Validation failed: {e}")
             return None
+
+    # ✂️ Clean up input string
+    if isinstance(value, str):
+        value = value.strip()
+
+    # 🧠 Finalize metadata
+    metadata = dict(metadata) if metadata else {}
+    metadata.setdefault("section", section)
+    metadata.setdefault("task_label", label)
+
+    if st.session_state.get("enable_debug_mode") and metadata.get("category"):
+        st.info(f"📂 Capturing input under category: {metadata['category']}")
 
     init_section(section)
 
@@ -208,6 +222,9 @@ def log_input_entry(
     if not area:
         area = SECTION_METADATA.get(section, {}).get("area", "general")
 
+    # 🆕 Optional top-level category for easier filtering
+    category = metadata.get("category")
+
     # ✨ Build structured input record
     record = {
         "question": label,
@@ -221,6 +238,7 @@ def log_input_entry(
         "shared": shared,
         "instance_id": instance_id,
         "required": required,
+        "category": category,        # ✅ Added here for grouping
         "metadata": metadata,
     }
 
@@ -257,6 +275,7 @@ def register_task_input(
     instance_id: Optional[str] = None,
     shared: bool = False,
     required: bool = False,
+    category: Optional[str] = None, # ✅ NEW: Optional third-level grouping
     *args,
     **kwargs
 ):
@@ -275,6 +294,8 @@ def register_task_input(
         instance_id (str, optional): For named entity inputs (e.g., pet name, profile ID)
         shared (bool): For inputs meant to apply across multiple entities
         area (str, optional): High-level area (home, pets, finances). Inferred if not given.
+        category (str, optional): Subgrouping within section (e.g., "Feeding", "Vet Info")
+        required (bool): Whether the input is required
         *args, **kwargs: Passed through to capture_input().
     """
 
@@ -293,6 +314,10 @@ def register_task_input(
         "task_type": task_type,
         "shared": shared,
     })
+
+    # ✅ Add optional category if provided
+    if category:
+        metadata["category"] = category
 
     # ✅ Capture user input widget
     value = capture_input(label, input_fn, section, *args, metadata=metadata, **kwargs)
@@ -376,7 +401,8 @@ def _search_entries(
     area: str = None,
     shared: bool = None,
     required: bool = None,
-    verbose: bool = False
+    verbose: bool = False,
+    category=None  # ✅ NEW
 ) -> str | None:
     """
     Search a list of structured entries for a matching key or label.
@@ -414,6 +440,8 @@ def _search_entries(
             continue
         if required is not None and entry.get("required") != required:
             continue
+        if category and entry.get("metadata", {}).get("category") != category:
+            continue
 
         if verbose:
             st.write(f"✅ Match found in entry: {entry}")
@@ -434,7 +462,8 @@ def get_answer(
     nested_parent: str = None,
     nested_child: str = None,
     verbose: bool = False,
-    common_sections: set = None
+    common_sections: set = None,
+    category: str = None  # ✅ NEW: Optional category filter
 ) -> str| None:
     """
     Retrieves the most recent answer for a given key in a section.
@@ -448,6 +477,7 @@ def get_answer(
         nested_child (str): Optional nested dict under parent.
         verbose (bool): If True, shows debug output.
         common_sections (set): Optional override set of valid section names.
+        category (str): Optional filter to restrict results to a metadata category.
 
     Returns:
         str | None: Answer if found.
@@ -482,15 +512,21 @@ def get_answer(
         area=area,
         shared=shared,
         required=required,
-        verbose=verbose
+        verbose=verbose,
+        category=category # ✅ NEW
     )
     if answer is not None:
         return answer
 
-    # 2️⃣ Look in input_data
-    section_inputs = st.session_state.get("input_data", {}).get(section, [])
+    # 2️⃣ Check input_data[section] safely
+    raw_inputs = st.session_state.get("input_data", {}).get(section, [])
+    if not isinstance(raw_inputs, list):
+        if verbose:
+            st.warning(f"⚠️ input_data['{section}'] expected a list but got {type(raw_inputs)} — skipping.")
+        raw_inputs = []
+
     answer = _search_entries(
-        entries=section_inputs,
+        entries=raw_inputs,
         norm_key=norm_key,
         section=section,
         instance_id=instance_id,
@@ -503,11 +539,17 @@ def get_answer(
     if answer is not None:
         return answer
 
-    # 3️⃣ Fallback to global
+    # 3️⃣ Fallback to input_data["global"]
     if fallback_to_global:
-        global_entries = st.session_state.get("input_data", {}).get("global", [])
+        global_inputs = st.session_state.get("input_data", {}).get("global", [])
+        if not isinstance(global_inputs, list):
+            if verbose:
+                st.warning("⚠️ input_data['global'] expected a list but got "
+                           f"{type(global_inputs)} — skipping.")
+            global_inputs = []
+
         answer = _search_entries(
-            entries=global_entries,
+            entries=global_inputs,
             norm_key=norm_key,
             section=section,
             instance_id=instance_id,
