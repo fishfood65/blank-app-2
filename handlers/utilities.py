@@ -25,7 +25,8 @@ from utils.data_helpers import (
     extract_and_log_providers,
     parse_utility_block,
     register_input_only,
-    apply_provider_overrides
+    apply_provider_overrides,
+    get_provider_display_name
 )
 #from utils.runbook_generator_helpers import generate_docx_from_prompt_blocks, maybe_render_download, maybe_generate_runbook
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, reset_all_session_state
@@ -809,13 +810,6 @@ def handle_queued_provider_updates(section: str = "utilities"):
         force_refresh_map[key] = False
 
 # --- Helper to retrieve confirmed provider data ---
-def old_get_confirmed_provider(utility_key: str) -> dict:
-    return (
-        st.session_state.get("confirmed_utility_providers", {}).get(utility_key)
-        or st.session_state.get("corrected_utility_providers", {}).get(utility_key)
-        or st.session_state.get("utility_providers", {}).get(utility_key)
-        or {}
-    )
 def get_confirmed_provider(utility_key: str) -> dict:
     # ✅ If finalized confirmed provider exists, always show it
     confirmed = st.session_state.get("confirmed_utility_providers", {}).get(utility_key)
@@ -858,7 +852,9 @@ def render_provider_table(utility_key: str, section: str = "utilities"):
 
     with col1:
         st.markdown("### 📋 Retrieved Info")
-        display_provider_contact_info(provider_data)
+        display_provider_contact_info(
+            provider_data,
+            visible_fields=["name", "contact_phone", "contact_address", "contact_website"])
 
     with col2:
         st.markdown("### ✏️ Review & Edit")

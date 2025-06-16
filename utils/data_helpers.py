@@ -1253,6 +1253,26 @@ def update_or_log_task(
     task_inputs.append(new_entry)
     st.session_state["task_inputs"] = task_inputs
 
+# utils/provider_helpers.py
+
+def get_provider_display_name(provider_data: dict, fallback_label: str = "Provider") -> str:
+    """
+    Safely return a display name for the provider using name, contact_name, or a fallback.
+    This works across categories (utilities, medical, insurance, etc.).
+    """
+    if not provider_data or not isinstance(provider_data, dict):
+        return fallback_label
+
+    name = provider_data.get("name", "").strip()
+    contact_name = provider_data.get("contact_name", "").strip()
+
+    invalid = {"", "⚠️ not available", "not available", "n/a"}
+
+    if name.lower() not in invalid:
+        return name
+    elif contact_name.lower() not in invalid:
+        return contact_name
+    return fallback_label
 
 
 # Placeholder for future enhancement: Cloud saving logic

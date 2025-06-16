@@ -4,6 +4,7 @@ import re
 import pandas as pd
 from config.sections import SECTION_METADATA 
 from config.section_router import get_page_map, get_question_page_map, QUESTION_PAGE_MAP, PAGE_MAP
+from .data_helpers import get_provider_display_name
 import uuid
 import hashlib
 import json
@@ -198,7 +199,8 @@ def display_provider_contact_info(
         provider_data: dict,
         field_labels: dict = None,
         section_title: str = "Provider Information",
-        fallback_note: str = "⚠️ _This entry used fallback data due to a failed lookup._"
+        fallback_note: str = "⚠️ _This entry used fallback data due to a failed lookup._",
+        visible_fields: list = None 
         ):
     
     provider_data = {
@@ -214,16 +216,15 @@ def display_provider_contact_info(
         st.warning(fallback_note)
 
     # Add provider name to title if available
-    provider_name = provider_data.get("name", "").strip()
-
-    if provider_name:
-        section_title += f": {provider_name}"
 
     if provider_data.get("source") == "fallback":
         st.warning(fallback_note)
 
     st.markdown("---")  # Consistent divider like col2
-    st.subheader(section_title)
+
+    # ✅ Enhanced dynamic title
+    name_label = get_provider_display_name(provider_data)
+    st.subheader(f"{section_title} – {name_label}")
 
     field_labels = field_labels or {
         "name": "🏢 Provider Name",
@@ -237,12 +238,13 @@ def display_provider_contact_info(
         "notes": "📝 Notes"
     }
 
+    visible_fields = set(f.lower() for f in visible_fields) if visible_fields else None
+
     seen_values = set()
     for field, label in field_labels.items():
         value = provider_data.get(field, "").strip()
         if value and value.strip().lower() != "⚠️ Not Available":
-            st.markdown(f"**{label}:**")
-            st.markdown(value)
+            st.markdown(f"**{label}:** {value}")
             seen_values.add(value)
 
     if provider_data.get("source") == "fallback":
