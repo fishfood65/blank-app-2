@@ -580,6 +580,12 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
                     st.success("✅ Reverted to AI-suggested info.")
                     st.rerun()
         
+            # 🗂️ Backup current values before overwriting
+            backup_key = f"backup_{utility_key}_prior"
+            if utility_key in st.session_state.get("corrected_utility_providers", {}):
+                previous = st.session_state["corrected_utility_providers"][utility_key].copy()
+                st.session_state[backup_key] = previous
+            
             if st.button(f"✅ Accept All Values", key=f"{section}_{utility_key}_accept_ai_btn", disabled=disabled):
                 for ui_label, data_key in required_field_map.items():
                     val = llm_data.get(data_key)
@@ -597,6 +603,17 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
                 register_provider_input(label, current_entry.get("name", ""), section)
                 log_event("provider_ai_accepted", {"utility": utility_key, "section": section}, tag="ai_accept")
                 st.success(f"✅ All available AI values saved for {label} provider.")
+
+            # ✅ Revert button – only shown if backup exists ; Need to have the backup wired to run with this key
+            if st.session_state.get("previous_provider_versions", {}).get(utility_key):
+                st.markdown("---")
+                if st.button("🔄 Revert to Previous", key=f"{section}_{utility_key}_revert_btn", disabled=disabled):
+                    previous = st.session_state["previous_provider_versions"][utility_key]
+                    st.session_state["corrected_utility_providers"][utility_key] = previous
+                    st.session_state["utility_providers"][utility_key] = previous
+                    save_provider_update_to_disk(city, zip_code, utility_key, previous)
+                    st.success("🔄 Reverted to your previous saved version.")
+    
         else:
             st.warning("⚠️ Some fields from the AI response are missing. You may update manually.")
 
@@ -647,18 +664,6 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
 
     corrected[utility_key] = current_entry
 
-    # Manual save option (only enabled if data is complete)
-    st.markdown("#### 💾 Save your updates")
-    if is_fully_filled(current_entry):
-        if st.button(f"💾 Save My Edits", key=f"{section}_{utility_key}_save_btn", disabled=disabled):
-            save_provider_update_to_disk(city, zip_code, utility_key, current_entry)
-            st.session_state["utility_providers"][utility_key] = current_entry
-            corrected[utility_key] = current_entry
-            log_event("provider_user_saved", {"utility": utility_key, "section": section}, tag="manual_save")
-            st.success(f"✅ Your updates were saved for {label}")
-    else:
-        st.info("⚠️ Fill in all required fields to enable saving.")
-
     # Final status message (only show if update button was clicked)
     if st.session_state.get(f"{section}_{utility_key}_update_btn_clicked", False):
         missing_fields = [
@@ -676,6 +681,9 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
     if st.session_state.get("enable_debug_mode"):
         st.markdown("### 🧪 Final Provider Entry")
         st.json(current_entry)
+        if "previous_provider_versions" in st.session_state and utility_key in st.session_state["previous_provider_versions"]:
+            st.markdown("🧪 Prior Backup Found:")
+            st.json(st.session_state["previous_provider_versions"][utility_key])
 
     return current_entry
 
