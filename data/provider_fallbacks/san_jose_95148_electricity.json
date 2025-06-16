@@ -2,6 +2,11 @@
   "city": "San Jose",
   "zip_code": "95148",
   "utility": "electricity",
-  "updated_at": "2025-06-15T22:48:59.575955+00:00",
-  "data": {}
+  "updated_at": "2025-06-16T00:36:16.385420+00:00",
+  "data": {
+    "name": "Pacific Gas & Electric Company",
+    "contact_phone": "\u26a0\ufe0f Not Available",
+    "contact_address": "\u26a0\ufe0f Not Available",
+    "contact_website": "pge.com"
+  }
 }

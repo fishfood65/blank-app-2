@@ -2,6 +2,11 @@
   "city": "San Jose",
   "zip_code": "95148",
   "utility": "water",
-  "updated_at": "2025-06-15T22:48:59.681617+00:00",
-  "data": {}
+  "updated_at": "2025-06-16T00:36:16.704541+00:00",
+  "data": {
+    "name": "San Jose Water",
+    "contact_phone": "408-279-7900",
+    "contact_address": "110 West Taylor St., San Jose, CA 95110-2131",
+    "contact_website": "sjwater.com"
+  }
 }

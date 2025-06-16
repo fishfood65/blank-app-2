@@ -201,6 +201,11 @@ def display_provider_contact_info(
         fallback_note: str = "⚠️ _This entry used fallback data due to a failed lookup._"
         ):
     
+    provider_data = {
+    k.strip().lower(): v for k, v in provider_data.items()
+    if isinstance(k, str)
+    }
+
     if not provider_data:
         st.warning("⚠️ No provider data available.")
         return
@@ -208,24 +213,37 @@ def display_provider_contact_info(
     if provider_data.get("source") == "fallback":
         st.warning(fallback_note)
 
+    # Add provider name to title if available
+    provider_name = provider_data.get("name", "").strip()
+
+    if provider_name:
+        section_title += f": {provider_name}"
+
+    if provider_data.get("source") == "fallback":
+        st.warning(fallback_note)
+
+    st.markdown("---")  # Consistent divider like col2
     st.subheader(section_title)
 
     field_labels = field_labels or {
-        "description": "📄 Description",
+        "name": "🏢 Provider Name",
         "contact_name": "👤 Contact Name", 
         "contact_phone": "📞 Phone",
         "contact_address": "🏢 Address",
         "contact_website": "🌐 Website",
+        "description": "📄 Description",
         "emergency_steps": "🚨 Emergency Steps",
         "non_emergency_tips": "💡 Non-Emergency Tips",
         "notes": "📝 Notes"
     }
 
+    seen_values = set()
     for field, label in field_labels.items():
         value = provider_data.get(field, "").strip()
-        if value and value != "⚠️ Not Available":
+        if value and value.strip().lower() != "⚠️ Not Available":
             st.markdown(f"**{label}:**")
             st.markdown(value)
+            seen_values.add(value)
 
     if provider_data.get("source") == "fallback":
         st.info("ℹ️ _Fields shown above may be incomplete or based on defaults. Consider retrying the lookup for updated information._")
