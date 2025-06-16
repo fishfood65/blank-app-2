@@ -2,19 +2,13 @@
   "city": "San Jose",
   "zip_code": "95148",
   "utility": "electricity",
-  "updated_at": "2025-06-16T01:09:38.276201+00:00",
+  "updated_at": "2025-06-16T02:32:44.150205+00:00",
   "data": {
-    "name": "Pacific Gas & Electric Company",
-    "contact_phone": "1-800-743-5000",
-    "contact_address": "77 Beale Street, San Francisco, CA 94105",
-    "contact_website": "pge.com",
-    "description": "Pacific Gas & Electric Company PG&E is a leading utility provider in California, offering electricity and natural gas services to millions of customers. They are committed to safety, reliability, and sustainability in their operations.",
-    "emergency_steps": "- Step 1: Call 9-1-1 immediately if you spot a downed power line, then contact PG&E at 1-800-743-5002.  \n- Step 2: Do not touch anyone or anything in contact with a downed power line.  \n- Step 3: Keep children and pets away from fallen electric wires.  \n- Step 4: Stay away from flooded areas and downed trees during and after a storm, as these could be hiding an energized power line.  \n- Step 5: If you suspect a gas leak, evacuate the building, avoid using electrical items, and call 9-1-1, then PG&E at 1-800-743-5000 from a safe location pgealerts.alerts.pge.com pge.com.\n\nNon-Emergency Tips:  \n- Tip 1: Have a backup phone that does not require electricity, such as a standard landline or a mobile phone pge.com.  \n- Tip 2: Leave a single lamp on to alert you when the power returns after an outage, and turn appliances on one at a time pgealerts.alerts.pge.com.",
-    "non_emergency_tips": "- Tip 1: Have a backup phone that does not require electricity, such as a standard landline or a mobile phone pge.com.  \n- Tip 2: Leave a single lamp on to alert you when the power returns after an outage, and turn appliances on one at a time pgealerts.alerts.pge.com.",
-    "timestamp": "2025-06-16T01:07:00.931454+00:00",
-    "source": "llm_batch",
+    "name": "Pacific Gas & Electric Company PG&E",
     "name_source": "ai",
+    "contact_phone": "\u26a0\ufe0f Not Available",
     "contact_phone_source": "ai",
+    "contact_website": "pge.com",
     "contact_website_source": "ai"
   }
 }

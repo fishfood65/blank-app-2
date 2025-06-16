@@ -32,7 +32,7 @@ from utils.data_helpers import (
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, reset_all_session_state
 from prompts.templates import generate_single_provider_prompt, wrap_with_claude_style_formatting, generate_corrected_provider_prompt
 from utils.common_helpers import get_schedule_placeholder_mapping
-from utils.llm_cache_utils import get_or_generate_llm_output, get_best_provider_data
+from utils.llm_cache_utils import get_or_generate_llm_output, get_best_provider_data, get_user_fallback_path, remove_user_fallback_file, save_provider_update_to_disk
 from utils.llm_helpers import call_openrouter_chat
 from utils.docx_helpers import export_provider_docx, format_provider_markdown, render_runbook_section_output
 from utils.event_logger import log_event
@@ -266,7 +266,7 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
 
 
         # ✅ Try loading best available provider data (fallback > cache > none)
-        provider_data, source = get_best_provider_data(utility, city, zip_code)
+        provider_data, source, user_data = get_best_provider_data(utility, city, zip_code)
 
         # 🧠 If valid provider data exists, skip LLM call
         # ✅ Tag the data with source for downstream display/debugging
@@ -280,6 +280,19 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
             st.session_state.setdefault("utility_providers", {})[utility] = provider_data
             continue  # ⏩ Done for this utility, skip to next
 
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown(f"### 🧪 DEBUG: Data Source Check for `{label}`")
+            st.json({
+                "provider_data_keys": list(provider_data.keys()),
+                "source": source,
+                "force_refresh": force_refresh,
+                "user_fallback_path": get_user_fallback_path(city, zip_code, utility),
+                "cache_path": get_provider_cache_path(utility, city, zip_code),
+            })
+
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown("### 📄 Raw User Fallback")
+            st.json(user_data)
 
         # ⚙️ No usable cache or force_refresh → call LLM
         prompt = generate_single_provider_prompt(utility, city, zip_code, internet_input)
@@ -399,34 +412,6 @@ def ensure_datetime_strings(obj):
     elif isinstance(obj, datetime):
         return obj.isoformat()
     return obj
-
-def save_provider_update_to_disk(city: str, zip_code: str, utility: str, data: dict):
-    """
-    Saves corrected or validated provider info to a JSON file for fallback reuse.
-    """
-    fallback_dir = "data/provider_fallbacks"
-    os.makedirs(fallback_dir, exist_ok=True)
-
-    # Use city_zip_utility as filename
-    safe_city = city.lower().replace(" ", "_")
-    filename = f"{safe_city}_{zip_code}_{utility}.json"
-    filepath = os.path.join(fallback_dir, filename)
-
-    payload = {
-        "city": city,
-        "zip_code": zip_code,
-        "utility": utility,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-        "data": data,
-    }
-
-    safe_payload = ensure_datetime_strings(payload)
-
-    with open(filepath, "w") as f:
-        json.dump(safe_payload, f, indent=2)
-
-    if st.session_state.get("enable_debug_mode"):
-        st.info(f"💾 Saved fallback: `{filename}`")
 
 # utility_provider_ui.py
 
@@ -551,6 +536,16 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
         if has_llm_provided_min_required_data(llm_data):
             st.success("✅ The AI provided all required fields. No update may be necessary.")
                 # ✅ Inform user but allow manual override
+                # ✅ Allow user to reset to AI-suggested info if they're currently using user fallback
+            if provider_data.get("source") == "user_fallback":
+                st.markdown("---")
+                if st.button("🔄 Reset to AI Suggestion"):
+                    city = get_answer("City", section)
+                    zip_code = get_answer("ZIP Code", section)
+                    remove_user_fallback_file(city, zip_code, utility_key)
+                    st.success("✅ Reverted to AI-suggested info.")
+                    st.experimental_rerun()
+
             # ✅ Accept All AI Values button only if data is complete
             if st.button(f"✅ Accept All Values", key=f"{section}_{utility_key}_accept_ai_btn", disabled=disabled):
                 for ui_label, data_key in required_field_map.items():
@@ -559,9 +554,22 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
                         current_entry[data_key] = val
                         current_entry[f"{data_key}_source"] = "ai"
 
-                corrected[utility_key] = current_entry
+                # ✅ Save to fallback (flat structure)
+                city = get_answer("City", section)
+                zip_code = get_answer("ZIP Code", section)
+
+                # Only include relevant fields to save (flattened)
+                accepted_data = {
+                    k: v for k, v in current_entry.items()
+                    if k in ["name", "contact_phone", "contact_address", "contact_website", "description", "emergency_steps", "non_emergency_tips"]
+                }
+
+                save_provider_update_to_disk(city, zip_code, utility_key, accepted_data)
+
+                # ✅ Reflect updates in session state too
+                st.session_state.setdefault("utility_providers", {})[utility_key] = accepted_data
+                st.session_state.setdefault("corrected_utility_providers", {})[utility_key] = accepted_data
                 register_provider_input(label, current_entry.get("name", ""), section)
-                save_provider_update_to_disk(city, zip_code, utility_key, current_entry)
                 log_event("provider_ai_accepted", {"utility": utility_key, "section": section}, tag="ai_accept")
                 st.success(f"✅ All available AI values saved for {label} provider.")
         else:

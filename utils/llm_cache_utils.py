@@ -83,6 +83,12 @@ def get_user_fallback_path(city: str, zip_code: str, utility_key: str) -> str:
     city_slug = city.lower().replace(" ", "_")
     return os.path.join(USER_FALLBACK_DIR, f"{utility_key}_{city_slug}_{zip_code}.json")
 
+def remove_user_fallback_file(city: str, zip_code: str, utility_key: str):
+    """Deletes the fallback file for a given utility/location if it exists."""
+    path = get_user_fallback_path(city, zip_code, utility_key)
+    if os.path.exists(path):
+        os.remove(path)
+
 def load_json_file(path: str) -> dict:
     try:
         with open(path, "r") as f:
@@ -98,7 +104,9 @@ def parse_timestamp(ts: str) -> datetime:
 
 def get_best_provider_data(utility_key: str, city: str, zip_code: str) -> Tuple[dict, str]:
     """
-    Chooses the freshest available provider data (user_fallback > cache > none).
+    Chooses the most appropriate provider data:
+    - Always prefer user fallback if it contains any real data
+    - Otherwise prefer latest timestamp
     Returns:
         - provider_data (dict)
         - source_label (str): one of "user_fallback", "cache", "empty"
@@ -106,15 +114,101 @@ def get_best_provider_data(utility_key: str, city: str, zip_code: str) -> Tuple[
     user_path = get_user_fallback_path(city, zip_code, utility_key)
     cache_path = get_provider_cache_path(utility_key, city, zip_code)
 
-    user_data = load_json_file(user_path)
+    raw_user_data = load_json_file(user_path)
+    user_data = raw_user_data.get("data", {}) if isinstance(raw_user_data, dict) else {}
+    
     cache_data = load_json_file(cache_path)
 
+    def has_meaningful_data(d: dict) -> bool:
+        """
+        Returns True if any of the important fields have valid, non-placeholder content.
+        """
+        if not isinstance(d, dict):
+            return False
+
+        ignore_values = {"", "⚠️ not available", "not available", "n/a", "none"}
+        keys = ["name", "contact_phone", "contact_address", "contact_website"]
+
+        return any(str(d.get(k, "")).strip().lower() not in ignore_values for k in keys)
+
+    # ✅ Prefer user fallback if it contains useful values
+    if has_meaningful_data(user_data):
+        return user_data, "user_fallback", user_data
+
+    # Else compare timestamps
     user_ts = parse_timestamp(user_data.get("timestamp", ""))
     cache_ts = parse_timestamp(cache_data.get("timestamp", ""))
+    
+    if cache_ts >= user_ts:
+        return cache_data, "cache", user_data
 
-    if user_ts > cache_ts:
-        return user_data, "user_fallback"
-    elif cache_data:
-        return cache_data, "cache"
-    else:
-        return {}, "empty"
+    return {}, "empty", user_data
+
+def save_user_fallback_data(city: str, zip_code: str, utility_key: str, data: dict):
+    """
+    Save user-edited provider data in a flat format to the fallback file.
+    Includes metadata such as city, zip, utility type, and update timestamp.
+    """
+
+    # Compose payload with flat structure
+    payload = {
+        "city": city,
+        "zip_code": zip_code,
+        "utility": utility_key,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    payload.update(data)
+
+    # Ensure fallback directory exists
+    file_path = get_user_fallback_path(city, zip_code, utility_key)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    with open(file_path, "w") as f:
+        json.dump(payload, f, indent=2)
+
+def ensure_datetime_strings(data: dict) -> dict:
+    """
+    Recursively converts datetime objects to ISO strings.
+    """
+    from datetime import datetime
+
+    def convert(value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, dict):
+            return {k: convert(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [convert(v) for v in value]
+        return value
+
+    return convert(data)
+
+def save_provider_update_to_disk(city: str, zip_code: str, utility: str, data: dict):
+    """
+    Saves corrected or validated provider info to a JSON file for fallback reuse.
+    Flattens structure so contact fields are top-level (not nested under "data").
+    """
+    fallback_dir = "data/provider_fallbacks"
+    os.makedirs(fallback_dir, exist_ok=True)
+
+    # Use city_zip_utility as filename
+    safe_city = city.lower().replace(" ", "_")
+    filename = f"{utility}_{safe_city}_{zip_code}.json"
+    filepath = os.path.join(fallback_dir, filename)
+
+    # Flattened payload
+    payload = {
+        "city": city,
+        "zip_code": zip_code,
+        "utility": utility,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        **data  # injects all contact fields at top level
+    }
+
+    safe_payload = ensure_datetime_strings(payload)
+
+    with open(filepath, "w") as f:
+        json.dump(safe_payload, f, indent=2)
+
+    if st.session_state.get("enable_debug_mode"):
+        st.info(f"💾 Saved fallback: `{filename}`")

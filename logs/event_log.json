@@ -48927,5 +48927,3605 @@
     "user_id": "anonymous",
     "session_id": "unknown",
     "tag": "correction"
+  },
+  {
+    "id": "d0e0d245-1322-4f74-a741-94d2350e83e8",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:01.819229",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:01.819284+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "0844b34e-6548-430c-baa4-88a891230903",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:01.883444",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:01.883531+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "cd8a9452-f837-4aa7-a92f-f411b3f55095",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:01.952634",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:01.952678+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "d42da4da-883a-4603-b2aa-d778a528f55e",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:02.014701",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:02.014779+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "7537c029-b6f3-473c-aca9-8df3bc7a394d",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:02.084001",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:02.084043+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "158d1948-144f-4714-9651-ab96843a86cd",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:02.180745",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:02.180885+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "52364719-8dae-4b16-9084-b38fe570c1bd",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas and Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:22:02.253290+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "a478b3e0-accf-4525-b08c-57107fab7642",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:22:02.326224+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "ba4deb61-1ff3-4194-a489-9e4963d277a6",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:22:02.392553+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "36e259ef-7e8a-4b2e-8205-0512ecd770aa",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:22:02.461934+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "7377f2f5-3397-47f4-a6d3-6c7896526d71",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:22:02.544359+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "5a22a6b9-519e-4a3f-b793-34f237f3cf2e",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:22:02.634727+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "f4597664-0eeb-42e4-8ca0-4284194c211d",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:22:02.702244+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "61dcec34-f61b-49fd-9ca2-e9be49404400",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:22:02.792648+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "bbe77282-2a67-4964-bdd0-732ef442a581",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:04.367242",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:04.367281+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "9a3fc228-6126-4a05-9156-edb88c144b74",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:04.430664",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:04.430751+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "025a3599-fecb-41af-8a74-55834c6b5c82",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:04.511551",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:04.511601+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "b80bbc4e-4dc5-4437-aa63-b4dfabc7525d",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:04.611535",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:04.611625+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "d72b9c97-b155-4e2d-b683-a4dedaee2fff",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:04.679312",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:04.679353+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "6671b664-66f8-4a8d-aa49-bf24abd01cb8",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:04.744572",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:04.744653+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "522b4965-b799-4557-881a-209d88fa5dcd",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas and Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:22:04.819041+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "6c75ebe8-4fcb-45a3-adef-ee1d257e66fa",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:22:04.892169+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "bd7b4e9a-1ad7-4714-9caa-5db978a26cb1",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:22:04.966899+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "cef33154-e9ae-4d90-91c9-42a9e5b44deb",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:22:05.035717+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "a0af9929-91b9-4a31-976a-81af0ae9f32b",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:22:05.104199+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "49407381-ff78-4cdd-a989-87833abd6f82",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:22:05.171038+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "ac4bd13c-b6d2-41c5-8dd7-81b44472423d",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:22:05.239900+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "95c2f6e8-e949-423a-ae67-0426f974bf10",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:22:05.307419+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "f6f546f3-88a7-49c0-8a76-e107ace25f1e",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:08.679878",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:08.679929+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "22ad7c46-eb76-4bf2-ac85-d76499f5bdef",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:08.784401",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:08.784537+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "7ef3827f-4f71-422d-bc70-90f77bfd56e0",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:15.590496",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:15.590532+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "48aa7861-3115-4291-9618-a431ec059b28",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:15.658057",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:15.658134+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "1453d332-26d8-4c04-bc4d-4774aa0be8cb",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:15.723562",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:15.723599+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "8f462025-8963-4e09-9802-9ce96a43995c",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:15.793768",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:15.793848+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "6917f808-50a8-40f0-a604-b9d2fd0a455d",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:21.422364",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:21.422404+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "2c242c0d-4dfe-451a-91d5-ba2e612eb43a",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:21.494718",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:21.494804+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "c804302d-36c4-4a30-933c-f36982ad5546",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:21.563605",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:21.563640+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "b02f9bc1-4b70-4c97-93d0-772f62af016a",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:21.646501",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:21.647071+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "59acd5df-222c-4b83-aed0-5f2e97d29332",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:21.742038",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:21.742078+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "97c8eb63-61bf-4fdf-bdfa-1543c291e324",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:21.812921",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:21.813005+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "4be1d45b-b8aa-4e61-89b4-6bf864b121d7",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:25.657622",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:25.657662+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "48cffcf5-891a-4f11-9b36-01001ede47b1",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:25.726546",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:25.726621+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "fd9a4763-4768-4c06-a8bf-f932d62e9a51",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:25.792205",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:25.792242+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "c248cf08-57d7-438d-865b-7325b203c74d",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:25.859905",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:25.859981+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "2f28ac96-77bc-4995-98f1-f45f590b6816",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:25.938577",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:25.938615+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "b31cea63-5cb7-483b-be4a-04a122bfeb35",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:26.003796",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:22:26.003896+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "22cdcb15-57e2-45f8-a25b-4a45753b0d3e",
+    "event_type": "llm_output_raw",
+    "data": {
+      "utility": "electricity",
+      "prompt": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n\nPlease identify the **main \u26a1 Electricity provider** for this location and return the following:\n\n- **Company Name**\n- **Brief Description**\n- **Contact Info**:\n    - Phone\n    - Website\n    - Email\n    - Address\n\n- **Emergency Steps**: Provide **exactly five** clear, practical safety steps that a **homeowner or house sitter** can take during a \u26a1 electricity emergency:\n    - Do **not** include technical, professional, or hazardous instructions (e.g., repairing lines, shutting off mains).\n    - Use **simple markdown bullet points**.\n    - Focus on **power outages**, avoiding **downed lines**, and **safe generator use**.\n\nIf the provider cannot be found, return `\"\u26a0\ufe0f Not Available\"` for each missing field.\n\nAlso include an optional **Non-Emergency Tips** section:\n- Provide 1\u20133 brief tips on billing, service status, or support.\n- Mark this section clearly.\n\nUse this markdown format:\n\n## \u26a1 Electricity \u2013 <Company Name>\n**Description:** <short description>  \n**Contact Info:**  \n- **Phone:** <phone number>  \n- **Website:** <URL>  \n- **Email:** <email address>  \n- **Address:** <full address>  \n\n**Emergency Steps:**  \n- Step 1  \n- Step 2  \n- Step 3  \n- Step 4  \n- Step 5\n\n**Non-Emergency Tips:**  \n- Tip 1  \n- Tip 2",
+      "response": "## \u26a1 Electricity \u2013 Pacific Gas & Electric Company\n**Description:** Pacific Gas & Electric Company (PG&E) is a major utility provider in California, offering electricity and natural gas services to millions of residents.  \n**Contact Info:**  \n- **Phone:** 1-800-743-5000  \n- **Website:** [pge.com](https://www.pge.com/en.html)  \n- **Email:** \u26a0\ufe0f Not Available  \n- **Address:** \u26a0\ufe0f Not Available  \n\n**Emergency Steps:**  \n- Stay at least 35 feet away from any fallen power lines and anything they are touching.  \n- Call 9-1-1 immediately if you see downed power lines or suspect an emergency situation. Follow up by contacting PG&E at 1-800-743-5000.  \n- Avoid using any electrical equipment or electronics that may have been submerged in flood areas.  \n- Use flashlights instead of candles to reduce the risk of fire.  \n- Keep refrigerators and freezers closed to preserve food during an outage.\n\n**Non-Emergency Tips:**  \n- Secure helium-filled metallic balloons with weights to prevent them from floating into power lines, which can cause outages and fires [pge.com](https://www.pge.com/en.html).  \n- Visit the PG&E website for tips on reducing energy use during the summer to save on bills [pge.com](https://www.pge.com/en/save-energy-and-money/energy-usage-and-tips/residential-energy-savings-tips/summer-energy-savings-tips.html).",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:22:34.802155+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "utilities"
+  },
+  {
+    "id": "56cc2c20-b7d3-48ad-a247-f27062c1dc0c",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "key": "utilities_electricity_provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:34.869319",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:34.869363+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "2e41763e-a30d-4525-835d-4ecabd876f97",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity (Pacific Gas & Electric Company) Description",
+      "answer": "Pacific Gas & Electric Company PG&E is a major utility provider in California, offering electricity and natural gas services to millions of residents.",
+      "key": "utilities_electricity_(pacific_gas_&_electric_company)_description",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:34.938743",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:34.938792+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "546b21c2-c6ed-4d80-bb6d-5225bcb6bc12",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity (Pacific Gas & Electric Company) Contact Phone",
+      "answer": "1-800-743-5000",
+      "key": "utilities_electricity_(pacific_gas_&_electric_company)_contact_phone",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:35.003031",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:35.003077+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "533e4ef8-dbd1-44b0-bb2f-c29c35211a5c",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity (Pacific Gas & Electric Company) Contact Website",
+      "answer": "pge.com",
+      "key": "utilities_electricity_(pacific_gas_&_electric_company)_contact_website",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:35.102156",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:35.102211+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "b762a225-502f-45a1-ae6e-701145e4e9f6",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity (Pacific Gas & Electric Company) Contact Address",
+      "answer": "\u26a0\ufe0f Not Available",
+      "key": "utilities_electricity_(pacific_gas_&_electric_company)_contact_address",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:35.167794",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:35.167869+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "013710b0-c82f-4ca6-a699-2a88fd536317",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity (Pacific Gas & Electric Company) Emergency Steps",
+      "answer": "- Stay at least 35 feet away from any fallen power lines and anything they are touching.  \n- Call 9-1-1 immediately if you see downed power lines or suspect an emergency situation. Follow up by contacting PG&E at 1-800-743-5000.  \n- Avoid using any electrical equipment or electronics that may have been submerged in flood areas.  \n- Use flashlights instead of candles to reduce the risk of fire.  \n- Keep refrigerators and freezers closed to preserve food during an outage.\n\nNon-Emergency Tips:  \n- Secure helium-filled metallic balloons with weights to prevent them from floating into power lines, which can cause outages and fires pge.com.  \n- Visit the PG&E website for tips on reducing energy use during the summer to save on bills pge.com.",
+      "key": "utilities_electricity_(pacific_gas_&_electric_company)_emergency_steps",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:35.233148",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:35.233196+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "965a864d-2d4d-4d28-9fb0-6aab33314a75",
+    "event_type": "llm_output_raw",
+    "data": {
+      "utility": "natural_gas",
+      "prompt": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n\nPlease identify the **main \ud83d\udd25 Natural Gas provider** for this location and return the following:\n\n- **Company Name**\n- **Brief Description**\n- **Contact Info**:\n    - Phone\n    - Website\n    - Email\n    - Address\n\n- **Emergency Steps**: Provide **exactly five** clear, practical safety steps that a **homeowner or house sitter** can take during a \ud83d\udd25 natural gas emergency:\n    - Do **not** include technical, professional, or hazardous instructions (e.g., repairing lines, shutting off mains).\n    - Use **simple markdown bullet points**.\n    - Focus on **leak detection**, avoiding **ignition sources**, and **safe evacuation**.\n\nIf the provider cannot be found, return `\"\u26a0\ufe0f Not Available\"` for each missing field.\n\nAlso include an optional **Non-Emergency Tips** section:\n- Provide 1\u20133 brief tips on billing, service status, or support.\n- Mark this section clearly.\n\nUse this markdown format:\n\n## \ud83d\udd25 Natural Gas \u2013 <Company Name>\n**Description:** <short description>  \n**Contact Info:**  \n- **Phone:** <phone number>  \n- **Website:** <URL>  \n- **Email:** <email address>  \n- **Address:** <full address>  \n\n**Emergency Steps:**  \n- Step 1  \n- Step 2  \n- Step 3  \n- Step 4  \n- Step 5\n\n**Non-Emergency Tips:**  \n- Tip 1  \n- Tip 2",
+      "response": "## \ud83d\udd25 Natural Gas \u2013 Pacific Gas & Electric Company (PG&E)\n**Description:** Pacific Gas & Electric Company (PG&E) provides natural gas and electricity services to residential and business customers in California.  \n**Contact Info:**  \n- **Phone:** 1-800-743-5000  \n- **Website:** [pge.com](https://www.pge.com/en.html)  \n- **Email:** \u26a0\ufe0f Not Available  \n- **Address:** 77 Beale Street, San Francisco, CA 94105  \n\n**Emergency Steps:**  \n- If you smell gas or hear a hissing sound, leave the area immediately.  \n- Avoid using anything that could ignite the gas, such as cell phones, flashlights, or matches, until you are a safe distance away.  \n- Do not turn any electrical devices on or off, including light switches.  \n- Call 9-1-1 for emergency assistance once you are at a safe distance.  \n- Contact PG&E at 1-800-743-5000 to report the gas leak after ensuring your safety.\n\n**Non-Emergency Tips:**  \n- For billing assistance or payment plans, visit the [PG&E billing support page](https://www.pge.com/en/save-energy-and-money/energy-usage-and-tips/residential-energy-savings-tips/summer-energy-savings-tips.html).  \n- Consider signing up for PG&E alerts to stay informed about service status and outages.",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:22:45.727978+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "utilities"
+  },
+  {
+    "id": "d4240f6e-7807-4403-b755-a8162ae28f20",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "key": "utilities_natural_gas_provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:45.791405",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:45.791447+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "403d5fba-b3d3-4ca4-9dca-3790a91a0c72",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas (Pacific Gas & Electric Company PG&E) Description",
+      "answer": "Pacific Gas & Electric Company PG&E provides natural gas and electricity services to residential and business customers in California.",
+      "key": "utilities_natural_gas_(pacific_gas_&_electric_company_pg&e)_description",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:45.859349",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:45.859395+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "bd96035b-8d7a-40d3-a0ee-c0d17d7a0c3b",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas (Pacific Gas & Electric Company PG&E) Contact Phone",
+      "answer": "1-800-743-5000",
+      "key": "utilities_natural_gas_(pacific_gas_&_electric_company_pg&e)_contact_phone",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:45.954207",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:45.954294+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "6feb8445-fbe8-41f1-b4fb-6e4899bcd8fb",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas (Pacific Gas & Electric Company PG&E) Contact Website",
+      "answer": "pge.com",
+      "key": "utilities_natural_gas_(pacific_gas_&_electric_company_pg&e)_contact_website",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:46.034685",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:46.034739+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "b7036417-dacc-48b5-a9f0-4bfc2623458d",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas (Pacific Gas & Electric Company PG&E) Contact Address",
+      "answer": "77 Beale Street, San Francisco, CA 94105",
+      "key": "utilities_natural_gas_(pacific_gas_&_electric_company_pg&e)_contact_address",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:46.100377",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:46.100428+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "fff54c7c-f49e-4a97-80ad-9284914d2315",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas (Pacific Gas & Electric Company PG&E) Emergency Steps",
+      "answer": "- If you smell gas or hear a hissing sound, leave the area immediately.  \n- Avoid using anything that could ignite the gas, such as cell phones, flashlights, or matches, until you are a safe distance away.  \n- Do not turn any electrical devices on or off, including light switches.  \n- Call 9-1-1 for emergency assistance once you are at a safe distance.  \n- Contact PG&E at 1-800-743-5000 to report the gas leak after ensuring your safety.\n\nNon-Emergency Tips:  \n- For billing assistance or payment plans, visit the PG&E billing support page.  \n- Consider signing up for PG&E alerts to stay informed about service status and outages.",
+      "key": "utilities_natural_gas_(pacific_gas_&_electric_company_pg&e)_emergency_steps",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:46.188340",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:46.188405+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "eb1f64ad-a8cc-4691-ad15-c05444b41b5b",
+    "event_type": "llm_output_raw",
+    "data": {
+      "utility": "water",
+      "prompt": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n\nPlease identify the **main \ud83d\udca7 Water provider** for this location and return the following:\n\n- **Company Name**\n- **Brief Description**\n- **Contact Info**:\n    - Phone\n    - Website\n    - Email\n    - Address\n\n- **Emergency Steps**: Provide **exactly five** clear, practical safety steps that a **homeowner or house sitter** can take during a \ud83d\udca7 water emergency:\n    - Do **not** include technical, professional, or hazardous instructions (e.g., repairing lines, shutting off mains).\n    - Use **simple markdown bullet points**.\n    - Focus on **shutting off water**, identifying **leaks**, and ensuring **safe drinking water**.\n\nIf the provider cannot be found, return `\"\u26a0\ufe0f Not Available\"` for each missing field.\n\nAlso include an optional **Non-Emergency Tips** section:\n- Provide 1\u20133 brief tips on billing, service status, or support.\n- Mark this section clearly.\n\nUse this markdown format:\n\n## \ud83d\udca7 Water \u2013 <Company Name>\n**Description:** <short description>  \n**Contact Info:**  \n- **Phone:** <phone number>  \n- **Website:** <URL>  \n- **Email:** <email address>  \n- **Address:** <full address>  \n\n**Emergency Steps:**  \n- Step 1  \n- Step 2  \n- Step 3  \n- Step 4  \n- Step 5\n\n**Non-Emergency Tips:**  \n- Tip 1  \n- Tip 2",
+      "response": "## \ud83d\udca7 Water \u2013 San Jose Water\n**Description:** San Jose Water provides a safe and reliable water supply to the San Jose community, ensuring prompt customer service and rapid response to emergencies.  \n**Contact Info:**  \n- **Phone:** (408) 279-7900  \n- **Website:** [sjwater.com](https://www.sjwater.com)  \n- **Email:** [customer.service@sjwater.com](mailto:customer.service@sjwater.com)  \n- **Address:** 110 West Taylor St., San Jose, CA 95110-2131  \n\n**Emergency Steps:**  \n- Locate and turn off the water supply valve to stop water flow in the event of a leak.  \n- Check all faucets and fixtures for leaks, and if found, place a bucket or container underneath to catch water.  \n- Use bottled water for drinking and cooking if tap water safety is compromised.  \n- Contact San Jose Water Company to report the issue and seek guidance on next steps.  \n- Avoid using appliances like dishwashers and washing machines until the issue is resolved.\n\n**Non-Emergency Tips:**  \n- For billing inquiries or to understand your bill, visit the [billing information page](https://www.sjwater.com/customer-care/help-information/how-read-your-bill) on their website.  \n- Stay updated on service alerts and water use restrictions by checking the [service alerts section](https://www.sjwater.com/customer-care) regularly.  \n- Consider scheduling a free water checkup to ensure efficient water use in your home.",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:22:56.760355+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "utilities"
+  },
+  {
+    "id": "2ad81f73-59cf-414a-95f4-dc123209c63a",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "key": "utilities_water_provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:56.878410",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:56.878464+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "8c4bae92-1ed5-45b9-9172-3dd313bacbae",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water (San Jose Water) Description",
+      "answer": "San Jose Water provides a safe and reliable water supply to the San Jose community, ensuring prompt customer service and rapid response to emergencies.",
+      "key": "utilities_water_(san_jose_water)_description",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:56.947084",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:56.947145+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "d1e970ee-bbaa-4b37-a34b-006955ba39c1",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water (San Jose Water) Contact Phone",
+      "answer": "408 279-7900",
+      "key": "utilities_water_(san_jose_water)_contact_phone",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:57.025410",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:57.025466+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "cc7ba80f-a37c-4a3d-ad53-f9d4ded2db36",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water (San Jose Water) Contact Website",
+      "answer": "sjwater.com",
+      "key": "utilities_water_(san_jose_water)_contact_website",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:57.090959",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:57.091009+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "0dc9b8b2-c3d7-4325-bf65-f2e814fdf944",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water (San Jose Water) Contact Address",
+      "answer": "110 West Taylor St., San Jose, CA 95110-2131",
+      "key": "utilities_water_(san_jose_water)_contact_address",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:57.157105",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:57.157156+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "30a969c2-830e-46f7-9863-2dd93212d749",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water (San Jose Water) Emergency Steps",
+      "answer": "- Locate and turn off the water supply valve to stop water flow in the event of a leak.  \n- Check all faucets and fixtures for leaks, and if found, place a bucket or container underneath to catch water.  \n- Use bottled water for drinking and cooking if tap water safety is compromised.  \n- Contact San Jose Water Company to report the issue and seek guidance on next steps.  \n- Avoid using appliances like dishwashers and washing machines until the issue is resolved.\n\nNon-Emergency Tips:  \n- For billing inquiries or to understand your bill, visit the billing information page on their website.  \n- Stay updated on service alerts and water use restrictions by checking the service alerts section regularly.  \n- Consider scheduling a free water checkup to ensure efficient water use in your home.",
+      "key": "utilities_water_(san_jose_water)_emergency_steps",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:22:57.249453",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:22:57.249506+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "277a88cc-0217-4d25-86fb-859b9ee5ac0d",
+    "event_type": "llm_output_raw",
+    "data": {
+      "utility": "internet",
+      "prompt": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n- Internet Provider (user provided): Comcast\n\nPlease identify the **main \ud83c\udf10 Internet provider** for this location and return the following:\n\n- **Company Name**\n- **Brief Description**\n- **Contact Info**:\n    - Phone\n    - Website\n    - Email\n    - Address\n\n- **Emergency Steps**: Provide **exactly five** clear, practical safety steps that a **homeowner or house sitter** can take during a \ud83c\udf10 internet emergency:\n    - Do **not** include technical, professional, or hazardous instructions (e.g., repairing lines, shutting off mains).\n    - Use **simple markdown bullet points**.\n    - Focus on **router status**, **contacting support**, and using **mobile data** if needed.\n\nIf the provider cannot be found, return `\"\u26a0\ufe0f Not Available\"` for each missing field.\n\nAlso include an optional **Non-Emergency Tips** section:\n- Provide 1\u20133 brief tips on billing, service status, or support.\n- Mark this section clearly.\n\nUse this markdown format:\n\n## \ud83c\udf10 Internet \u2013 <Company Name>\n**Description:** <short description>  \n**Contact Info:**  \n- **Phone:** <phone number>  \n- **Website:** <URL>  \n- **Email:** <email address>  \n- **Address:** <full address>  \n\n**Emergency Steps:**  \n- Step 1  \n- Step 2  \n- Step 3  \n- Step 4  \n- Step 5\n\n**Non-Emergency Tips:**  \n- Tip 1  \n- Tip 2",
+      "response": "## \ud83c\udf10 Internet \u2013 Comcast (Xfinity)\n**Description:** Comcast, operating as Xfinity, is a leading provider of high-speed internet services in San Jose, offering reliable connectivity with options like 2 Gigabit speeds and various customer plans.  \n**Contact Info:**  \n- **Phone:** \u26a0\ufe0f Not Available  \n- **Website:** [xfinity.com](https://www.xfinity.com/national)  \n- **Email:** \u26a0\ufe0f Not Available  \n- **Address:** \u26a0\ufe0f Not Available  \n\n**Emergency Steps:**  \n- Check the status lights on your router to ensure it is powered on and functioning correctly.  \n- Use a mobile device to visit the [Xfinity outage map](https://www.xfinity.com/response/managing-planned-power-outages) to check for local service disruptions.  \n- If there is an outage, contact Xfinity support through the [My Account app](https://www.xfinity.com/apps#other-apps) to report the issue and receive updates.  \n- Enable mobile data on your smartphone to access the internet if the home network is down.  \n- Keep your contact information up-to-date in your Xfinity account to receive outage notifications via text message.\n\n**Non-Emergency Tips:**  \n- Consider signing up for Xfinity's 5-Year Price Guarantee plan for long-term savings and no annual contract [xfinity.com](https://www.xfinity.com/national).  \n- Utilize the Xfinity My Account app for easy access to billing, service status, and support.  \n- If you have Xfinity Internet, you can bring your own phone to Xfinity Mobile for added savings [xfinity.com/mobile](https://www.xfinity.com/mobile/).",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:23:04.657051+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "utilities"
+  },
+  {
+    "id": "883e34a2-ba70-4b4f-a5a8-f8aa2f0166d1",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast Xfinity",
+      "key": "utilities_internet_provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:23:04.810124",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:23:04.810181+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "3ea6677b-fefe-46fa-9225-b4f674d655ba",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet (Comcast Xfinity) Description",
+      "answer": "Comcast, operating as Xfinity, is a leading provider of high-speed internet services in San Jose, offering reliable connectivity with options like 2 Gigabit speeds and various customer plans.",
+      "key": "utilities_internet_(comcast_xfinity)_description",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:23:04.877183",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:23:04.877239+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "efd3cac5-4332-45e6-a620-2e0fa8c5b986",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet (Comcast Xfinity) Contact Phone",
+      "answer": "\u26a0\ufe0f Not Available",
+      "key": "utilities_internet_(comcast_xfinity)_contact_phone",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:23:04.944540",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:23:04.944593+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "e861f5b9-fc50-400c-87ef-aba9b1bf1c55",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet (Comcast Xfinity) Contact Website",
+      "answer": "xfinity.com",
+      "key": "utilities_internet_(comcast_xfinity)_contact_website",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:23:05.028479",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:23:05.029082+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "4881c434-dfb1-4c15-80ea-e6861ae2006f",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet (Comcast Xfinity) Contact Address",
+      "answer": "\u26a0\ufe0f Not Available",
+      "key": "utilities_internet_(comcast_xfinity)_contact_address",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:23:05.090306",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:23:05.090362+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "c85853c5-135d-400d-afdf-6c8185fc4240",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet (Comcast Xfinity) Emergency Steps",
+      "answer": "- Check the status lights on your router to ensure it is powered on and functioning correctly.  \n- Use a mobile device to visit the Xfinity outage map to check for local service disruptions.  \n- If there is an outage, contact Xfinity support through the My Account app to report the issue and receive updates.  \n- Enable mobile data on your smartphone to access the internet if the home network is down.  \n- Keep your contact information up-to-date in your Xfinity account to receive outage notifications via text message.\n\nNon-Emergency Tips:  \n- Consider signing up for Xfinity's 5-Year Price Guarantee plan for long-term savings and no annual contract xfinity.com.  \n- Utilize the Xfinity My Account app for easy access to billing, service status, and support.  \n- If you have Xfinity Internet, you can bring your own phone to Xfinity Mobile for added savings xfinity.com/mobile.",
+      "key": "utilities_internet_(comcast_xfinity)_emergency_steps",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:23:05.155280",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:23:05.155332+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "c3c6e45b-8e9e-4b97-83b6-4bd204ef7508",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:23:05.227267+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "78f28195-7e65-4a37-9293-1718cb5f4527",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:23:05.304076+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "9df2303f-cecd-46ea-8d34-da4da158d246",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:23:05.374971+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "16aef8f2-b77d-4531-85f0-9ea4d1f7a4ef",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:23:05.444333+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "ac5ea31f-6992-485f-812a-dcc366c0c15b",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:23:05.512331+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "0bd68182-d44f-4cd0-b835-043a0df29672",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:23:05.581621+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "554e89b9-d7d1-44bd-a806-b7f282aaca88",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:23:05.652373+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "2accf6b9-9cbd-4433-9b0e-01d16b6a0e0c",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:23:05.721664+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "ccc1fb97-8132-4485-8c4c-f773ebad4761",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:42.291279",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:42.291347+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "56e627af-4478-4bab-b051-7496d6af92a8",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:42.436310",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:42.436509+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "8611269c-fead-472b-acb8-b2966c132629",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:42.542568",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:42.542625+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "0b6429d0-76ca-4507-9a85-89921416943f",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:42.626830",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:42.626951+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "ca7d979e-e5c8-40d7-9489-2d52b4ad4465",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:42.691130",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:42.691176+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "462fb62d-afe8-4dad-83ca-89d81ca54a58",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:42.767990",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:42.768489+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "47496d62-ad93-47e6-a4c0-54b0e6914cd4",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:31:42.855425+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "75a69f1d-5ebc-48d8-9d7e-44994cce032e",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:31:42.930201+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "3ef4dff2-e589-4016-a962-de627f66fac3",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:31:43.001410+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "2e9eed6f-624d-4966-b6ce-d19df3ffd31d",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:31:43.067821+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "9f23e4cc-9927-49f4-9583-f9c1e89b9432",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:31:43.133141+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "55102d1b-9fe3-42ec-9f0e-74bfa7bfceee",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:43.343873",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:43.343952+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "82bf3c10-26cf-4b7b-afdb-9148ddb66013",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:43.535515",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:43.536478+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "52c9fc9d-11f1-4017-981d-ff0f9d109be7",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:43.613765",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:43.613815+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "bc88d555-f770-4a01-8054-73a1f5c402db",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:43.689076",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:43.689157+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "1d37d8c4-02d5-4016-9acc-f2ad25857445",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:31:43.763074+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "af2a99b7-eb7d-4f29-8a0f-f1d34463ac0d",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:31:43.837188+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "5bf343bf-3d92-4c86-9572-82098004044a",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:31:43.911882+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "1bb0f18e-1d0f-4a3a-ace8-621eb1cc8b55",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:31:43.983242+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "47045202-6523-41b7-bfb4-53eb6fea526c",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:31:44.054152+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "ef57e296-6f7a-45a2-9e24-d802b6e1375a",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:31:44.123758+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "4a99073f-ffde-453a-8aee-2dbe6940cadb",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:31:44.193453+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "3ea8cda1-c43d-4c14-8b77-cefd35fc62a7",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:31:44.268189+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "c3143aeb-4081-4784-9560-4fadb42d26bd",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:50.049336",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:50.049373+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "3b722e2a-d478-44a3-beb6-4f6094a6e350",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:50.119155",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:50.119283+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "8d6b92cd-98ef-41c3-b227-5892fd419b4b",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:56.035952",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:56.035987+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "4af31e53-4997-47f9-b19d-a602d1ab35e9",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:56.106149",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:56.106223+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "9abd0621-2537-4094-b856-42bc0780d94b",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:56.171537",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:56.171570+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "69e8afa5-0a23-41ba-b341-592f8b8488ae",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:31:56.257938",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:31:56.258038+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "29d982da-b210-413a-a077-008ce1d09f5d",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:01.556581",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:01.556619+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "4778928e-0fa9-4ca1-b6e6-7668ad17a7a6",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:01.626941",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:01.627017+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "23d56d8e-6231-4172-ae00-bbfdaebede0b",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:01.699254",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:01.699297+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "499d0724-0b7a-406f-be38-1d65fa1190d2",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:01.772959",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:01.773041+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "011d3cb9-c960-480b-9889-b7bf4f7dcc34",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:01.883678",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:01.883725+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "b2b5579c-6b1d-4005-9e22-ec09c5ac4b8b",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:01.950201",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:01.950283+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "5e6ed5d5-534b-4bd5-830e-a5e9ed6ee239",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:05.036491",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:05.036527+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "d3e17ebe-31eb-4b35-a7cc-be76b4d39a75",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:05.104526",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:05.104607+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "cbf25558-c28f-42fe-bee7-ede6921bab88",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:05.179478",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:05.179516+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "7df3d0e3-f288-4180-8d1f-640ec70fe5b3",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:05.247207",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:05.247281+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "5ce17696-c4eb-4729-b2ed-56a06b54d0b8",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:05.313489",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:05.313523+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "67200ba7-0546-445c-8627-8ac0a190a580",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:05.376846",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T02:32:05.376954+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "a9e8f41c-f34c-4cdd-a4d1-09b1c66a5831",
+    "event_type": "llm_output_raw",
+    "data": {
+      "utility": "electricity",
+      "prompt": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n\nPlease identify the **main \u26a1 Electricity provider** for this location and return the following:\n\n- **Company Name**\n- **Brief Description**\n- **Contact Info**:\n    - Phone\n    - Website\n    - Email\n    - Address\n\n- **Emergency Steps**: Provide **exactly five** clear, practical safety steps that a **homeowner or house sitter** can take during a \u26a1 electricity emergency:\n    - Do **not** include technical, professional, or hazardous instructions (e.g., repairing lines, shutting off mains).\n    - Use **simple markdown bullet points**.\n    - Focus on **power outages**, avoiding **downed lines**, and **safe generator use**.\n\nIf the provider cannot be found, return `\"\u26a0\ufe0f Not Available\"` for each missing field.\n\nAlso include an optional **Non-Emergency Tips** section:\n- Provide 1\u20133 brief tips on billing, service status, or support.\n- Mark this section clearly.\n\nUse this markdown format:\n\n## \u26a1 Electricity \u2013 <Company Name>\n**Description:** <short description>  \n**Contact Info:**  \n- **Phone:** <phone number>  \n- **Website:** <URL>  \n- **Email:** <email address>  \n- **Address:** <full address>  \n\n**Emergency Steps:**  \n- Step 1  \n- Step 2  \n- Step 3  \n- Step 4  \n- Step 5\n\n**Non-Emergency Tips:**  \n- Tip 1  \n- Tip 2",
+      "response": "## \u26a1 Electricity \u2013 Pacific Gas & Electric Company (PG&E)\n**Description:** Pacific Gas & Electric Company (PG&E) is a major utility provider in California, delivering electricity and natural gas to millions of homes and businesses.  \n**Contact Info:**  \n- **Phone:** \u26a0\ufe0f Not Available  \n- **Website:** [pge.com](https://www.pge.com/en.html)  \n- **Email:** \u26a0\ufe0f Not Available  \n- **Address:** \u26a0\ufe0f Not Available  \n\n**Emergency Steps:**  \n- Use a cell phone or hard-wired phone to report outages; cordless phones may not work during an outage.  \n- Use battery-operated flashlights instead of candles to avoid fire hazards.  \n- Unplug or turn off all electric and heat-producing appliances to prevent damage when power is restored.  \n- Keep refrigerator and freezer doors closed to preserve food.  \n- Check PG&E's website or app for outage updates and estimated restoration times.\n\n**Non-Emergency Tips:**  \n- Visit PG&E's website for tips on reducing energy use during summer to save on bills [pge.com](https://www.pge.com/en/save-energy-and-money/energy-usage-and-tips/residential-energy-savings-tips/summer-energy-savings-tips.html).  \n- Secure helium-filled metallic balloons with weights to prevent them from causing power outages by floating into power lines [pge.com](https://www.safetyactioncenter.pge.com/articles/44-celebrate-safely).",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:32:15.366704+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "utilities"
+  },
+  {
+    "id": "17833162-b297-42d8-a0dc-a4eeb7dfce72",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "key": "utilities_electricity_provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:15.436804",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:15.436848+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "0c595c7c-06db-4ac0-969a-34b5a8dfa4b8",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity (Pacific Gas & Electric Company PG&E) Description",
+      "answer": "Pacific Gas & Electric Company PG&E is a major utility provider in California, delivering electricity and natural gas to millions of homes and businesses.",
+      "key": "utilities_electricity_(pacific_gas_&_electric_company_pg&e)_description",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:15.504673",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:15.504720+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "f459101c-1d30-4f78-94df-ae65e4a0c0a4",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity (Pacific Gas & Electric Company PG&E) Contact Phone",
+      "answer": "\u26a0\ufe0f Not Available",
+      "key": "utilities_electricity_(pacific_gas_&_electric_company_pg&e)_contact_phone",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:15.569354",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:15.569400+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "3f15c10d-19cc-4974-800d-95475d9870b0",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity (Pacific Gas & Electric Company PG&E) Contact Website",
+      "answer": "pge.com",
+      "key": "utilities_electricity_(pacific_gas_&_electric_company_pg&e)_contact_website",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:15.634552",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:15.634604+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "0a1331ca-ebce-4131-a8a9-a782eb4b40b6",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity (Pacific Gas & Electric Company PG&E) Contact Address",
+      "answer": "\u26a0\ufe0f Not Available",
+      "key": "utilities_electricity_(pacific_gas_&_electric_company_pg&e)_contact_address",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:15.699142",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:15.699188+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "fcb437d4-fe1d-4b0a-ab25-0a3daea29198",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Electricity (Pacific Gas & Electric Company PG&E) Emergency Steps",
+      "answer": "- Use a cell phone or hard-wired phone to report outages; cordless phones may not work during an outage.  \n- Use battery-operated flashlights instead of candles to avoid fire hazards.  \n- Unplug or turn off all electric and heat-producing appliances to prevent damage when power is restored.  \n- Keep refrigerator and freezer doors closed to preserve food.  \n- Check PG&E's website or app for outage updates and estimated restoration times.\n\nNon-Emergency Tips:  \n- Visit PG&E's website for tips on reducing energy use during summer to save on bills pge.com.  \n- Secure helium-filled metallic balloons with weights to prevent them from causing power outages by floating into power lines pge.com.",
+      "key": "utilities_electricity_(pacific_gas_&_electric_company_pg&e)_emergency_steps",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:15.765257",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:15.765305+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "216eebbb-b2e8-4538-81cb-7adda11cf826",
+    "event_type": "llm_output_raw",
+    "data": {
+      "utility": "natural_gas",
+      "prompt": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n\nPlease identify the **main \ud83d\udd25 Natural Gas provider** for this location and return the following:\n\n- **Company Name**\n- **Brief Description**\n- **Contact Info**:\n    - Phone\n    - Website\n    - Email\n    - Address\n\n- **Emergency Steps**: Provide **exactly five** clear, practical safety steps that a **homeowner or house sitter** can take during a \ud83d\udd25 natural gas emergency:\n    - Do **not** include technical, professional, or hazardous instructions (e.g., repairing lines, shutting off mains).\n    - Use **simple markdown bullet points**.\n    - Focus on **leak detection**, avoiding **ignition sources**, and **safe evacuation**.\n\nIf the provider cannot be found, return `\"\u26a0\ufe0f Not Available\"` for each missing field.\n\nAlso include an optional **Non-Emergency Tips** section:\n- Provide 1\u20133 brief tips on billing, service status, or support.\n- Mark this section clearly.\n\nUse this markdown format:\n\n## \ud83d\udd25 Natural Gas \u2013 <Company Name>\n**Description:** <short description>  \n**Contact Info:**  \n- **Phone:** <phone number>  \n- **Website:** <URL>  \n- **Email:** <email address>  \n- **Address:** <full address>  \n\n**Emergency Steps:**  \n- Step 1  \n- Step 2  \n- Step 3  \n- Step 4  \n- Step 5\n\n**Non-Emergency Tips:**  \n- Tip 1  \n- Tip 2",
+      "response": "## \ud83d\udd25 Natural Gas \u2013 Pacific Gas & Electric Company (PG&E)\n**Description:** Pacific Gas & Electric Company (PG&E) is a leading natural gas and electricity provider in Northern and Central California, including the San Jose area. They are committed to delivering safe, reliable, and affordable energy services.  \n**Contact Info:**  \n- **Phone:** 1-800-743-5000  \n- **Website:** [pge.com](https://www.pge.com/en.html)  \n- **Email:** \u26a0\ufe0f Not Available  \n- **Address:** 77 Beale Street, San Francisco, CA 94105  \n\n**Emergency Steps:**  \n- If you smell gas, hear it escaping, or suspect a leak, immediately leave the area.  \n- Avoid using anything that could be a source of ignition, such as cell phones, flashlights, light switches, or matches.  \n- Once you are at a safe distance, call 9-1-1 for emergency assistance.  \n- After contacting emergency services, call PG&E at 1-800-743-5000 to report the situation.  \n- Do not attempt to turn off the gas yourself unless instructed by a professional or if you are trained to do so safely.\n\n**Non-Emergency Tips:**  \n- PG&E offers various [energy-saving tips](https://www.pge.com/en/save-energy-and-money/energy-usage-and-tips/residential-energy-savings-tips/summer-energy-savings-tips.html) to help reduce your energy usage and lower your bills.  \n- For assistance with your bill, explore PG&E's [payment and savings solutions](https://www.pge.com/en.html).",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:32:25.658386+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "utilities"
+  },
+  {
+    "id": "f80812cf-c46f-4fc3-80ec-373573135d7b",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "key": "utilities_natural_gas_provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:25.770390",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:25.770439+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "faa35207-d43a-405c-ab3b-16705f034af1",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas (Pacific Gas & Electric Company PG&E) Description",
+      "answer": "Pacific Gas & Electric Company PG&E is a leading natural gas and electricity provider in Northern and Central California, including the San Jose area. They are committed to delivering safe, reliable, and affordable energy services.",
+      "key": "utilities_natural_gas_(pacific_gas_&_electric_company_pg&e)_description",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:25.837353",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:25.837408+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "67d7f234-cbd3-438b-9b67-7bc60443f787",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas (Pacific Gas & Electric Company PG&E) Contact Phone",
+      "answer": "1-800-743-5000",
+      "key": "utilities_natural_gas_(pacific_gas_&_electric_company_pg&e)_contact_phone",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:25.910809",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:25.910889+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "eb9da881-38d1-4908-baee-86a123f6ccc9",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas (Pacific Gas & Electric Company PG&E) Contact Website",
+      "answer": "pge.com",
+      "key": "utilities_natural_gas_(pacific_gas_&_electric_company_pg&e)_contact_website",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:25.991877",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:25.991933+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "f3d7bd6c-0770-4b72-a11a-0fe38adcfa86",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas (Pacific Gas & Electric Company PG&E) Contact Address",
+      "answer": "77 Beale Street, San Francisco, CA 94105",
+      "key": "utilities_natural_gas_(pacific_gas_&_electric_company_pg&e)_contact_address",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:26.072036",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:26.072448+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "caa1e965-df62-4504-9729-1232ab5eca89",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Natural Gas (Pacific Gas & Electric Company PG&E) Emergency Steps",
+      "answer": "- If you smell gas, hear it escaping, or suspect a leak, immediately leave the area.  \n- Avoid using anything that could be a source of ignition, such as cell phones, flashlights, light switches, or matches.  \n- Once you are at a safe distance, call 9-1-1 for emergency assistance.  \n- After contacting emergency services, call PG&E at 1-800-743-5000 to report the situation.  \n- Do not attempt to turn off the gas yourself unless instructed by a professional or if you are trained to do so safely.\n\nNon-Emergency Tips:  \n- PG&E offers various energy-saving tips to help reduce your energy usage and lower your bills.  \n- For assistance with your bill, explore PG&E's payment and savings solutions.",
+      "key": "utilities_natural_gas_(pacific_gas_&_electric_company_pg&e)_emergency_steps",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:26.184328",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:26.184395+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "30a2d80b-3572-481a-bcf6-21c81c3d3414",
+    "event_type": "llm_output_raw",
+    "data": {
+      "utility": "water",
+      "prompt": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n\nPlease identify the **main \ud83d\udca7 Water provider** for this location and return the following:\n\n- **Company Name**\n- **Brief Description**\n- **Contact Info**:\n    - Phone\n    - Website\n    - Email\n    - Address\n\n- **Emergency Steps**: Provide **exactly five** clear, practical safety steps that a **homeowner or house sitter** can take during a \ud83d\udca7 water emergency:\n    - Do **not** include technical, professional, or hazardous instructions (e.g., repairing lines, shutting off mains).\n    - Use **simple markdown bullet points**.\n    - Focus on **shutting off water**, identifying **leaks**, and ensuring **safe drinking water**.\n\nIf the provider cannot be found, return `\"\u26a0\ufe0f Not Available\"` for each missing field.\n\nAlso include an optional **Non-Emergency Tips** section:\n- Provide 1\u20133 brief tips on billing, service status, or support.\n- Mark this section clearly.\n\nUse this markdown format:\n\n## \ud83d\udca7 Water \u2013 <Company Name>\n**Description:** <short description>  \n**Contact Info:**  \n- **Phone:** <phone number>  \n- **Website:** <URL>  \n- **Email:** <email address>  \n- **Address:** <full address>  \n\n**Emergency Steps:**  \n- Step 1  \n- Step 2  \n- Step 3  \n- Step 4  \n- Step 5\n\n**Non-Emergency Tips:**  \n- Tip 1  \n- Tip 2",
+      "response": "## \ud83d\udca7 Water \u2013 San Jose Water\n**Description:** San Jose Water provides a safe and reliable water supply, offering customer service for billing, payment, and emergency issues.  \n**Contact Info:**  \n- **Phone:** (408) 279-7900  \n- **Website:** [sjwater.com](https://www.sjwater.com)  \n- **Email:** [customer.service@sjwater.com](mailto:customer.service@sjwater.com)  \n- **Address:** 110 West Taylor St., San Jose, CA 95110-2131  \n\n**Emergency Steps:**  \n- Locate and turn off the water shut-off valve inside your home to stop water flow.  \n- Check all faucets and pipes for visible leaks and report any significant issues to San Jose Water.  \n- Store bottled water for drinking and cooking in case of water service interruption.  \n- Use water purification tablets or boil water if you suspect contamination, to ensure it is safe for consumption.  \n- Keep a flashlight and batteries handy in case of power outages affecting your water supply.\n\n**Non-Emergency Tips:**  \n- For billing inquiries, visit the [billing & payments section](https://www.sjwater.com/payments) on the San Jose Water website.  \n- Report any water waste or leaks using the [report leaks or water waste form](https://www.sjwater.com/our-company/contact-us/report-leaks-or-water-waste).  \n- Connect with San Jose Water on social media for updates on service status and community news.",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:32:34.640285+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "utilities"
+  },
+  {
+    "id": "ecb40b9c-8c19-45c7-b556-ee010a1ff6c8",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "key": "utilities_water_provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:34.707322",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:34.707367+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "16a15fa9-0e61-44e7-a3d4-ea1a45658d9b",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water (San Jose Water) Description",
+      "answer": "San Jose Water provides a safe and reliable water supply, offering customer service for billing, payment, and emergency issues.",
+      "key": "utilities_water_(san_jose_water)_description",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:34.782515",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:34.782568+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "46b2d78b-6fba-4c6b-af36-2df21571cd94",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water (San Jose Water) Contact Phone",
+      "answer": "408 279-7900",
+      "key": "utilities_water_(san_jose_water)_contact_phone",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:34.845920",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:34.845966+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "3b078695-0951-452f-8215-b7d33694ca53",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water (San Jose Water) Contact Website",
+      "answer": "sjwater.com",
+      "key": "utilities_water_(san_jose_water)_contact_website",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:34.911806",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:34.911871+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "3ca3d481-dcf7-4a29-ba47-c9d6b18ce043",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water (San Jose Water) Contact Address",
+      "answer": "110 West Taylor St., San Jose, CA 95110-2131",
+      "key": "utilities_water_(san_jose_water)_contact_address",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:34.977005",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:34.977050+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "fef0ec1d-87dc-4fa8-88ce-30949e4b150d",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Water (San Jose Water) Emergency Steps",
+      "answer": "- Locate and turn off the water shut-off valve inside your home to stop water flow.  \n- Check all faucets and pipes for visible leaks and report any significant issues to San Jose Water.  \n- Store bottled water for drinking and cooking in case of water service interruption.  \n- Use water purification tablets or boil water if you suspect contamination, to ensure it is safe for consumption.  \n- Keep a flashlight and batteries handy in case of power outages affecting your water supply.\n\nNon-Emergency Tips:  \n- For billing inquiries, visit the billing & payments section on the San Jose Water website.  \n- Report any water waste or leaks using the report leaks or water waste form.  \n- Connect with San Jose Water on social media for updates on service status and community news.",
+      "key": "utilities_water_(san_jose_water)_emergency_steps",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:35.049639",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:35.049692+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "6b4830c4-6a3b-485d-a5c8-7cce17de9853",
+    "event_type": "llm_output_raw",
+    "data": {
+      "utility": "internet",
+      "prompt": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n- Internet Provider (user provided): Comcast\n\nPlease identify the **main \ud83c\udf10 Internet provider** for this location and return the following:\n\n- **Company Name**\n- **Brief Description**\n- **Contact Info**:\n    - Phone\n    - Website\n    - Email\n    - Address\n\n- **Emergency Steps**: Provide **exactly five** clear, practical safety steps that a **homeowner or house sitter** can take during a \ud83c\udf10 internet emergency:\n    - Do **not** include technical, professional, or hazardous instructions (e.g., repairing lines, shutting off mains).\n    - Use **simple markdown bullet points**.\n    - Focus on **router status**, **contacting support**, and using **mobile data** if needed.\n\nIf the provider cannot be found, return `\"\u26a0\ufe0f Not Available\"` for each missing field.\n\nAlso include an optional **Non-Emergency Tips** section:\n- Provide 1\u20133 brief tips on billing, service status, or support.\n- Mark this section clearly.\n\nUse this markdown format:\n\n## \ud83c\udf10 Internet \u2013 <Company Name>\n**Description:** <short description>  \n**Contact Info:**  \n- **Phone:** <phone number>  \n- **Website:** <URL>  \n- **Email:** <email address>  \n- **Address:** <full address>  \n\n**Emergency Steps:**  \n- Step 1  \n- Step 2  \n- Step 3  \n- Step 4  \n- Step 5\n\n**Non-Emergency Tips:**  \n- Tip 1  \n- Tip 2",
+      "response": "## \ud83c\udf10 Internet \u2013 Comcast\n**Description:** Comcast provides high-speed internet services, including gigabit speeds, and offers various packages with no annual contract options for reliable connectivity in San Jose, CA.  \n**Contact Info:**  \n- **Phone:** \u26a0\ufe0f Not Available  \n- **Website:** [xfinity.com](https://www.xfinity.com/national)  \n- **Email:** \u26a0\ufe0f Not Available  \n- **Address:** \u26a0\ufe0f Not Available  \n\n**Emergency Steps:**  \n- Check if your router is powered on and all cables are securely connected.  \n- Restart your router by unplugging it, waiting 10 seconds, and plugging it back in.  \n- Use your mobile device to visit [xfinity.com/myaccount](https://www.xfinity.com/myaccount) to check for any reported outages in your area.  \n- Contact Comcast support through their website or mobile app for assistance if the issue persists.  \n- Utilize mobile data to stay connected until the internet service is restored.\n\n**Non-Emergency Tips:**  \n- Consider signing up for Xfinity's 5-Year Price Guarantee plan for long-term savings on your internet service.  \n- Use the Xfinity My Account app to easily manage your service and receive outage notifications.  \n- If you are an Xfinity Internet customer, explore adding Xfinity Mobile for additional connectivity options [xfinity.com/mobile](https://www.xfinity.com/mobile) [xfinity.com](https://www.xfinity.com/national), [california.comcast.com](https://california.comcast.com/2024/10/11/comcast-turbo-charges-its-xfinity-network-in-san-jose-california-with-2-gigabit-speeds-now-available-to-most-customers/).",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:32:43.463812+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "utilities"
+  },
+  {
+    "id": "8a77328d-ed21-4d6f-94af-6c39b1217cc9",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "utilities_internet_provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:43.533482",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:43.533530+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "c75abb2b-3629-45d6-a913-6723726cfd9f",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet (Comcast) Description",
+      "answer": "Comcast provides high-speed internet services, including gigabit speeds, and offers various packages with no annual contract options for reliable connectivity in San Jose, CA.",
+      "key": "utilities_internet_(comcast)_description",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:43.626727",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:43.626891+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "f943d6de-9753-47f8-a322-d6c44cfad03e",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet (Comcast) Contact Phone",
+      "answer": "\u26a0\ufe0f Not Available",
+      "key": "utilities_internet_(comcast)_contact_phone",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:43.708074",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:43.708261+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "8f56457a-dd0b-4736-b5be-12956a7bab8f",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet (Comcast) Contact Website",
+      "answer": "xfinity.com",
+      "key": "utilities_internet_(comcast)_contact_website",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:43.779322",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:43.779814+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "d6c0e5a3-dc8e-4275-8f04-89934fcc6808",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet (Comcast) Contact Address",
+      "answer": "\u26a0\ufe0f Not Available",
+      "key": "utilities_internet_(comcast)_contact_address",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:43.902257",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:43.902317+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "93c7f257-b6ab-4c84-9e75-cf41b276f876",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet (Comcast) Emergency Steps",
+      "answer": "- Check if your router is powered on and all cables are securely connected.  \n- Restart your router by unplugging it, waiting 10 seconds, and plugging it back in.  \n- Use your mobile device to visit xfinity.com/myaccount to check for any reported outages in your area.  \n- Contact Comcast support through their website or mobile app for assistance if the issue persists.  \n- Utilize mobile data to stay connected until the internet service is restored.\n\nNon-Emergency Tips:  \n- Consider signing up for Xfinity's 5-Year Price Guarantee plan for long-term savings on your internet service.  \n- Use the Xfinity My Account app to easily manage your service and receive outage notifications.  \n- If you are an Xfinity Internet customer, explore adding Xfinity Mobile for additional connectivity options xfinity.com/mobile xfinity.com, california.comcast.com.",
+      "key": "utilities_internet_(comcast)_emergency_steps",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T02:32:43.972676",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {}
+    },
+    "timestamp": "2025-06-16T02:32:43.972739+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "7d9a3ae5-0673-404d-a72a-46b4294c6c28",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:32:44.045701+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "908a31dc-7419-4c13-ae6a-025996a6cdff",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:32:44.151494+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "34372321-f7a2-4887-a939-3f48de73e62c",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:32:44.227599+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "f811b410-868f-4c30-893e-5b3473789c8f",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:32:44.308477+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "5c3bf669-389a-417e-a188-eb3ebca45ffb",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:32:44.408806+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "7349f386-d155-440a-a047-2138fb1f67d0",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:32:44.517367+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "9e2cc69f-4f8b-4c99-aca9-9df30171b342",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T02:32:44.608220+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "d9552fb7-a9d8-444f-bb69-f6fa4a7ec915",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T02:32:44.710072+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
   }
 ]

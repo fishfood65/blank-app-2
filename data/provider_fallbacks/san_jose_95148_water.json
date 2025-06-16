@@ -2,11 +2,11 @@
   "city": "San Jose",
   "zip_code": "95148",
   "utility": "water",
-  "updated_at": "2025-06-16T01:37:23.253998+00:00",
+  "updated_at": "2025-06-16T02:32:44.516121+00:00",
   "data": {
     "name": "San Jose Water",
     "name_source": "ai",
-    "contact_phone": "408-279-7900",
+    "contact_phone": "408 279-7900",
     "contact_phone_source": "ai",
     "contact_website": "sjwater.com",
     "contact_website_source": "ai"
