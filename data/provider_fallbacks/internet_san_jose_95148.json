@@ -2,13 +2,12 @@
   "city": "San Jose",
   "zip_code": "95148",
   "utility": "internet",
-  "timestamp": "2025-06-16T05:40:29.726453+00:00",
+  "timestamp": "2025-06-16T07:06:32.221605+00:00",
   "name": "Xfinity",
-  "description": "Xfinity, a brand of Comcast, offers high-speed internet services with options for advanced WiFi equipment and unlimited data plans, including mobile services for post-pay internet customers.",
-  "contact_phone": "\u26a0\ufe0f Not Available",
+  "contact_phone": "1-800-XFINITY 1-800-934-6489",
+  "contact_address": "Not provided",
   "contact_website": "xfinity.com",
-  "contact_address": "\u26a0\ufe0f Not Available",
-  "emergency_steps": "- Check your router's status lights to ensure it is powered on and connected properly.  \n- Use your mobile device to visit Xfinity's outage map to check for local outages.  \n- If there is no outage reported, restart your router by unplugging it for 30 seconds and then plugging it back in.  \n- Contact Xfinity support through their website or mobile app for assistance.  \n- Utilize mobile data for essential internet needs until service is restored.\n\nNon-Emergency Tips:  \n- Sign up for Xfinity alerts via the My Account app to receive updates on service status and outages.  \n- Take advantage of Xfinity's 5-Year Price Guarantee for long-term savings on your internet plan.  \n- Explore Xfinity Mobile options if you are an Xfinity Internet post-pay customer.",
-  "non_emergency_tips": "- Sign up for Xfinity alerts via the My Account app to receive updates on service status and outages.  \n- Take advantage of Xfinity's 5-Year Price Guarantee for long-term savings on your internet plan.  \n- Explore Xfinity Mobile options if you are an Xfinity Internet post-pay customer.",
-  "source": "cache"
+  "description": "Xfinity is a leading provider of internet, TV, phone, and smart home services, offering reliable and fast internet solutions across the United States.",
+  "emergency_steps": "- Step 1: In case of a power outage, wait for local electricity to be restored first before expecting Xfinity services to resume, as Comcast requires clearance for safe restoration work california.comcast.com.  \n- Step 2: Use the Xfinity App to track service status updates and manage your account during outages xfinity.com.  \n- Step 3: Turn your mobile device into a personal hotspot to maintain internet access for essential tasks xfinity.com.  \n- Step 4: Stay informed through the Xfinity and Comcast Business apps for key information and updates california.comcast.com.  \n- Step 5: Report service issues via the Xfinity website or customer service phone number for assistance.\n\nNon-Emergency Tips:  \n- Tip 1: Regularly check and manage your cookie preferences to optimize your user experience and protect your privacy xfinity.com.  \n- Tip 2: Consider switching to Xfinity's long-term internet plans for cost savings and reliable service without an annual contract xfinity.com.",
+  "non_emergency_tips": "- Tip 1: Regularly check and manage your cookie preferences to optimize your user experience and protect your privacy xfinity.com.  \n- Tip 2: Consider switching to Xfinity's long-term internet plans for cost savings and reliable service without an annual contract xfinity.com."
 }

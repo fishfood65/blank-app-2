@@ -523,76 +523,93 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
         return
 
     label = utility_key.replace("_", " ").title()
-    provider_data = provider_data or {}  # ✅ Prevent crash if None
- 
-    # 🔣 Field mapping (UI → data key)
-    required_field_map = {
-        "Name": "name",
-        "Phone": "contact_phone",
-        "Website": "contact_website"
-    }
-
-    required_ui_labels = list(required_field_map.keys())
-    placeholder_vals = {"", "⚠️ not available", "not available", "n/a", "unknown"}
-
-    # Divider and title
-    st.markdown("---")
-    utility_emojis = {
-        "electricity": "⚡",
-        "natural_gas": "🔥",
-        "water": "💧",
-        "internet": "🌐"
-    }
-    emoji = utility_emojis.get(utility_key, "🔧")
-    st.markdown(f"## {emoji} {label} Provider")
-
+    emoji = {"electricity": "⚡", "natural_gas": "🔥", "water": "💧", "internet": "🌐"}.get(utility_key, "🔧")
     # Get location context
     city = get_answer("City", section)
     zip_code = get_answer("ZIP Code", section)
     disabled = st.session_state.get("utilities_locked", False)
 
-    # Inject AI values into corrected_utility_providers if not already present
-    llm_data = provider_data
-    if llm_data:
-        corrected = st.session_state.setdefault("corrected_utility_providers", {})
-        current_entry = corrected.setdefault(utility_key, {})
-        if not current_entry:
-            for ui_label, data_key in required_field_map.items():
-                val = llm_data.get(data_key)
-                if val:
-                    current_entry[data_key] = val
-                    current_entry[f"{data_key}_source"] = "ai"
-            corrected[utility_key] = current_entry
+    def is_fully_filled(entry: dict, required_fields: list = ["name", "contact_phone", "contact_website"]) -> bool:
+        placeholder_vals = {"", "⚠️ not available", "not available", "n/a", "unknown"}
+        return all((entry.get(f, "").strip().lower() not in placeholder_vals) for f in required_fields)
+
+    st.markdown("---")
+    st.markdown(f"## {emoji} {label} Provider")
+    
+    # 🔣 Field mapping (UI → data key)
+    required_field_map = {
+        "Name": "name",
+        "Phone": "contact_phone",
+        "Address": "contact_address",
+        "Website": "contact_website"
+    }
+    
+    all_editable_fields = {
+        "Name": "name",
+        "Phone": "contact_phone",
+        "Website": "contact_website",
+        "Address": "contact_address"  # ✅ Optional but editable
+    }
+
+    required_fields = list(required_field_map.values())
+    placeholder_vals = {"", "⚠️ not available", "not available", "n/a", "unknown"}
 
     # Current provider data (from corrected)
-    corrected = st.session_state.get("corrected_utility_providers", {})
-    current_entry = corrected.get(utility_key, {})
+    corrected = st.session_state.setdefault("corrected_utility_providers", {})
+    current_entry = corrected.setdefault(utility_key, {})
+    llm_data = st.session_state.get("utility_providers", {}).get(utility_key, {})
+    
+    # Show AI response if available
+    if llm_data:
+        st.markdown("#### ✅ Suggested Info (from AI)")
+        st.markdown(f"""
+        - **Name**: {llm_data.get("name", "—")}
+        - **Phone**: {llm_data.get("contact_phone", "—")}
+        - **Address**: {llm_data.get("contact_address", "—")}
+        - **Website**: {llm_data.get("contact_website", "—")}
+        """)
 
-    name = provider_data.get("name", "")
-    phone = provider_data.get("contact_phone", "")
-    address = provider_data.get("contact_address", "")
-    website = provider_data.get("contact_website", "")
-    description = provider_data.get("description", "")
-    emergency = provider_data.get("emergency_steps", "")
-    tips = provider_data.get("non_emergency_tips", "")
+        if is_fully_filled(llm_data):
+            st.success("✅ The AI provided all required fields. No update may be necessary.")
+            
+            # ✅ Allow user to reset to AI-suggested info if fallback is active
+            if provider_data.get("source") == "user_fallback":
+                st.markdown("---")
+                if st.button("🔄 Reset to AI Suggestion"):
+                    remove_user_fallback_file(city, zip_code, utility_key)
+                    st.success("✅ Reverted to AI-suggested info.")
+                    st.rerun()
+        
+            if st.button(f"✅ Accept All Values", key=f"{section}_{utility_key}_accept_ai_btn", disabled=disabled):
+                for ui_label, data_key in required_field_map.items():
+                    val = llm_data.get(data_key)
+                    if val:
+                        current_entry[data_key] = val
+                        current_entry[f"{data_key}_source"] = "ai"
 
-    # Pre-select fields with missing values
-    preselected_fields = []
-    if not name: preselected_fields.append("Name")
-    if not phone: preselected_fields.append("Phone")
-    if not address: preselected_fields.append("Address")
-    if not website: preselected_fields.append("Website")
-
-    # Check if any prior user correction was entered for this utility
-    input_notes = st.session_state.get("provider_input_notes", {}).get(utility_key, {})
-    user_requested_fields = input_notes.get("fields", [])
+                accepted_data = {
+                    k: v for k, v in current_entry.items()
+                    if k in ["name", "contact_phone", "contact_address", "contact_website", "description", "emergency_steps", "non_emergency_tips"]
+                }
+                save_provider_update_to_disk(city, zip_code, utility_key, accepted_data)
+                st.session_state["utility_providers"][utility_key] = accepted_data 
+                st.session_state["corrected_utility_providers"][utility_key] = accepted_data
+                register_provider_input(label, current_entry.get("name", ""), section)
+                log_event("provider_ai_accepted", {"utility": utility_key, "section": section}, tag="ai_accept")
+                st.success(f"✅ All available AI values saved for {label} provider.")
+        else:
+            st.warning("⚠️ Some fields from the AI response are missing. You may update manually.")
 
     # Full width layout
     st.markdown("#### ✏️ What would you like the AI to improve?")
+    preselected_fields = [
+        label for label, key in all_editable_fields.items()
+        if not current_entry.get(key) or current_entry.get(key).lower() in placeholder_vals
+    ]
 
     fields_to_update = st.multiselect(
         "Select fields to improve:",
-        options=["Name", "Phone", "Address", "Website"],
+        options=list(all_editable_fields.keys()),
         default=preselected_fields,
         help="Choose anything that is missing or incorrect.",
         key=f"{section}_{utility_key}_fields"
@@ -608,7 +625,6 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
         key=f"{section}_{utility_key}_notes"
     )
 
-    # Save user input for later use in LLM prompt
     st.session_state.setdefault("provider_input_notes", {})
     st.session_state["provider_input_notes"][utility_key] = {
         "fields": fields_to_update,
@@ -617,110 +633,36 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
         "zip": zip_code,
     }
 
-    st.write("🧪 DEBUG utility_key:", utility_key)
-
     if st.button(f"🔁 Update {label}", key=f"{section}_{utility_key}_update_btn", disabled=disabled):
-        st.write("🧪 force_refresh_map (after click):", st.session_state.get("force_refresh_map"))
-        st.success(f"{label} will be re-queried.")
-        st.write("✅ Button clicked")
         st.session_state.setdefault("force_refresh_map", {})[utility_key] = True
-        st.write("✅ Set force_refresh_map:", st.session_state["force_refresh_map"])
-
-    def has_llm_provided_min_required_data(llm_data: dict, required_fields: list = ["name", "contact_phone", "contact_address"]) -> bool:
-        for field in required_fields:
-            value = llm_data.get(field, "").strip().lower()
-            if not value or "⚠️" in value or "not available" in value:
-                return False
-        return True
-
-    # Show AI response if available
-    llm_data = st.session_state.get("utility_providers", {}).get(utility_key)
-    if llm_data:
-        st.markdown("#### ✅ Suggested Info (from AI)")
-        st.markdown(f"""
-        - **Name**: {llm_data.get("name", "—")}
-        - **Phone**: {llm_data.get("contact_phone", "—")}
-        - **Address**: {llm_data.get("contact_address", "—")}
-        - **Website**: {llm_data.get("contact_website", "—")}
-        """)
-
-        if has_llm_provided_min_required_data(llm_data):
-            st.success("✅ The AI provided all required fields. No update may be necessary.")
-                # ✅ Inform user but allow manual override
-                # ✅ Allow user to reset to AI-suggested info if they're currently using user fallback
-            if provider_data.get("source") == "user_fallback":
-                st.markdown("---")
-                if st.button("🔄 Reset to AI Suggestion"):
-                    city = get_answer("City", section)
-                    zip_code = get_answer("ZIP Code", section)
-                    remove_user_fallback_file(city, zip_code, utility_key)
-                    st.success("✅ Reverted to AI-suggested info.")
-                    st.experimental_rerun()
-
-            # ✅ Accept All AI Values button only if data is complete
-            if st.button(f"✅ Accept All Values", key=f"{section}_{utility_key}_accept_ai_btn", disabled=disabled):
-                for ui_label, data_key in required_field_map.items():
-                    val = llm_data.get(data_key)
-                    if val:
-                        current_entry[data_key] = val
-                        current_entry[f"{data_key}_source"] = "ai"
-
-                # ✅ Save to fallback (flat structure)
-                city = get_answer("City", section)
-                zip_code = get_answer("ZIP Code", section)
-
-                # Only include relevant fields to save (flattened)
-                accepted_data = {
-                    k: v for k, v in current_entry.items()
-                    if k in ["name", "contact_phone", "contact_address", "contact_website", "description", "emergency_steps", "non_emergency_tips"]
-                }
-
-                save_provider_update_to_disk(city, zip_code, utility_key, accepted_data)
-
-                # ✅ Reflect updates in session state too
-                st.session_state.setdefault("utility_providers", {})[utility_key] = accepted_data
-                st.session_state.setdefault("corrected_utility_providers", {})[utility_key] = accepted_data
-                register_provider_input(label, current_entry.get("name", ""), section)
-                log_event("provider_ai_accepted", {"utility": utility_key, "section": section}, tag="ai_accept")
-                st.success(f"✅ All available AI values saved for {label} provider.")
-        else:
-            st.warning("⚠️ Some fields from the AI response are still missing. Consider retrying or updating manually.")
-
-    # Merge selected fields into corrected_utility_providers
-    corrected = st.session_state.setdefault("corrected_utility_providers", {})
-    current_entry = corrected.setdefault(utility_key, {})
-
-    # Merge user-selected fields
+        st.session_state[f"{section}_{utility_key}_update_btn_clicked"] = True
+        st.success(f"{label} will be re-queried.")
+    
+    # Apply selected overrides
     for field in fields_to_update:
-        if field == "Name":
-            current_entry["name"] = llm_data.get("name", "")
-            current_entry["name_source"] = "user"
-        elif field == "Phone":
-            current_entry["contact_phone"] = llm_data.get("contact_phone", "")
-            current_entry["name_source"] = "user"
-        elif field == "Address":
-            current_entry["contact_address"] = llm_data.get("contact_address", "")
-            current_entry["name_source"] = "user"
-        elif field == "Website":
-            current_entry["contact_website"] = llm_data.get("contact_website", "")
-            current_entry["name_source"] = "user"
-
-    # Auto-fill skipped fields if AI provided usable data
-    for ui_label, data_key in required_field_map.items():
-        if not current_entry.get(data_key) and llm_data.get(data_key):
+        data_key = all_editable_fields.get(field)
+        if data_key and llm_data.get(data_key):
             current_entry[data_key] = llm_data[data_key]
             current_entry[f"{data_key}_source"] = "user"
 
-    # Save updated data
     corrected[utility_key] = current_entry
-    register_provider_input(label, current_entry.get("name", ""), section)
-    save_provider_update_to_disk(city, zip_code, utility_key, current_entry)
-    log_event("provider_saved_to_disk", {"utility": utility_key, "section": section}, tag="correction")
+
+    # Manual save option (only enabled if data is complete)
+    st.markdown("#### 💾 Save your updates")
+    if is_fully_filled(current_entry):
+        if st.button(f"💾 Save My Edits", key=f"{section}_{utility_key}_save_btn", disabled=disabled):
+            save_provider_update_to_disk(city, zip_code, utility_key, current_entry)
+            st.session_state["utility_providers"][utility_key] = current_entry
+            corrected[utility_key] = current_entry
+            log_event("provider_user_saved", {"utility": utility_key, "section": section}, tag="manual_save")
+            st.success(f"✅ Your updates were saved for {label}")
+    else:
+        st.info("⚠️ Fill in all required fields to enable saving.")
 
     # Final status message (only show if update button was clicked)
     if st.session_state.get(f"{section}_{utility_key}_update_btn_clicked", False):
         missing_fields = [
-            f.title().replace("_", " ") for f in required_field_map.values()
+            f.title().replace("_", " ") for f in ["name", "contact_phone", "contact_website" ]
             if not current_entry.get(f) or "⚠️" in current_entry.get(f).lower() or "not available" in current_entry.get(f).lower()
         ]
         if missing_fields:
@@ -730,10 +672,12 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
         else:
             st.success(f"✅ Saved complete info for {label} provider.")
 
-    # Debug block (optional)
+    # Debug info
     if st.session_state.get("enable_debug_mode"):
         st.markdown("### 🧪 Final Provider Entry")
         st.json(current_entry)
+
+    return current_entry
 
 
 def sanitize_provider_fields(data: dict, placeholder: str = "⚠️ Not Available") -> dict:
