@@ -2,11 +2,17 @@
   "city": "San Jose",
   "zip_code": "95148",
   "utility": "electricity",
-  "updated_at": "2025-06-16T00:36:16.385420+00:00",
+  "updated_at": "2025-06-16T00:54:02.766051+00:00",
   "data": {
     "name": "Pacific Gas & Electric Company",
-    "contact_phone": "\u26a0\ufe0f Not Available",
-    "contact_address": "\u26a0\ufe0f Not Available",
-    "contact_website": "pge.com"
+    "contact_phone": "",
+    "contact_address": "",
+    "contact_website": "pge.com",
+    "description": "Pacific Gas & Electric Company PG&E is a major utility provider in California, offering safe and reliable electricity to millions of customers. The company is committed to addressing climate risks and ensuring the safety of its electric equipment through regular inspections and maintenance, especially in high fire-threat areas.",
+    "emergency_steps": "1. Keep children and pets away from fallen electric wires.  \n2. Stay away from flooded areas and downed trees, as they may hide energized power lines.  \n3. Use a cell phone or hard-wired phone, as cordless phones do not work without electricity.  \n4. Leave a single lamp on to alert you when power returns, and turn on appliances one at a time.  \n5. Plan to use a backup generator if needed, and spend time with friends or relatives during an outage.\n\nNon-Emergency Tips:  \n- Be mindful of balloon safety, as loose balloons can cause power outages and fires by contacting power lines.  \n- Discover ways to reduce energy use during summer to save on bills by following simple energy-saving tips here pge.com.",
+    "non_emergency_tips": "- Be mindful of balloon safety, as loose balloons can cause power outages and fires by contacting power lines.  \n- Discover ways to reduce energy use during summer to save on bills by following simple energy-saving tips here pge.com.",
+    "timestamp": "2025-06-16T00:54:02.639649+00:00",
+    "source": "llm_batch",
+    "name_source": "user"
   }
 }

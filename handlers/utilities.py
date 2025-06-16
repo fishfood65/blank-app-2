@@ -548,6 +548,19 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
         if has_llm_provided_min_required_data(llm_data):
             st.success("✅ The AI provided all required fields. No update may be necessary.")
                 # ✅ Inform user but allow manual override
+            # ✅ Accept All AI Values button only if data is complete
+            if st.button(f"✅ Accept All Values", key=f"{section}_{utility_key}_accept_ai_btn", disabled=disabled):
+                for ui_label, data_key in required_field_map.items():
+                    val = llm_data.get(data_key)
+                    if val:
+                        current_entry[data_key] = val
+                        current_entry[f"{data_key}_source"] = "ai"
+
+                corrected[utility_key] = current_entry
+                register_provider_input(label, current_entry.get("name", ""), section)
+                save_provider_update_to_disk(city, zip_code, utility_key, current_entry)
+                log_event("provider_ai_accepted", {"utility": utility_key, "section": section}, tag="ai_accept")
+                st.success(f"✅ All available AI values saved for {label} provider.")
         else:
             st.warning("⚠️ Some fields from the AI response are still missing. Consider retrying or updating manually.")
 
@@ -559,22 +572,22 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
     for field in fields_to_update:
         if field == "Name":
             current_entry["name"] = llm_data.get("name", "")
-            current_entry["name_source"] = "ai"
+            current_entry["name_source"] = "user"
         elif field == "Phone":
             current_entry["contact_phone"] = llm_data.get("contact_phone", "")
-            current_entry["name_source"] = "ai"
+            current_entry["name_source"] = "user"
         elif field == "Address":
             current_entry["contact_address"] = llm_data.get("contact_address", "")
-            current_entry["name_source"] = "ai"
+            current_entry["name_source"] = "user"
         elif field == "Website":
             current_entry["contact_website"] = llm_data.get("contact_website", "")
-            current_entry["name_source"] = "ai"
+            current_entry["name_source"] = "user"
 
     # Auto-fill skipped fields if AI provided usable data
     for ui_label, data_key in required_field_map.items():
         if not current_entry.get(data_key) and llm_data.get(data_key):
             current_entry[data_key] = llm_data[data_key]
-            current_entry[f"{data_key}_source"] = "ai"
+            current_entry[f"{data_key}_source"] = "user"
 
     # Save updated data
     corrected[utility_key] = current_entry
