@@ -32,7 +32,7 @@ from utils.data_helpers import (
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, reset_all_session_state
 from prompts.templates import generate_single_provider_prompt, wrap_with_claude_style_formatting, generate_corrected_provider_prompt
 from utils.common_helpers import get_schedule_placeholder_mapping
-from utils.llm_cache_utils import get_or_generate_llm_output, get_best_provider_data, get_user_fallback_path, remove_user_fallback_file, save_provider_update_to_disk
+from utils.llm_cache_utils import get_or_generate_llm_output, get_best_provider_data, get_user_fallback_path, is_usable_provider_response, remove_user_fallback_file, save_provider_update_to_disk
 from utils.llm_helpers import call_openrouter_chat
 from utils.docx_helpers import export_provider_docx, format_provider_markdown, render_runbook_section_output
 from utils.event_logger import log_event
@@ -53,6 +53,18 @@ if api_key:
     st.success("✅ OpenRouter API key loaded.")
 else:
     st.error("❌ OpenRouter API key is not set.")
+
+# Added an early initialization block to initiatize session keys early:
+
+if "force_refresh_map" not in st.session_state:
+    st.session_state["force_refresh_map"] = {}
+
+if "provider_refresh_attempts" not in st.session_state:
+    st.session_state["provider_refresh_attempts"] = {}
+
+if "provider_refresh_timestamps" not in st.session_state:
+    st.session_state["provider_refresh_timestamps"] = {}
+
 
 # --- Helper functions (top of the file) ---
 def get_utilities_inputs(section: str):
@@ -160,17 +172,29 @@ def get_provider_cache_path(utility: str, city: str, zip_code: str) -> str:
     hashed = hashlib.sha256(key.encode()).hexdigest()
     return os.path.join(CACHE_DIR, f"{utility}_{hashed}.json")
 
-def load_provider_from_cache(utility: str, city: str, zip_code: str) -> str:
+def load_provider_from_cache(utility: str, city: str, zip_code: str) -> dict:
     path = get_provider_cache_path(utility, city, zip_code)
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
-            return f.read()
-    return ""
+            try:
+                data = json.load(f)
+                if not isinstance(data, dict) or not data:
+                    st.warning(f"⚠️ Cache file for `{utility}` exists but is empty or malformed:\n{path}")
+                else:
+                    st.info(f"📂 Loaded cache for `{utility}` with keys: {list(data.keys())}")
+                return data
+            except Exception as e:
+                st.error(f"❌ Failed to load provider cache for `{utility}`: {e}")
+                return {}
+    else:
+        st.warning(f"📭 No cache file found for `{utility}` at path:\n{path}")
+    return {}
 
-def save_provider_to_cache(utility: str, city: str, zip_code: str, content: str):
+
+def save_provider_to_cache(utility: str, city: str, zip_code: str, content: dict):
     path = get_provider_cache_path(utility, city, zip_code)
     with open(path, "w", encoding="utf-8") as f:
-        f.write(content)
+        json.dump(content, f, indent=2)
 
 def auto_reset_refresh_status(utility: str, cooldown_minutes: int = 10):
     """
@@ -252,6 +276,10 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
 
     utilities = ["electricity", "natural_gas", "water", "internet"]
     results = {}
+    # ✅ Ensure shared session dict for parsed providers exists
+    st.session_state.setdefault("utility_providers", {})
+    st.session_state.setdefault("confirmed_utility_providers", {})
+    st.session_state.setdefault("corrected_utility_providers", {})
 
     for utility in utilities:
         label = utility.replace("_", " ").title()
@@ -276,9 +304,27 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
         # ✅ Use best available provider data if not force_refresh
         if provider_data and not force_refresh:
             if st.session_state.get("enable_debug_mode"):
+                st.markdown(f"### 🔎 Provider data candidate for `{label}`")
+                st.json(provider_data)
+                st.write("force_refresh:", force_refresh)
                 st.info(f"📦 Using `{source}` data for `{label}`")
-            st.session_state.setdefault("utility_providers", {})[utility] = provider_data
-            continue  # ⏩ Done for this utility, skip to next
+
+            # ✅ Use best available provider data if not force_refresh
+            if isinstance(provider_data, dict) and is_usable_provider_response(provider_data) and not force_refresh:
+                if st.session_state.get("enable_debug_mode"):
+                    st.success(f"📦 Using `{source}` data for `{label}` ✅")
+                provider_store = st.session_state.setdefault("utility_providers", {})
+                provider_store[utility] = provider_data
+                st.session_state["utility_providers"] = provider_store  # 🔒 Force writeback
+
+                corrected_store = st.session_state.setdefault("corrected_utility_providers", {})
+                if utility not in corrected_store:
+                    corrected_store[utility] = provider_data.copy()
+                st.session_state["corrected_utility_providers"] = corrected_store
+                continue  # ⏩ Done for this utility, skip to next
+            else:
+                if st.session_state.get("enable_debug_mode"):
+                    st.warning(f"⚠️ Skipped storing `{label}` — invalid or force_refresh=True")
 
         if st.session_state.get("enable_debug_mode"):
             st.markdown(f"### 🧪 DEBUG: Data Source Check for `{label}`")
@@ -300,30 +346,79 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
             with st.spinner(f"🔍 Fetching {label} provider..."):
                 raw_response = call_openrouter_chat(prompt)
                 # Cache to session and disk
+
+                # Parse + normalize + log
+                parsed = parse_utility_block(raw_response)
+                parsed = normalize_provider_fields(parsed)
+                
+                # Cache to session and disk
                 st.session_state[session_cache_key] = raw_response
-                save_provider_to_cache(utility, city, zip_code, raw_response)
+                
+                # After confirming we have usable parsed data:
+                if is_usable_provider_response(parsed):
+                    save_provider_to_cache(utility, city, zip_code, parsed)
+                    log_event("llm_parsed_success", {"utility": utility, "section": section})
+                    
+                    # ✅ Force-safe write to utility_providers
+                    provider_store = st.session_state.get("utility_providers", {}).copy()
+                    provider_store[utility] = parsed
+                    st.session_state["utility_providers"] = provider_store  # 🔒 Force writeback
+
+                    # Initialize user-editable version if not already present
+                    corrected_store = st.session_state.get("corrected_utility_providers", {}).copy()
+                    if utility not in corrected_store:
+                        corrected_store[utility] = parsed.copy()
+                        st.session_state["corrected_utility_providers"] = corrected_store  # 🔒 Force writeback
+                        if st.session_state.get("enable_debug_mode"):
+                            st.info(f"🧪 Initialized corrected provider for `{utility}`")
+
+                else:
+                    st.warning(f"⚠️ LLM response for `{label}` was not usable. Skipped caching.")
+                    log_event("llm_unusable", {"utility": utility, "section": section})
+                    if st.session_state.get("enable_debug_mode"):
+                        st.markdown(f"### 🧪 Skipped LLM Output for `{label}`")
+                        st.code(raw_response)
+
             log_event("llm_output_raw", {"utility": utility, "prompt": prompt, "response": raw_response, "section": section})
         except Exception as e:
             st.error(f"❌ LLM call failed for {label}: {e}")
             log_event("llm_error", {"utility": utility, "error": str(e), "section": section})
-            raw_response = ""
             continue
-
-        # Parse + normalize + log
-        parsed = parse_utility_block(raw_response)
-        parsed = normalize_provider_fields(parsed)
 
         # ✅ Step 1: Retry LLM call if core metadata is missing
         if not parsed.get("name") or not parsed.get("description"):
             if st.session_state.get("enable_debug_mode"):
                 st.warning(f"♻️ Auto-refreshing `{label}` due to missing fields")
             # Retry logic
-            prompt = generate_single_provider_prompt(utility, city, zip_code, internet_input)
             try:
-                raw_response = call_openrouter_chat(prompt)
-                save_provider_to_cache(utility, city, zip_code, raw_response)
-                parsed = parse_utility_block(raw_response)
-                log_event("llm_retry_success", {"utility": utility, "section": section})
+                retry_prompt = generate_single_provider_prompt(utility, city, zip_code, internet_input)
+                retry_response = call_openrouter_chat(retry_prompt)
+
+                parsed = parse_utility_block(retry_response)
+                parsed = normalize_provider_fields(parsed)
+
+                # After confirming we have usable parsed data:
+                if is_usable_provider_response(parsed):
+                    save_provider_to_cache(utility, city, zip_code, parsed)
+                    log_event("llm_retry_success", {"utility": utility, "section": section})
+                    
+                    # ✅ Safe write to utility_providers
+                    provider_store = st.session_state.get("utility_providers", {}).copy()
+                    provider_store[utility] = parsed
+                    st.session_state["utility_providers"] = provider_store
+
+                    # Initialize user-editable version if not already present
+                    corrected_store = st.session_state.get("corrected_utility_providers", {}).copy()
+                    if utility not in corrected_store:
+                        corrected_store[utility] = parsed.copy()
+                        st.session_state["corrected_utility_providers"] = corrected_store
+                        if st.session_state.get("enable_debug_mode"):
+                            st.info(f"🧪 Initialized corrected provider for `{utility}` (after retry)")
+                else:
+                    log_event("llm_retry_unusable", {"utility": utility, "section": section})
+                    if st.session_state.get("enable_debug_mode"):
+                        st.markdown(f"### 🧪 Retry Output Skipped for `{label}`")
+                        st.code(retry_response)
             except Exception as e:
                 st.error(f"❌ Retry failed for {label}: {e}")
                 log_event("llm_retry_failed", {"utility": utility, "error": str(e), "section": section})
@@ -393,8 +488,13 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
         results[utility] = parsed
 
     # ✅ Store results to session
-    st.session_state["utility_providers"] = results
-    st.session_state["utility_provider_metadata"] = results
+    existing = st.session_state.get("utility_providers", {})
+    existing.update(results)
+    st.session_state["utility_providers"] = existing
+
+    meta = st.session_state.get("utility_provider_metadata", {})
+    meta.update(results)
+    st.session_state["utility_provider_metadata"] = meta
 
     # ✅ Auto-reset force_refresh_map so it doesn't persist across calls
     if "force_refresh_map" in st.session_state:
@@ -417,8 +517,14 @@ def ensure_datetime_strings(obj):
 
 # --- Editor logic (simplified UI) ---
 def render_provider_editor_table_view(utility_key: str, provider_data: dict, section: str = "utilities", simplified_mode: bool = True):
-    label = utility_key.replace("_", " ").title()
+    # 🔒 Guard clause: prevent rendering if no usable data
+    if not provider_data or not isinstance(provider_data, dict):
+        st.warning(f"⚠️ No data available for `{utility_key}`")
+        return
 
+    label = utility_key.replace("_", " ").title()
+    provider_data = provider_data or {}  # ✅ Prevent crash if None
+ 
     # 🔣 Field mapping (UI → data key)
     required_field_map = {
         "Name": "name",
@@ -446,7 +552,7 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
     disabled = st.session_state.get("utilities_locked", False)
 
     # Inject AI values into corrected_utility_providers if not already present
-    llm_data = st.session_state.get("utility_providers", {}).get(utility_key)
+    llm_data = provider_data
     if llm_data:
         corrected = st.session_state.setdefault("corrected_utility_providers", {})
         current_entry = corrected.setdefault(utility_key, {})
@@ -511,9 +617,14 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
         "zip": zip_code,
     }
 
+    st.write("🧪 DEBUG utility_key:", utility_key)
+
     if st.button(f"🔁 Update {label}", key=f"{section}_{utility_key}_update_btn", disabled=disabled):
-        st.session_state.setdefault("force_refresh_map", {})[utility_key] = True
+        st.write("🧪 force_refresh_map (after click):", st.session_state.get("force_refresh_map"))
         st.success(f"{label} will be re-queried.")
+        st.write("✅ Button clicked")
+        st.session_state.setdefault("force_refresh_map", {})[utility_key] = True
+        st.write("✅ Set force_refresh_map:", st.session_state["force_refresh_map"])
 
     def has_llm_provided_min_required_data(llm_data: dict, required_fields: list = ["name", "contact_phone", "contact_address"]) -> bool:
         for field in required_fields:
@@ -624,17 +735,6 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
         st.markdown("### 🧪 Final Provider Entry")
         st.json(current_entry)
 
-# --- Automatically run LLM updates if queued ---
-def is_usable_provider_response(data: dict, placeholder: str = "⚠️ Not Available") -> bool:
-    """
-    Returns True if at least 2 core fields are non-empty and not placeholders.
-    """
-    core_fields = ["name", "description", "contact_phone", "contact_address"]
-    valid_fields = [
-        v for k, v in data.items()
-        if k in core_fields and isinstance(v, str) and v.strip() != "" and v.strip() != placeholder
-    ]
-    return len(valid_fields) >= 2
 
 def sanitize_provider_fields(data: dict, placeholder: str = "⚠️ Not Available") -> dict:
     return {
@@ -647,9 +747,17 @@ def sanitize_value(val: str) -> Optional[str]:
 
 # --- Handle queued provider updates (batched) ---
 def handle_queued_provider_updates(section: str = "utilities"):
-    import re
 
     force_refresh_map = st.session_state.get("force_refresh_map", {})
+
+    if st.session_state.get("enable_debug_mode"):
+        st.markdown("### 🧪 force_refresh_map (at handler start)")
+        if isinstance(force_refresh_map, dict):
+            st.json(force_refresh_map)
+        else:
+            st.warning("⚠️ force_refresh_map is not a valid dict")
+            st.code(str(force_refresh_map))
+
     if not force_refresh_map:
         return
 
@@ -675,8 +783,10 @@ def handle_queued_provider_updates(section: str = "utilities"):
         st.session_state["provider_refresh_attempts"][utility_key] += 1
         st.session_state["provider_refresh_timestamps"][utility_key] = time.time()
 
-        requested_fields = corrected.get("requested_fields", [])
-        notes = corrected.get("input_notes", "")
+        # ✅ Pull real-time user correction context
+        input_notes = st.session_state.get("provider_input_notes", {}).get(utility_key, {})
+        requested_fields = input_notes.get("fields", [])
+        notes = input_notes.get("notes", "")
         name = corrected.get("name", "")
         phone = corrected.get("contact_phone", "")
 
@@ -713,6 +823,10 @@ def handle_queued_provider_updates(section: str = "utilities"):
             if val:
                 st.session_state["provider_input_notes"][utility_key]["corrected_fields"][field] = val
 
+        if st.session_state.get("enable_debug_mode"):
+            st.markdown(f"### 🧪 Prompt Fields + Notes for `{utility_key}`")
+            st.json({"fields": requested_fields, "notes": notes})
+
         prompt = generate_corrected_provider_prompt(
             utility_key=utility_key,
             city=city,
@@ -726,6 +840,15 @@ def handle_queued_provider_updates(section: str = "utilities"):
         prompts.append((utility_key, prompt))
         utility_keys.append(utility_key)
 
+   
+    if st.session_state.get("enable_debug_mode"):
+        st.markdown("### 🧪 Prompt Debug Summary")
+        st.markdown(f"Queued Utilities: {utility_keys}")
+        st.markdown(f"Prompt Count: {len(prompts)}")
+        for k, prompt in prompts:
+            st.markdown(f"#### `{k}` Prompt")
+            st.code(prompt)
+   
     if not prompts:
         st.info("ℹ️ No LLM calls made. No providers were queued for update.")
         return
@@ -776,6 +899,9 @@ def handle_queued_provider_updates(section: str = "utilities"):
 
                     # ✅ Optional: sanitize "⚠️ Not Available"
                     minimal_data = sanitize_provider_fields(minimal_data)
+
+                    if st.session_state.get("enable_debug_mode"):
+                        st.warning(f"⚠️ LLM response skipped: {minimal_data}")
 
                     # ✅ Skip saving if all fields are still unusable
                     if not is_usable_provider_response(minimal_data):
@@ -902,7 +1028,6 @@ def render_section_jump_buttons():
 
 # --- Unified table view controller ---
 def render_all_provider_tables(section: str = "utilities"):
-    handle_queued_provider_updates(section)
 
     st.markdown("## 📇 Review and Edit Utility Providers")
     for utility_key in ["electricity", "natural_gas", "water", "internet"]:
@@ -917,13 +1042,18 @@ def render_all_provider_tables(section: str = "utilities"):
     if st.button("✅ Confirm All Utility Info"):
         required_utilities = ["electricity", "natural_gas", "water", "internet"]
         required_fields = ["name", "contact_phone", "contact_address"]
+        placeholder_vals = {"", "⚠️ not available", "not available", "n/a", "none"}
 
-        missing_fields = {}
         corrected = st.session_state.get("corrected_utility_providers", {})
+        missing_fields = {}
 
         for key in required_utilities:
             provider = corrected.get(key, {})
-            missing = [field for field in required_fields if not provider.get(field)]
+            missing = []
+            for field in required_fields:
+                val = str(provider.get(field, "")).strip().lower()
+                if val in placeholder_vals:
+                    missing.append(field)
             if missing:
                 missing_fields[key] = missing
 
@@ -939,9 +1069,19 @@ def render_all_provider_tables(section: str = "utilities"):
             if st.session_state.get("enable_debug_mode"):
                 st.markdown("### 🧪 Debug: Saved Providers")
                 st.write("🔌 Session Provider Data:", st.session_state.get("utility_providers"))
-                st.write("🔌 Electricity:", st.session_state.get("electricity_provider"))
-                st.write("🔥 Natural Gas:", st.session_state.get("natural_gas_provider"))
-                st.write("💧 Water:", st.session_state.get("water_provider"))
+                for utility in required_utilities:
+                    st.write(f"🔧 {utility.title()}:", corrected.get(utility, {}))
+
+        if st.session_state.get("enable_debug_mode"):
+            force_map = st.session_state.get("force_refresh_map", {})
+            if isinstance(force_map, dict):
+                st.json(force_map)
+            else:
+                st.warning("⚠️ `force_refresh_map` is not a valid dict")
+                st.code(str(force_map)) 
+
+    # ✅ Run LLM calls only after buttons and session state are updated
+    handle_queued_provider_updates(section)
 
 # --- Main Function Start ---
 def utilities():

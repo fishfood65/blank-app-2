@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable, Tuple
 import streamlit as st
 import requests
+from utils.data_helpers import normalize_provider_fields, parse_utility_block
 from utils.llm_helpers import call_openrouter_chat
 
 ### How to Use It In your app
@@ -101,48 +102,109 @@ def parse_timestamp(ts: str) -> datetime:
         return datetime.fromisoformat(ts)
     except Exception:
         return datetime.min
-
-def get_best_provider_data(utility_key: str, city: str, zip_code: str) -> Tuple[dict, str]:
+    
+def is_usable_provider_response(data: dict, placeholder: str = "⚠️ Not Available") -> bool:
     """
-    Chooses the most appropriate provider data:
-    - Always prefer user fallback if it contains any real data
-    - Otherwise prefer latest timestamp
+    Returns True if at least 2 core fields are non-empty and not common placeholders.
+    """
+    core_fields = ["name", "description", "contact_phone", "contact_address"]
+    bad_values = {placeholder.lower(), "not available", "n/a", "none", ""}
+
+    valid_fields = [
+        v for k, v in data.items()
+        if k in core_fields and isinstance(v, str) and v.strip().lower() not in bad_values
+    ]
+
+    return len(valid_fields) >= 2
+
+def get_best_provider_data(utility: str, city: str, zip_code: str) -> Tuple[dict, str, dict]:
+    """
+    Attempts to load provider data in this order:
+    1. User fallback (editable overrides)
+    2. Cached parsed data from disk
+    3. Empty {}
     Returns:
         - provider_data (dict)
         - source_label (str): one of "user_fallback", "cache", "empty"
+        - raw_data: raw dict (for debugging/logging)
+
     """
-    user_path = get_user_fallback_path(city, zip_code, utility_key)
-    cache_path = get_provider_cache_path(utility_key, city, zip_code)
+    fallback_path = f"data/provider_fallbacks/{utility}_{city.lower().strip()}_{zip_code}.json"
+    cache_path = get_provider_cache_path(utility, city, zip_code)
 
-    raw_user_data = load_json_file(user_path)
-    user_data = raw_user_data.get("data", {}) if isinstance(raw_user_data, dict) else {}
-    
-    cache_data = load_json_file(cache_path)
+    user_data = {}
+    cache_data = {}
 
-    def has_meaningful_data(d: dict) -> bool:
-        """
-        Returns True if any of the important fields have valid, non-placeholder content.
-        """
-        if not isinstance(d, dict):
-            return False
+    # 🥇 Try user fallback first
+    if os.path.exists(fallback_path):
+        try:
+            with open(fallback_path, "r", encoding="utf-8") as f:
+                user_data = json.load(f)
+        except Exception as e:
+            print(f"❌ Failed to load fallback for `{utility}`: {e}")
 
-        ignore_values = {"", "⚠️ not available", "not available", "n/a", "none"}
-        keys = ["name", "contact_phone", "contact_address", "contact_website"]
+    # 🥈 Try cache next
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+                if isinstance(raw, str):
+                    raw = parse_utility_block(raw)
+                cache_data = raw
+        except Exception as e:
+            print(f"❌ Failed to load cache for `{utility}`: {e}")
 
-        return any(str(d.get(k, "")).strip().lower() not in ignore_values for k in keys)
+    # 🧪 Build debug log
+    decision_log = {
+    "utility": utility,
+    "city": city,
+    "zip": zip_code,
+    "user_data_keys": list(user_data.keys()),
+    "cache_data_keys": list(cache_data.keys()),
+    "user_ts": user_data.get("timestamp"),
+    "cache_ts": cache_data.get("timestamp"),
+    }
 
-    # ✅ Prefer user fallback if it contains useful values
+    # ✅ Use user fallback if it has meaningful data
     if has_meaningful_data(user_data):
-        return user_data, "user_fallback", user_data
+        decision_log["decision"] = "user_fallback"
+        st.session_state.setdefault("provider_debug_log", {})[utility] = decision_log
+        return normalize_provider_fields(user_data), "user_fallback", user_data
 
-    # Else compare timestamps
-    user_ts = parse_timestamp(user_data.get("timestamp", ""))
-    cache_ts = parse_timestamp(cache_data.get("timestamp", ""))
-    
-    if cache_ts >= user_ts:
-        return cache_data, "cache", user_data
+    # 🧮 Use cache if it has meaningful data (and newer or equal timestamp)
+    if has_meaningful_data(cache_data):
+        user_ts = parse_timestamp(user_data.get("timestamp", ""))
+        cache_ts = parse_timestamp(cache_data.get("timestamp", ""))
+        decision_log["user_ts_parsed"] = str(user_ts)
+        decision_log["cache_ts_parsed"] = str(cache_ts)
 
-    return {}, "empty", user_data
+        if cache_ts >= user_ts:
+            decision_log["decision"] = "cache"
+            st.session_state.setdefault("provider_debug_log", {})[utility] = decision_log
+            return normalize_provider_fields(cache_data), "cache", cache_data
+        
+        decision_log["decision"] = "user_fallback (stale)"
+
+    # 🧨 Nothing usable
+    decision_log["decision"] = "none"
+    st.session_state.setdefault("provider_debug_log", {})[utility] = decision_log
+
+    return {}, "none", {}
+
+def has_meaningful_data(d: dict) -> bool:
+    """
+    Returns True if any of the important fields have valid, non-placeholder content.
+    """
+    if not isinstance(d, dict):
+        return False
+
+    ignore_values = {"", "⚠️ not available", "not available", "n/a", "none"}
+    keys = ["name", "contact_phone", "contact_address", "contact_website"]
+
+    return any(
+        str(d.get(k, "")).strip().lower() not in ignore_values for k in keys
+    )
+
 
 def save_user_fallback_data(city: str, zip_code: str, utility_key: str, data: dict):
     """
