@@ -692,6 +692,16 @@ def handle_queued_provider_updates(section: str = "utilities"):
         name = sanitize_value(name)
         phone = sanitize_value(phone)
 
+        # ✅ Include all corrected fields into notes context
+        # This ensures prompt logic can access updated name/phone/address directly
+        if "corrected_fields" not in st.session_state["provider_input_notes"][utility_key]:
+            st.session_state["provider_input_notes"][utility_key]["corrected_fields"] = {}
+
+        for field in ["name", "contact_phone", "contact_address", "contact_website"]:
+            val = corrected.get(field)
+            if val:
+                st.session_state["provider_input_notes"][utility_key]["corrected_fields"][field] = val
+
         prompt = generate_corrected_provider_prompt(
             utility_key=utility_key,
             city=city,

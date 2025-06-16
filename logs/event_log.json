@@ -38684,5 +38684,3059 @@
     "user_id": "anonymous",
     "session_id": "unknown",
     "tag": "correction"
+  },
+  {
+    "id": "98682574-3088-4ef5-b2d1-843b6201c201",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:05:47.472655",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:05:47.472700+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "a333ad65-474f-43ac-827d-269c40247377",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:05:47.533458",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:05:47.533540+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "97f93200-e88b-4e4b-aa01-cf6398eaca3a",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:05:47.589656",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:05:47.589701+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "280e0aba-daef-470f-a492-ca1166eb6e3b",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:05:47.649636",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:05:47.649717+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "e48a809c-b931-4f5f-bbb8-4b7eaaf02a7e",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:05:47.705197",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:05:47.705237+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "7ddbd32f-703c-4502-b4b6-4fcc98f19b9e",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:05:47.762367",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:05:47.762446+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "06849455-fa59-47e7-ac13-7580c3fc97a4",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:05:47.828347+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "d7e78291-8c35-4797-914b-65dd44a1e92c",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:05:47.892140+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "e4335bba-1af4-4aef-b9db-616e6c0cd2c4",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:05:47.954375+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "2b37e4ea-1731-4f9f-97ee-6848bf11dc2a",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:05:48.017258+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "2d5f159c-bf29-4fb9-a290-21a4eecc1fa8",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:05:48.079437+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "af577389-4f81-4857-804f-0ab2d9a129f4",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:05:48.146825+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "faaa892c-bd7b-4fff-bd5c-c7fa68e67601",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:05:48.225146+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "24e83bb5-fce1-412d-994e-c1b39f3aa1f5",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:05:48.315510+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "307a226d-c0e4-46da-94f2-be99230ca3e7",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:00.177817",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:00.177975+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "efeba2b1-bc72-4f25-964f-acdb5fb8f9af",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:00.240884",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:00.240976+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "adccba5e-8b56-4f87-8737-57ff300136c3",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:00.298646",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:00.298695+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "feb752a2-4a70-4002-91c3-8983025b63c9",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:00.366392",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:00.366477+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "29173fb8-82a1-488b-a937-3508d9721bda",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:00.421834",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:00.421897+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "f36d624a-bd00-42d3-8148-decb79197e7c",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:00.479197",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:00.479277+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "4f04de65-9cc8-436b-a0bb-eec4e821a9d7",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:06:00.545288+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "de8cfe70-cf6d-483f-bdef-074856d406ed",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:06:00.608228+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "3cab588a-9b77-4dd4-81bb-6b50491c8110",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:06:00.668618+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "d1d60653-203e-4fcc-9232-c766e292e820",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:06:00.759202+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "746eae78-1a4d-475d-b8c4-774d16dea974",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:06:00.848814+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "c92d81a9-7642-468b-81dc-c059ceed7722",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:06:00.938036+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "a8f9cd0a-178f-4655-80b9-60c5e624ea85",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:06:01.006556+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "9cd7c0c5-62a8-47f0-8355-ec69198d05f6",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:06:01.067961+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "c0c5a8d4-0889-4f81-96d2-a4326bf58790",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:48.341082",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:48.341129+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "b4e86e45-c613-464f-b3d7-b73fe9d62496",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:48.401304",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:48.401388+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "220c2236-de68-423a-ad0d-eff68dbdc3cc",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:48.459200",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:48.459243+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "99b9cfcc-5cf1-4a7e-bd7b-756e6502d925",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:48.517613",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:48.517696+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "1aa6fc89-4067-4cf2-b226-26d1ef507438",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:48.572671",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:48.572719+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "e8bf0e0c-f48c-45be-8ac8-e5d379f7b168",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:06:48.633256",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:06:48.633343+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "3303c5a7-a59a-4abe-9f0a-f14f313d7e60",
+    "event_type": "cooldown_reset",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:06:48.694181+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "cooldown"
+  },
+  {
+    "id": "36c4072e-f982-4a88-bb85-38e8560b62c9",
+    "event_type": "provider_refreshed",
+    "data": {
+      "utility": "electricity",
+      "source": "llm_batch",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:07:00.932583+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "refresh"
+  },
+  {
+    "id": "5be879a9-b1b0-4f63-98f6-d5e7be370c3a",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:07:00.999507+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "b8a10176-45c5-418c-b3f5-fa263ce0375c",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:07:01.067296+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "0892dd2a-f2cb-4872-aa88-b080e6687a5a",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:07:01.166924+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "0e06cc99-e67e-4831-8b1e-070fd03cee65",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:07:01.231506+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "2bf4b8c6-1341-4690-948f-54fd8181fe4f",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:07:01.293003+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "76dd479d-533b-46c3-98c9-6951a5323f97",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:07:01.365812+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "8c878136-447e-4ead-af86-b9a7068917a4",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:07:01.444055+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "98e826e2-6305-41f8-9901-4974a417cd6c",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:07:01.502357+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "4385279b-9404-4be0-a391-d4d32f6974e7",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:07:29.844543",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:07:29.844591+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "69af43fa-a664-46f9-92ab-dffef5acb5fe",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:07:29.907747",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:07:29.907825+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "aa981a08-73c0-46f1-843a-bff380c20ba4",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:07:29.979941",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:07:29.979999+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "d5ffba01-cbaf-4616-8b6a-c991674eefdb",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:07:30.047375",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:07:30.047454+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "9993773d-7c0c-4433-9953-42169278ec5c",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:07:30.130222",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:07:30.130278+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "223e217d-a394-4a98-8115-7e29e8d416f3",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:07:30.208163",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:07:30.208242+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "8ce1d4cc-fad6-4646-a23a-fc6a8d5dc5c8",
+    "event_type": "cooldown_reset",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:07:30.264135+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "cooldown"
+  },
+  {
+    "id": "13322d13-a990-406f-a538-274764ccdb68",
+    "event_type": "provider_refreshed",
+    "data": {
+      "utility": "internet",
+      "source": "llm_batch",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:07:36.674538+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "refresh"
+  },
+  {
+    "id": "bb3fe62f-2a7d-40c0-b228-b74ff430be33",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:07:36.735980+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "050814ec-c59e-4050-a0aa-70dd72429743",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:07:36.797130+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "ddb6dfda-78a0-4cfa-b7d5-1780d64b0896",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:07:36.854275+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "6bc86903-a0bb-495a-9574-b0c5375fa1f3",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:07:36.913098+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "f5b69cb2-5316-4d17-8eff-dcc217dda5b7",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:07:36.971846+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "ae2d2c20-acb4-4fd3-842b-3893d40e46d0",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:07:37.037001+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "891e028e-8234-4863-8cab-b0ce22c8840c",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:07:37.143050+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "9323b896-c8f1-469a-8b8d-318219fbd874",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:07:37.239758+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "90893b7f-aae4-48e5-bae9-f356773b8e2e",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:23.879514",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:23.879557+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "34bcd849-f80c-493b-802f-83599c1f857b",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:23.952550",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:23.952629+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "41b818b6-0550-4200-8a09-88d8e5bc950b",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:24.008060",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:24.008101+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "f3e35b8c-83bf-4116-b0ad-2f2dd66ea467",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:24.063550",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:24.063637+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "30c7238c-49ce-48f1-b97a-c0fc81c010bf",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:24.125431",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:24.125707+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "be3b477e-da44-4fb4-9374-c5086acff486",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:24.217229",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:24.217327+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "0c05e190-6f84-4354-b761-750f8ef9583b",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:24.278650+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "eb076ce7-1abd-46a6-9a2c-c660c488c886",
+    "event_type": "provider_ai_accepted",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:24.337836+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "ai_accept"
+  },
+  {
+    "id": "f4463f52-c989-4509-ba6c-a2d0aaa475af",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:24.396781+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "f70df3ac-d623-4c96-a636-6931df2e9f45",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:24.452049+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "da1e0b8f-1df8-4012-9783-12bf26ad6201",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:24.510881+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "f1bec785-db40-485f-8834-9c139923a856",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:24.572400+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "84a4665b-fe57-4862-84eb-3a3789d4bf2d",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:24.636382+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "69d41527-454c-474d-a260-d6ef8aa817aa",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:24.699082+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "88a64bc8-9682-44ee-bd29-db4fa6d247e9",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:24.758051+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "ceb3614f-a1e7-4a28-8365-0f3fc420a034",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:24.815864+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "70d236d5-f300-49fe-ad0a-da210a75408c",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:29.582711",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:29.582763+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "01d63f9d-a640-4012-9a91-16f11f9b2517",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:29.654948",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:29.655025+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "7d2401e9-046e-48cf-a65a-e1e09a7984df",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:29.714440",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:29.714483+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "98dc4153-995f-485b-bda2-0a1060a7d539",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:29.768884",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:29.768957+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "45da4d06-ea92-47de-bb12-a8604ddce3e5",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:29.822842",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:29.822906+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "22b5a749-f1e9-429f-b7af-bdac8c5afb36",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:29.878129",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:29.878201+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "32e447b3-663b-4805-9447-66fcc9dacf7b",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:29.939097+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "e7440b97-48d9-449a-8c65-11275847ae41",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:30.042775+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "5aaf051e-dc61-45d6-a069-2b8623cb6f12",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:30.102762+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "bfec715d-6738-4697-a055-92c78c170f23",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:30.163499+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "ce6d0153-51e1-4f22-a774-3dd5dd933133",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:30.222947+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "dd1c3ad8-47da-46a9-be41-628a213b083b",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:30.282196+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "b6b455e9-9925-4969-b6c5-d489cc2c2b21",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:30.374992+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "3afe6e2b-253d-43f5-8921-38070fce6b9b",
+    "event_type": "provider_ai_accepted",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:30.447997+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "ai_accept"
+  },
+  {
+    "id": "265bf173-a11a-4991-99fd-5f737f599e21",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:30.514379+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "01de976f-2ebe-43dc-ae52-56492982fc4c",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:30.570290+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "037545ff-80eb-4e11-bdbc-03790e07c832",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:39.599927",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:39.599969+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "24040f0d-ec7a-46ae-8f03-e44909f78683",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:39.661443",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:39.661518+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "95ecbec1-5133-4ab2-8f48-1976b28c007b",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:39.717487",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:39.717526+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "5526141d-18f1-462b-9ee9-44a4f071984f",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:39.782977",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:39.783052+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "7cb8531b-8e59-4601-b8a1-f70036026b40",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:39.837781",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:39.837824+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "479e85b0-f1a1-4554-afa3-0084d7689063",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:39.893614",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:39.893687+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "18c29f92-aa0a-4537-a777-9bc9d04c4bbd",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:39.954871+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "efad4a61-ceae-49be-93b1-76c4931df5f5",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:40.018575+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "4e6369a5-0f78-41b8-a4a5-b88ad95488f6",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:40.128110+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "f463dff1-152f-4836-89c1-e9207550e6d8",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:40.208301+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "48a29a3e-8ed8-46b3-9327-e00a30474ad8",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:40.280167+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "25212d82-e947-4f72-88ce-50bbb1f8b4bf",
+    "event_type": "provider_ai_accepted",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:40.340576+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "ai_accept"
+  },
+  {
+    "id": "0d6754d0-1e49-4324-a103-fb95d6863786",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:40.395403+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "a22a2da6-13ee-4580-a08e-c9f1921fd763",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:40.477922+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "801429c9-49e9-46cd-815f-e9bb3a7687dd",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:40.551663+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "0291ffd1-83b7-46e2-b980-40626a3e1715",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:40.627594+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "2b600d99-1321-4f59-ab55-6403e2b41cc6",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:44.859017",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:44.859063+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "d707b0f3-fa09-4a20-8ca0-8ecbbff17875",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:44.921434",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:44.921509+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "7c84b4e9-2e17-444b-83d8-0396998edc0b",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:44.978383",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:44.978422+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "bece8a45-c0e1-48a9-bad2-a51e488a5150",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:45.035585",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:45.035655+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "84d4d429-0b9e-49a1-b74e-c27cff1e60ff",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:45.096706",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:45.096747+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "0a37cbbd-6444-42da-8538-a0e4d1fea241",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:08:45.154835",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:08:45.154962+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "c6d1fdd2-5b3e-46ba-a2d9-c05131b529a4",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:45.255315+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "4e1a6a53-d0a4-429f-b130-b7ba56a73642",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:45.315393+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "b4ac69fc-d567-406d-a68a-adcf111b733d",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:45.374528+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "0beadd78-c8ac-4d74-8683-fd9110eae6e1",
+    "event_type": "provider_ai_accepted",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:45.432971+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "ai_accept"
+  },
+  {
+    "id": "26a74b93-9bfd-45bc-8634-6d7b76a5ebf1",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:45.494330+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "204afdab-089e-4ade-86c6-497b84ddd53c",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:45.625052+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "9c0bc581-7cb3-4181-837d-421f52100f6f",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:45.698926+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "69badaa8-17b5-40ff-b09d-8336793089c3",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:45.767203+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "d80ec20f-3a0e-4149-ae1b-f52ec9215899",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:08:45.833174+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "7ec314ba-62f4-4e41-b63b-e81222c8550b",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:08:45.895823+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "48dfd3b1-42f1-4517-a37f-37e98382ee4c",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:19.899986",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:19.900029+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "42ceea66-d79c-4449-92d4-6f71af1f0a7e",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:19.963182",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:19.963256+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "b7ec8602-7318-449b-a5fe-cddbe4279f34",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:20.020746",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:20.020785+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "15f069cb-af83-44ad-8400-15df3e4da994",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:20.077425",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:20.077498+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "d13efb75-2d63-4991-9f9c-466578b321bc",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:20.132819",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:20.132878+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "bc48efa0-454a-4fcc-a9e2-d35311801637",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:20.190681",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:20.190752+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "a3a71282-e7ee-45f7-b5e5-59d2642b213b",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:09:20.259460+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "34d31aef-7cd4-47f4-a738-2dcc5490b2cb",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:09:20.319206+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "f96b0aa1-ff02-4b05-8c0e-3a4f2945460f",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:09:20.377772+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "b17c6d19-8b49-4e88-8ff2-35d628e05398",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:09:20.437541+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "e1ce744e-56a3-4461-a35c-2665b9df453a",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:09:20.498844+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "b1c0c624-90fe-42ec-b067-95bf9a6ac395",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:09:20.559550+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "0a51d2c3-7893-4b33-87cd-17c841d6889e",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:09:20.653344+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "ef6df930-d852-4164-85a5-a3ccfc3dc5cf",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:09:20.723239+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "6ae9b71c-78fa-4e4d-9c57-c6ceb280fd56",
+    "event_type": "input_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:37.847179",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:37.847228+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "3fa02f22-2109-452d-9c04-566de41bd720",
+    "event_type": "task_logged",
+    "data": {
+      "question": "City",
+      "answer": "San Jose",
+      "key": "City",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:37.912475",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "City",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:37.912552+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "68567200-75c2-4c8c-ad97-6355ff33449a",
+    "event_type": "input_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:37.970061",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:37.970103+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "5c299cac-d48c-4a03-9ad2-0ecf0d14c607",
+    "event_type": "task_logged",
+    "data": {
+      "question": "ZIP Code",
+      "answer": "95148",
+      "key": "ZIP Code",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:38.031516",
+      "shared": true,
+      "instance_id": null,
+      "required": true,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "ZIP Code",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:38.031589+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "a3b0693d-f2b1-4636-b634-d2dbfa9df112",
+    "event_type": "input_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:38.088408",
+      "shared": false,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:38.088449+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "input"
+  },
+  {
+    "id": "c138b65b-23dc-40b3-8dbb-36ed08aea9a8",
+    "event_type": "task_logged",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Comcast",
+      "key": "Internet Provider",
+      "section": "utilities",
+      "area": "home",
+      "task_type": null,
+      "is_freq": false,
+      "timestamp": "2025-06-16T01:09:38.146018",
+      "shared": true,
+      "instance_id": null,
+      "required": false,
+      "category": null,
+      "metadata": {
+        "is_task": true,
+        "task_label": "Internet Provider",
+        "is_freq": false,
+        "area": "home",
+        "section": "utilities",
+        "task_type": null,
+        "shared": true
+      }
+    },
+    "timestamp": "2025-06-16T01:09:38.146091+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "task"
+  },
+  {
+    "id": "9ec576de-8fc9-4f9c-ab9c-fc55bcb2df1a",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Electricity Provider",
+      "answer": "Pacific Gas & Electric Company",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:09:38.208137+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "16ebc646-4ea2-4bfb-bada-19ba3781b52f",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "electricity",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:09:38.276828+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "84e86431-8017-4c92-b388-98f57fa31b0e",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Natural Gas Provider",
+      "answer": "Pacific Gas & Electric Company PG&E",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:09:38.337472+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "87554790-e047-4ef9-bd51-7a4fa91a2456",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "natural_gas",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:09:38.398041+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "937b66a4-ffc8-4ba0-8020-bf6d0bb77526",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Water Provider",
+      "answer": "San Jose Water",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:09:38.460370+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "08c4d1d6-fcd8-43dd-a1c2-53b938646fb4",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "water",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:09:38.523543+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
+  },
+  {
+    "id": "569997f7-a25f-421c-86c5-02bf29d66055",
+    "event_type": "provider_input_registered",
+    "data": {
+      "question": "Internet Provider",
+      "answer": "Xfinity",
+      "section": "utilities",
+      "area": "home"
+    },
+    "timestamp": "2025-06-16T01:09:38.584426+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "provider_update"
+  },
+  {
+    "id": "5a9597f3-32d5-4c9f-ba8a-a9c48f0742ca",
+    "event_type": "provider_saved_to_disk",
+    "data": {
+      "utility": "internet",
+      "section": "utilities"
+    },
+    "timestamp": "2025-06-16T01:09:38.654993+00:00",
+    "user_id": "anonymous",
+    "session_id": "unknown",
+    "tag": "correction"
   }
 ]

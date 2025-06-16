@@ -2,11 +2,14 @@
   "city": "San Jose",
   "zip_code": "95148",
   "utility": "natural_gas",
-  "updated_at": "2025-06-16T00:54:02.887510+00:00",
+  "updated_at": "2025-06-16T01:09:38.397545+00:00",
   "data": {
     "name": "Pacific Gas & Electric Company PG&E",
     "contact_phone": "1-800-743-5000",
     "contact_address": "77 Beale Street, San Francisco, CA 94105",
-    "contact_website": "pge.com"
+    "contact_website": "pge.com",
+    "name_source": "ai",
+    "contact_phone_source": "ai",
+    "contact_website_source": "ai"
   }
 }

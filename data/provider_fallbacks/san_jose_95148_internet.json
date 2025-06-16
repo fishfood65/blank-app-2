@@ -2,17 +2,19 @@
   "city": "San Jose",
   "zip_code": "95148",
   "utility": "internet",
-  "updated_at": "2025-06-16T00:54:03.219913+00:00",
+  "updated_at": "2025-06-16T01:09:38.654417+00:00",
   "data": {
     "name": "Xfinity",
-    "contact_phone": "",
-    "contact_address": "",
+    "contact_phone": "1-800-XFINITY 1-800-934-6489",
+    "contact_address": "Not publicly listed; service centers are available in the local area.",
     "contact_website": "xfinity.com",
-    "description": "Xfinity, a brand of Comcast, provides a variety of communication services including internet, TV, phone, and smart home security. Known for its high-speed internet and reliable service, Xfinity offers a range of plans to meet different customer needs.",
-    "emergency_steps": "- Step 1: Check for any local power outages, as Xfinity services require electricity to function.  \n- Step 2: Utilize Xfinity WiFi hotspots to stay connected if your home internet is down during an emergency.  \n- Step 3: Visit the Xfinity Storm Ready website for updates and resources during severe weather.  \n- Step 4: Use the Xfinity app to receive updates and communicate with customer service.  \n- Step 5: Ensure that all devices are charged to maintain communication during a power outage.\n\nNon-Emergency Tips:  \n- Tip 1: Regularly check for updates on service plans and promotions, such as the current offer of 300 Mbps internet for $35/month for one year xfinity.com.  \n- Tip 2: Consider signing up for Xfinity's mobile services if you are already an internet customer, as they offer benefits like bringing your own phone xfinity.com.",
-    "non_emergency_tips": "- Tip 1: Regularly check for updates on service plans and promotions, such as the current offer of 300 Mbps internet for $35/month for one year xfinity.com.  \n- Tip 2: Consider signing up for Xfinity's mobile services if you are already an internet customer, as they offer benefits like bringing your own phone xfinity.com.",
-    "timestamp": "2025-06-16T00:53:19.438669+00:00",
+    "description": "Xfinity, a subsidiary of Comcast Corporation, provides high-speed internet services with a wide range of plans to suit different needs. They offer additional services like Xfinity Mobile and have a network of WiFi hotspots for their customers.",
+    "emergency_steps": "- Step 1: Check if there is a known service outage in your area by visiting the Xfinity Response Center.  \n- Step 2: If there is no outage reported, restart your modem, router, and/or TV box.  \n- Step 3: If power is out, wait for the local utility provider to restore power before Xfinity services can be restored.  \n- Step 4: Sign up for text alerts via your Xfinity account to receive updates on service restoration.  \n- Step 5: Use Xfinity WiFi hotspots to stay connected if your home service is disrupted xfinity.com/learn/internet-service/wifi#WiFiMap.\n\nNon-Emergency Tips:  \n- Tip 1: Use the Xfinity My Account app to manage your services and troubleshoot issues.  \n- Tip 2: Ensure your contact information is up-to-date in your Xfinity account to receive timely service updates and alerts.",
+    "non_emergency_tips": "- Tip 1: Use the Xfinity My Account app to manage your services and troubleshoot issues.  \n- Tip 2: Ensure your contact information is up-to-date in your Xfinity account to receive timely service updates and alerts.",
+    "timestamp": "2025-06-16T01:07:36.673480+00:00",
     "source": "llm_batch",
-    "name_source": "user"
+    "name_source": "ai",
+    "contact_phone_source": "ai",
+    "contact_website_source": "ai"
   }
 }
