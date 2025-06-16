@@ -32,7 +32,7 @@ from utils.data_helpers import (
 from utils.debug_utils import debug_all_sections_input_capture_with_summary, reset_all_session_state
 from prompts.templates import generate_single_provider_prompt, wrap_with_claude_style_formatting, generate_corrected_provider_prompt
 from utils.common_helpers import get_schedule_placeholder_mapping
-from utils.llm_cache_utils import get_or_generate_llm_output
+from utils.llm_cache_utils import get_or_generate_llm_output, get_best_provider_data
 from utils.llm_helpers import call_openrouter_chat
 from utils.docx_helpers import export_provider_docx, format_provider_markdown, render_runbook_section_output
 from utils.event_logger import log_event
@@ -264,35 +264,37 @@ def fetch_utility_providers(section: str, force_refresh_map: Optional[dict] = No
         # Auto-reset refresh attempts if cooldown passed
         auto_reset_refresh_status(utility)
 
-        raw_response = "" # ✅ Initialize
-        
-        # ✅ Try disk cache first
-        if not force_refresh:
-            raw_response = load_provider_from_cache(utility, city, zip_code)
-            if raw_response and st.session_state.get("enable_debug_mode"):
-                st.info(f"📁 Using disk cache for `{label}`")
-       
-       # ✅ If not on disk, check session
-        if not raw_response:
-            raw_response = st.session_state.get(session_cache_key)
+
+        # ✅ Try loading best available provider data (fallback > cache > none)
+        provider_data, source = get_best_provider_data(utility, city, zip_code)
+
+        # 🧠 If valid provider data exists, skip LLM call
+        # ✅ Tag the data with source for downstream display/debugging
+        if provider_data:
+            provider_data["source"] = source
+
+        # ✅ Use best available provider data if not force_refresh
+        if provider_data and not force_refresh:
             if st.session_state.get("enable_debug_mode"):
-                st.info(f"♻️ Using session cache for `{utility}`")
-        
-        # ✅ If no cache, call LLM
-        if not raw_response:
-            prompt = generate_single_provider_prompt(utility, city, zip_code, internet_input)
-            try:
-                with st.spinner(f"🔍 Fetching {label} provider..."):
-                    raw_response = call_openrouter_chat(prompt)
-                    # Cache to session and disk
-                    st.session_state[session_cache_key] = raw_response
-                    save_provider_to_cache(utility, city, zip_code, raw_response)
-                log_event("llm_output_raw", {"utility": utility, "prompt": prompt, "response": raw_response, "section": section})
-            except Exception as e:
-                st.error(f"❌ LLM call failed for {label}: {e}")
-                log_event("llm_error", {"utility": utility, "error": str(e), "section": section})
-                raw_response = ""
-                continue
+                st.info(f"📦 Using `{source}` data for `{label}`")
+            st.session_state.setdefault("utility_providers", {})[utility] = provider_data
+            continue  # ⏩ Done for this utility, skip to next
+
+
+        # ⚙️ No usable cache or force_refresh → call LLM
+        prompt = generate_single_provider_prompt(utility, city, zip_code, internet_input)
+        try:
+            with st.spinner(f"🔍 Fetching {label} provider..."):
+                raw_response = call_openrouter_chat(prompt)
+                # Cache to session and disk
+                st.session_state[session_cache_key] = raw_response
+                save_provider_to_cache(utility, city, zip_code, raw_response)
+            log_event("llm_output_raw", {"utility": utility, "prompt": prompt, "response": raw_response, "section": section})
+        except Exception as e:
+            st.error(f"❌ LLM call failed for {label}: {e}")
+            log_event("llm_error", {"utility": utility, "error": str(e), "section": section})
+            raw_response = ""
+            continue
 
         # Parse + normalize + log
         parsed = parse_utility_block(raw_response)

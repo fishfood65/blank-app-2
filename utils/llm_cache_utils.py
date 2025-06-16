@@ -4,7 +4,7 @@ import os
 import json
 import hashlib
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Tuple
 import streamlit as st
 import requests
 from utils.llm_helpers import call_openrouter_chat
@@ -66,3 +66,55 @@ def get_or_generate_llm_output(prompt: str, generate_fn: Callable = None) -> str
             st.json({"model": metadata["model"], "timestamp": metadata["timestamp"]})
 
     return output
+
+# --- Provider Fallback Cache Utilities ---
+
+PROVIDER_CACHE_DIR = "provider_cache"
+USER_FALLBACK_DIR = "data/provider_fallbacks"
+os.makedirs(PROVIDER_CACHE_DIR, exist_ok=True)
+os.makedirs(USER_FALLBACK_DIR, exist_ok=True)
+
+def get_provider_cache_path(utility: str, city: str, zip_code: str) -> str:
+    key = f"{utility}_{city.lower().strip()}_{zip_code}"
+    hashed = hashlib.sha256(key.encode()).hexdigest()
+    return os.path.join(PROVIDER_CACHE_DIR, f"{utility}_{hashed}.json")
+
+def get_user_fallback_path(city: str, zip_code: str, utility_key: str) -> str:
+    city_slug = city.lower().replace(" ", "_")
+    return os.path.join(USER_FALLBACK_DIR, f"{utility_key}_{city_slug}_{zip_code}.json")
+
+def load_json_file(path: str) -> dict:
+    try:
+        with open(path, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def parse_timestamp(ts: str) -> datetime:
+    try:
+        return datetime.fromisoformat(ts)
+    except Exception:
+        return datetime.min
+
+def get_best_provider_data(utility_key: str, city: str, zip_code: str) -> Tuple[dict, str]:
+    """
+    Chooses the freshest available provider data (user_fallback > cache > none).
+    Returns:
+        - provider_data (dict)
+        - source_label (str): one of "user_fallback", "cache", "empty"
+    """
+    user_path = get_user_fallback_path(city, zip_code, utility_key)
+    cache_path = get_provider_cache_path(utility_key, city, zip_code)
+
+    user_data = load_json_file(user_path)
+    cache_data = load_json_file(cache_path)
+
+    user_ts = parse_timestamp(user_data.get("timestamp", ""))
+    cache_ts = parse_timestamp(cache_data.get("timestamp", ""))
+
+    if user_ts > cache_ts:
+        return user_data, "user_fallback"
+    elif cache_data:
+        return cache_data, "cache"
+    else:
+        return {}, "empty"
