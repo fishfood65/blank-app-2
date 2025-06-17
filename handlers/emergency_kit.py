@@ -2,7 +2,6 @@
 from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
 import re
-from mistralai import Mistral, UserMessage, SystemMessage
 import os
 import pandas as pd
 from datetime import datetime, timedelta
@@ -15,12 +14,10 @@ from utils.preview_helpers import get_active_section_label
 from utils.data_helpers import (
     register_task_input, 
     get_answer, 
-    extract_providers_from_text, 
     check_missing_utility_inputs
 )
 from utils.debug_utils import (
     debug_all_sections_input_capture_with_summary, 
-    clear_all_session_data, 
     debug_single_get_answer
 )
 from utils.runbook_generator_helpers import (
@@ -32,16 +29,16 @@ from prompts.templates import utility_provider_lookup_prompt
 from utils.common_helpers import get_schedule_placeholder_mapping
 
 # --- Generate the AI prompt ---
-api_key = os.getenv("MISTRAL_TOKEN")
-client = Mistral(api_key=api_key)
+# Load from environment (default) or user input
+api_key = os.getenv("OPENROUTER_TOKEN") or st.text_input("Enter your OpenRouter API key:", type="password")
+referer = os.getenv("OPENROUTER_REFERER", "https://example.com")
+model_name = "openai/gpt-4o:online"  # You can make this dynamic if needed
 
-if not api_key:
-    api_key = st.text_input("Enter your Mistral API key:", type="password")
-
+# Show success/error message
 if api_key:
-    st.success("API key successfully loaded.")
+    st.success("✅ OpenRouter API key loaded.")
 else:
-   st.error("API key is not set.")
+    st.error("❌ OpenRouter API key is not set.")
 
 # --- Constants ---
 KIT_ITEMS = [
@@ -69,17 +66,21 @@ def homeowner_kit_stock(section="emergency_kit"):
             cols = st.columns(len(chunk))
 
             for idx, item in enumerate(chunk):
-                safe_key = "kit_" + re.sub(r'[^a-z0-9_]', '', item.lower().replace(' ', '_'))
-                has_item = register_task_input(
+                # 🧼 Clean key generation
+                safe_key = "kit_" + re.sub(r'[^a-z0-9]', '_', item.lower())
+                safe_key = re.sub(r'_+', '_', safe_key).strip('_')
+
+                register_task_input(
                     label=item,
                     input_fn=cols[idx].checkbox,
                     section=section,
                     task_type="Emergency Supply",
+                    area="home",
                     is_freq=False,
                     key=safe_key,
                     value=st.session_state.get(safe_key, False)
                 )
-                if has_item:
+                if st.session_state.get(safe_key):
                     selected.append(item)
 
         submitted = st.form_submit_button("Submit")
@@ -101,11 +102,15 @@ def emergency_kit(section="emergency_kit"):
         label="Do you have an Emergency Kit?",
         input_fn=st.radio,
         section=section,
+        area="home",
+        task_type="Emergency Supply",
+        is_freq=False,
+        key="emergency_kit_status",
+        value=st.session_state.get("emergency_kit_status", ""),
         options=["Yes","No"],
         index=0,
-        metadata={"is_task": False, "frequency_field": False},
-        key="emergency_kit_status",
-        value=st.session_state.get("emergency_kit_status", "")
+        shared=True,
+        required=True
     )
 
     if emergency_kit_status == 'Yes':
@@ -118,10 +123,13 @@ def emergency_kit(section="emergency_kit"):
         label="Where is (or where will) the Emergency Kit be located?",
         input_fn=st.text_area,
         section=section,
+        area="home",
+        task_type="Emergency Supply",
+        is_freq=False,
+        key="emergency_kit_location",
         value=st.session_state.get("emergency_kit_location", ""),
         placeholder="e.g., hall closet, garage bin",
-        key="emergency_kit_location",
-        metadata={"is_task": False, "frequency_field": False}
+        shared=True
     )
 
     # 3. Core stock selector (uses capture_input internally with task metadata)
@@ -134,9 +142,11 @@ def emergency_kit(section="emergency_kit"):
         label="Add any additional emergency kit items not in the list above (comma-separated):",
         input_fn=st.text_input,
         section=section,
-        value=st.session_state.get("additional_kit_items", ""),
+        area="home",
+        task_type="Emergency Supply",
+        is_freq=False,
         key="additional_kit_items",
-        metadata={"is_task": False, "frequency_field": False}
+        value=st.session_state.get("additional_kit_items", ""),
     )
 
 # --- Main Function Start ---

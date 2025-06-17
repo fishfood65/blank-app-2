@@ -135,8 +135,11 @@ def capture_input(
         if fn_name in widget_names and "value" in kwargs:
             kwargs.pop("value")
     
-    # Optional: set default placeholder for clarity
-    kwargs.setdefault("placeholder", f"Enter your {label.lower()}")
+    # Only set placeholder for input widgets that support it
+    widgets_with_placeholder = ["text_input", "text_area", "number_input"]
+    fn_name = getattr(input_fn, "__name__", "")
+    if fn_name in widgets_with_placeholder:
+        kwargs.setdefault("placeholder", f"Enter your {label.lower()}")
 
     # Render input widget
     value = input_fn(label, *args, **kwargs)
@@ -160,8 +163,7 @@ def capture_input(
             return None
 
     # ✂️ Clean up input string
-    if isinstance(value, str):
-        value = value.strip()
+    value = safe_strip(value)
 
     # 🧠 Finalize metadata
     metadata = dict(metadata) if metadata else {}
@@ -211,8 +213,8 @@ def log_input_entry(
     Central logging function for both task and non-task inputs.
     Adds standardized metadata, deduplicates by key, and stores in session state.
     """
-    value = value.strip()
-    if not value:
+    value = safe_strip(value)
+    if value in [None, ""]:
         return
 
     key = key or f"{section}_{sanitize_label(label)}"
@@ -365,7 +367,9 @@ def register_input_only(
         metadata (dict, optional): Optional metadata dictionary.
         allow_empty (bool): If True, store even if value is empty.
     """
-    if not allow_empty and (not value or str(value).strip() == ""):
+    value_clean = safe_strip(value)
+    
+    if not allow_empty and (not value_clean or value_clean == ""):
         return
 
     return log_input_entry(
@@ -942,8 +946,10 @@ def log_provider_result(label, value, section="Utility Providers"):
     """
     if not label or not isinstance(label, str):
         raise ValueError("Provider label must be a non-empty string.")
+    
+    value_clean = safe_strip(value)
 
-    if not isinstance(value, str) or value.strip().lower() in ["", "not found", "n/a"]:
+    if not isinstance(value_clean, str) or value_clean().lower() in ["", "not found", "n/a"]:
         return  # Skip logging invalid or placeholder values
 
     register_input_only(
@@ -1113,6 +1119,12 @@ def generate_category_keywords_from_labels(input_data):
 def sanitize_label(label: str) -> str:
     return label.lower().strip().replace(" ", "_").replace("?", "").replace(":", "")
 
+def safe_strip(value):
+    """Safely strip strings and leave non-strings untouched."""
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
 def section_has_valid_input(section: str, min_entries: int = 1) -> bool:
     """
     Checks whether a section has enough inputs across input_data and task_inputs.
@@ -1139,10 +1151,13 @@ def register_provider_input(label: str, value: str, section: str):
     if not label or not isinstance(label, str):
         raise ValueError("Provider label must be a non-empty string.")
     
-    if not isinstance(value, str) or value.strip().lower() in ["", "not found", "n/a", "⚠️ not available"]:
+    value_clean = safe_strip(value)
+
+    # Skip placeholder or missing values
+    
+    if not isinstance(value_clean, str) or value_clean.strip().lower() in ["", "not found", "n/a", "⚠️ not available"]:
         return  # Skip placeholder or missing values
 
-    value = value.strip()
     question = f"{label} Provider"
     timestamp = datetime.now().isoformat()
 
@@ -1170,7 +1185,7 @@ def register_provider_input(label: str, value: str, section: str):
     ]
     task_inputs.append({
         "question": question,
-        "answer": value,
+        "answer": value_clean,
         "key": sanitize_label(question),
         "section": section,
         "area": area,
