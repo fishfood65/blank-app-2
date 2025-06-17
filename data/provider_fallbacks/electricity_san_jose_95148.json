@@ -2,13 +2,12 @@
   "city": "San Jose",
   "zip_code": "95148",
   "utility": "electricity",
-  "timestamp": "2025-06-17T00:38:41.252846+00:00",
+  "timestamp": "2025-06-17T05:01:52.051576+00:00",
   "name": "Pacific Gas & Electric Company PG&E",
   "contact_phone": "1-800-743-5000",
   "contact_address": "77 Beale Street, San Francisco, CA 94105",
   "contact_website": "pge.com",
-  "description": "Pacific Gas & Electric Company PG&E is a utility company that provides natural gas and electricity to most of the northern two-thirds of California, including the San Francisco Bay Area.",
-  "emergency_steps": "1. Call 9-1-1 immediately if you encounter a downed power line and report its location.  \n2. After contacting emergency services, call PG&E at 1-800-743-5000 to report the issue.  \n3. Do not touch anyone or anything in contact with a downed power line.  \n4. Keep children and pets away from fallen electric wires.  \n5. Stay away from flooded areas and downed trees during and after a storm as these could be hiding an energized power line pgealerts.alerts.pge.com.\n\nNon-Emergency Tips:  \n1. Use the PG&E Report It app to report non-emergency safety concerns such as trees or vegetation near powerlines and problems with PG&E equipment pge.com.  \n2. Prepare for potential power outages by having a plan in place and keeping emergency supplies on hand pge.com.",
-  "non_emergency_tips": "1. Use the PG&E Report It app to report non-emergency safety concerns such as trees or vegetation near powerlines and problems with PG&E equipment pge.com.  \n2. Prepare for potential power outages by having a plan in place and keeping emergency supplies on hand pge.com.",
-  "source": "llm_batch"
+  "description": "Pacific Gas & Electric Company PG&E is a leading utility provider in California, offering electricity and natural gas services to millions of customers. They are committed to delivering safe, reliable, and affordable energy while promoting sustainability and innovation.",
+  "emergency_steps": "1. Contact PG&E immediately at 1-800-743-5000 for any electricity-related emergencies.\n2. If there is a power outage, check the Electric Outage Center for updates.\n3. Stay away from downed power lines and report them to PG&E or local authorities.\n4. Use flashlights instead of candles to prevent fire hazards during outages.\n5. Keep refrigerators and freezers closed to preserve food during power interruptions.\n\nNon-Emergency Tips:  \n- Regularly update your contact information with PG&E to receive important service alerts and updates here.\n- Explore energy-saving tips and programs to reduce your energy use and save money by visiting PG&E's energy savings tips page.",
+  "non_emergency_tips": "- Regularly update your contact information with PG&E to receive important service alerts and updates here.\n- Explore energy-saving tips and programs to reduce your energy use and save money by visiting PG&E's energy savings tips page."
 }

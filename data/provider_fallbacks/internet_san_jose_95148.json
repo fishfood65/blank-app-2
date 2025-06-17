@@ -2,12 +2,12 @@
   "city": "San Jose",
   "zip_code": "95148",
   "utility": "internet",
-  "timestamp": "2025-06-17T00:41:54.982663+00:00",
+  "timestamp": "2025-06-17T05:03:00.262565+00:00",
   "name": "Xfinity",
   "contact_phone": "1-800-XFINITY 1-800-934-6489",
-  "contact_address": "Xfinity Store in San Jose Please check the website for the exact store location nearest to ZIP Code 95148",
+  "contact_address": "Not provided",
   "contact_website": "xfinity.com",
-  "description": "Xfinity is a leading provider of high-speed internet, offering a range of plans to suit different needs. Known for its reliable service and advanced WiFi equipment, Xfinity offers options like the 5-Year Price Guarantee, ensuring stable pricing without annual contracts.",
-  "emergency_steps": "- Step 1: Check for local outages on the Xfinity website.  \n- Step 2: Restart your modem and router to reset your internet connection.  \n- Step 3: Use your mobile device as a personal hotspot if your internet is down.  \n- Step 4: Contact Xfinity customer support at 1-800-XFINITY for assistance.  \n- Step 5: Visit a nearby Xfinity Store if the issue persists and requires in-person support.\n\nNon-Emergency Tips:  \n- Tip 1: Regularly update your WiFi equipment to ensure optimal performance and security.  \n- Tip 2: Utilize Xfinity's digital tools to manage your account and services efficiently xfinity.com.",
-  "non_emergency_tips": "- Tip 1: Regularly update your WiFi equipment to ensure optimal performance and security.  \n- Tip 2: Utilize Xfinity's digital tools to manage your account and services efficiently xfinity.com."
+  "description": "Xfinity provides high-speed internet services with various plans, including options with no annual contracts and advanced WiFi equipment. They offer reliable internet services and customer support.",
+  "emergency_steps": "- Step 1: Check if there is a known outage in your area by visiting the Xfinity Response Center.  \n- Step 2: If no outage is reported, use the Xfinity app to troubleshoot or restart your modem.  \n- Step 3: If the issue persists, contact Xfinity support at 1-800-XFINITY for assistance.  \n- Step 4: Follow any instructions provided by the support team to resolve the issue.  \n- Step 5: If the power in your area is out, wait for your local utility provider to restore power before Xfinity services can be restored xfinity.com/response.\n\nNon-Emergency Tips:  \n- Tip 1: Use the Xfinity app to manage your account, track usage, and get real-time support xfinity.com/support/articles/cable-not-working.  \n- Tip 2: Consider using your mobile device as a personal hotspot if your home internet is temporarily unavailable xfinity.com/response/faqs.",
+  "non_emergency_tips": "- Tip 1: Use the Xfinity app to manage your account, track usage, and get real-time support xfinity.com/support/articles/cable-not-working.  \n- Tip 2: Consider using your mobile device as a personal hotspot if your home internet is temporarily unavailable xfinity.com/response/faqs."
 }

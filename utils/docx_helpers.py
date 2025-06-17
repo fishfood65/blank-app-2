@@ -11,7 +11,7 @@ from docx.oxml import OxmlElement
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from datetime import datetime
 from collections import OrderedDict
-from utils.data_helpers import load_kit_items_config, safe_strip
+from utils.data_helpers import get_answer, load_kit_items_config, safe_strip
 
 KIT_CONFIG = load_kit_items_config()
 UTILITY_KIT_RECS = KIT_CONFIG.get("per_utility", {})
@@ -125,7 +125,11 @@ def render_recommended_items_for(utility: str) -> str:
         return "_(none specified)_"
     return "\n".join(f"- {item}" for item in items)
 
+from datetime import datetime
+
 def generate_emergency_utilities_kit_markdown() -> str:
+    from datetime import datetime
+
     config = load_kit_items_config()
     KIT_ITEMS = config.get("recommended_items", [])
     PER_UTILITY = config.get("per_utility", {})
@@ -137,12 +141,14 @@ def generate_emergency_utilities_kit_markdown() -> str:
         return "\n".join(f"- {item}" for item in items)
 
     # Pull values from session_state
-    city = safe_strip(st.session_state.get("City", ""))
-    zip_code = safe_strip(st.session_state.get("ZIP Code", ""))
-    internet = safe_strip(st.session_state.get("Internet Provider", "⚠️ Not provided"))
-    electricity = safe_strip(st.session_state.get("electricity_provider", "⚠️ Not provided"))
-    gas = safe_strip(st.session_state.get("natural_gas_provider", "⚠️ Not provided"))
-    water = safe_strip(st.session_state.get("water_provider", "⚠️ Not provided"))
+    city = safe_strip(get_answer("City", section="utilities"))
+    zip_code = safe_strip(get_answer("ZIP Code", section="utilities"))
+    providers = st.session_state.get("corrected_utility_providers", {})
+
+    electricity = safe_strip(providers.get("electricity", {}).get("name", "⚠️ Not provided"))
+    gas = safe_strip(providers.get("natural_gas", {}).get("name", "⚠️ Not provided"))
+    water = safe_strip(providers.get("water", {}).get("name", "⚠️ Not provided"))
+    internet = safe_strip(providers.get("internet", {}).get("name", "⚠️ Not provided"))
 
     selected = st.session_state.get("homeowner_kit_stock", [])
     missing = st.session_state.get("not_selected_items", [])
@@ -151,7 +157,7 @@ def generate_emergency_utilities_kit_markdown() -> str:
     unmatched = st.session_state.get("unmatched_additional_items", [])
 
     # Emergency Kit section
-    parts = [f"# 🧰 Emergency Kit Summary"]
+    parts = ["# 🧰 Emergency Kit Summary"]
 
     if selected:
         parts.append("## ✅ Kit Items You Have:")
@@ -165,34 +171,104 @@ def generate_emergency_utilities_kit_markdown() -> str:
     if unmatched:
         parts.append("## ❓ Custom Items (Unmatched):")
         parts.append("\n".join(f"- {item}" for item in unmatched))
-    if additional and not matched and not unmatched:
+    if additional and not (matched or unmatched):
         parts.append("## ➕ Additional User-Entered Items:")
         parts.append(additional)
 
-    # Utilities section
-    parts.append("\n\n# 🏡 Emergency Utilities Overview")
+    # Utilities overview section
+    parts.append("\n# 🏡 Emergency Utilities Overview")
+    today = datetime.today().strftime("%B %d, %Y")
+    parts.append(f"📅 **Generated:** {today} | **Location:** {city}, ZIP {zip_code}\n")
+    parts.append("This guide includes a summary and detailed emergency info for each utility.\n")
 
-    parts.append(f"**Location:** {city}, ZIP {zip_code}\n")
+    # Summary Table
+    parts.append("### 🗂️ Utility Provider Summary\n")
+    summary_lines = [
+        "| Utility | Provider | Phone | Website |",
+        "|---------|----------|-------|---------|"
+    ]
+    icon_map = {
+        "electricity": "⚡",
+        "natural_gas": "🔥",
+        "water": "💧",
+        "internet": "🌐"
+    }
 
-    def add_utility_block(label, key, provider):
-        if not provider or "⚠️" in provider:
+    for key, info in providers.items():
+        icon = icon_map.get(key, "📦")
+        name = info.get("name", "⚠️ Not Available").strip()
+        phone = info.get("contact_phone", "⚠️ Not Available").strip()
+        website = info.get("contact_website", "").strip()
+        website_display = f"[{website}]({website})" if website.startswith("http") else website or "⚠️ Not Available"
+        summary_lines.append(f"| {icon} {key.replace('_', ' ').title()} | {name} | {phone} | {website_display} |")
+
+    parts.append("\n".join(summary_lines))
+    parts.append("---")  # section break
+
+    # Detailed sections
+    def add_utility_block(label, key, provider_key):
+        provider = providers.get(provider_key, {})
+        name = provider.get("name", "").strip()
+        if not name or "⚠️" in name:
             return
-        parts.append(f"## {label} – {provider}")
-        parts.append(f"""### Emergency Response Guide:
-- Company Description
-- Contact Info
-- Emergency Steps
 
-**Recommended Kit Items:**  
-{render_recommended(key)}
-""")
+        parts.append(f"### {label} – {name}")
 
-    add_utility_block("⚡ Electricity", "electricity", electricity)
-    add_utility_block("🔥 Natural Gas", "natural_gas", gas)
-    add_utility_block("💧 Water", "water", water)
-    add_utility_block("🌐 Internet", "internet", internet)
+        table_lines = ["| Field | Value |", "|-------|--------|"]
+        def row(label, field, is_link=False, multiline=False):
+            value = provider.get(field, "").strip()
+            if not value or value.lower() in ["⚠️ not available", "n/a", "not found"]:
+                return None
+            if is_link:
+                return f"| **{label}** | [{value}]({value}) |"
+            elif multiline:
+                return f"| **{label}** | {value.replace(chr(10), '<br>')} |"
+            else:
+                return f"| **{label}** | {value} |"
 
-    return "\n\n".join(parts).strip()
+        for label_, field_, is_link_ in [
+            ("Description", "description", False),
+            ("Phone", "contact_phone", False),
+            ("Website", "contact_website", True),
+            ("Address", "contact_address", False)
+        ]:
+            line = row(label_, field_, is_link_)
+            if line:
+                table_lines.append(line)
+
+        parts.append("\n".join(table_lines))
+
+        emergency = provider.get("emergency_steps", "").strip()
+        if emergency and emergency.lower() != "⚠️ not available":
+            # 🧹 Strip out any "Non-Emergency Tips" leakage from emergency_steps
+            emergency = re.split(r"(?i)non[- ]?emergency tips[:\-]?", emergency)[0].strip()
+            formatted = "\n".join([
+                line.strip() if line.strip().startswith(("-", "•", "*")) else f"- {line.strip()}"
+                for line in emergency.splitlines() if line.strip()
+            ])
+            parts.append("\n#### 🚨 Emergency Instructions\n" + formatted)
+
+        tips = provider.get("non_emergency_tips", "").strip()
+        if tips and tips.lower() != "⚠️ not available":
+            formatted = "\n".join([
+                line.strip() if line.strip().startswith(("-", "•", "*")) else f"- {line.strip()}"
+                for line in tips.splitlines() if line.strip()
+            ])
+            parts.append("\n#### 🧾 Non-Emergency Tips\n" + formatted)
+
+        parts.append("#### 🧰 Recommended Kit Items:")
+        items = PER_UTILITY.get(provider_key, [])
+        if items:
+            parts.append("\n".join(f"- {item}" for item in items))
+        else:
+            parts.append("_(none specified)_")
+
+    add_utility_block("⚡ Electricity", "electricity", "electricity")
+    add_utility_block("🔥 Natural Gas", "natural_gas", "natural_gas")
+    add_utility_block("💧 Water", "water", "water")
+    add_utility_block("🌐 Internet", "internet", "internet")
+
+    return "\n\n".join(parts + [""]).strip()
 
 def add_hyperlink(paragraph, url, text=None):
     """
@@ -359,7 +435,7 @@ def export_provider_docx(providers: dict, output_path: str = None, version: str 
     Creates a full Document, adds all utility providers, and saves to disk.
     """
     doc = Document()
-    doc.add_heading("⚡🔥💧🌐 Utility Providers Emergency Guide", level=1)
+    doc.add_heading("🏡 Emergency Utilities Guide", level=1)
 
     # Date and version stamp
     today = datetime.today().strftime("%B %d, %Y")
@@ -381,9 +457,11 @@ def export_provider_docx(providers: dict, output_path: str = None, version: str 
 
 def generate_emergency_utilities_kit_docx() -> BytesIO:
     config = load_kit_items_config()
-    KIT_ITEMS = config.get("recommended_items", [])
     PER_UTILITY = config.get("per_utility", {})
 
+    doc = Document()
+
+    # --- Formatting helpers ---
     def add_heading(text, level=1):
         doc.add_heading(text, level=level)
 
@@ -400,27 +478,17 @@ def generate_emergency_utilities_kit_docx() -> BytesIO:
         for item in items:
             doc.add_paragraph(item, style='List Bullet')
 
-    def get_session(key, fallback="⚠️ Not provided"):
-        return safe_strip(st.session_state.get(key, fallback))
-
-    # Pull data from session state
-    city = get_session("City")
-    zip_code = get_session("ZIP Code")
-    internet = get_session("Internet Provider")
-    electricity = get_session("electricity_provider")
-    gas = get_session("natural_gas_provider")
-    water = get_session("water_provider")
-
+    # --- Load session values ---
+    providers = st.session_state.get("corrected_utility_providers", {})
+    city = safe_strip(get_answer("City", section="utilities"))
+    zip_code = safe_strip(get_answer("ZIP Code", section="utilities"))
     selected = st.session_state.get("homeowner_kit_stock", [])
     missing = st.session_state.get("not_selected_items", [])
     matched = st.session_state.get("matched_additional_items", [])
     unmatched = st.session_state.get("unmatched_additional_items", [])
     additional = st.session_state.get("additional_kit_items", "")
 
-    # Create DOCX
-    doc = Document()
-
-    # 🧰 Emergency Kit Summary
+    # --- Emergency Kit Section ---
     add_heading("🧰 Emergency Kit Summary", level=1)
 
     if selected:
@@ -439,38 +507,42 @@ def generate_emergency_utilities_kit_docx() -> BytesIO:
         add_heading("➕ Additional User-Entered Items:", level=2)
         add_paragraph(additional)
 
-    # 🏡 Emergency Utilities Overview
+    # --- Emergency Utilities Overview ---
     add_heading("🏡 Emergency Utilities Overview", level=1)
-    add_paragraph(f"Location: {city}, ZIP {zip_code}")
+    add_paragraph(f"📍 Location: {city}, ZIP {zip_code}")
 
-    def render_utility_block(title, key, provider):
-        if not provider or "⚠️" in provider:
-            return
-        add_heading(f"{title} – {provider}", level=2)
-        add_paragraph("Emergency Response Guide:", bold=True)
-        add_bullet_list([
-            "Company Description",
-            "Contact Info",
-            "Emergency Steps"
-        ])
+    emoji_map = {
+        "electricity": "⚡",
+        "natural_gas": "🔥",
+        "water": "💧",
+        "internet": "🌐"
+    }
+
+    for utility_key in ["electricity", "natural_gas", "water", "internet"]:
+        provider = providers.get(utility_key, {})
+        name = provider.get("name", "").strip()
+        if not name or name.lower() in ["⚠️ not available", "n/a", "not found"]:
+            continue
+
+        icon = emoji_map.get(utility_key, "🔌")
+        add_heading(f"{icon} {utility_key.replace('_', ' ').title()} – {name}", level=2)
+
         add_paragraph("Recommended Kit Items:", bold=True)
-        items = PER_UTILITY.get(key, [])
-        if items:
-            add_bullet_list(items)
+        kit_items = PER_UTILITY.get(utility_key, [])
+        if kit_items:
+            add_bullet_list(kit_items)
         else:
             add_paragraph("_(none specified)_")
 
+    # --- Provider Summary + Details ---
+    if providers:
         add_heading("📡 Detailed Provider Contact Info", level=1)
+        add_provider_summary_table(doc, providers)
+        add_provider_section_to_docx(doc, providers)
+    else:
+        add_paragraph("⚠️ No confirmed provider data found.")
 
-        # Load structured provider dict from session
-        providers = st.session_state.get("corrected_utility_providers", {})
-
-        if providers:
-            add_provider_section_to_docx(doc, providers)
-        else:
-            add_paragraph("⚠️ Provider details not available.")
-
-    # Export to BytesIO
+    # --- Final Output ---
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)

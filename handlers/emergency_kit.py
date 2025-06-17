@@ -1,6 +1,6 @@
 ### Level 2 - Emergency Kit
 from config.sections import SECTION_METADATA
-from docx_helpers import generate_emergency_utilities_kit_docx, generate_emergency_utilities_kit_markdown, render_runbook_section_output
+from utils.docx_helpers import generate_emergency_utilities_kit_docx, generate_emergency_utilities_kit_markdown, render_runbook_section_output
 from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
 import re
@@ -30,7 +30,6 @@ from utils.runbook_generator_helpers import (
     maybe_render_download, 
     maybe_generate_runbook
 )
-from prompts.templates import utility_provider_lookup_prompt
 from utils.common_helpers import get_schedule_placeholder_mapping
 
 # --- Generate the AI prompt ---
@@ -52,6 +51,12 @@ def homeowner_kit_stock(section="emergency_kit"):
     selected = []
     kit_config = load_kit_items_config()
     KIT_ITEMS = kit_config.get("recommended_items", [])
+
+    # Safe defaults to avoid UnboundLocalError
+    additional_input = ""
+    additional_normalized = []
+    auto_matched = []
+    unmatched = []
 
     normalized_kit = {normalize_item(item): item for item in KIT_ITEMS}
 
@@ -87,7 +92,7 @@ def homeowner_kit_stock(section="emergency_kit"):
             value=st.session_state.get("additional_kit_items", ""),
             placeholder="e.g., gloves, blanket, walkie talkies"
         )
-        st.session_state["additional_kit_items"] = additional_input
+        # Use `additional_input` directly from here on — don't write back into session_state
 
         submitted = st.form_submit_button("Submit")
 
@@ -315,6 +320,9 @@ def emergency_kit_utilities():
     has_utilities = bool(st.session_state.get("corrected_utility_providers"))
 
     ready_to_generate = has_status and has_location and has_selected_items and has_utilities
+
+    st.subheader("🧪 Provider Debug")
+    st.json(st.session_state.get("corrected_utility_providers", {}))
 
     if ready_to_generate:
         st.subheader("🎉 Reward")
