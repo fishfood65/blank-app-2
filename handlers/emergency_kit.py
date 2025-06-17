@@ -61,27 +61,26 @@ def homeowner_kit_stock(section="emergency_kit"):
     with st.form(key="emergency_kit_form"):
         st.write("Select all emergency supplies you currently have:")
 
-        for start in range(0, len(KIT_ITEMS), 4):
-            chunk = KIT_ITEMS[start : start + 4]
-            cols = st.columns(len(chunk))
+        cols = st.columns(4)  # Always 4 columns
 
-            for idx, item in enumerate(chunk):
-                # 🧼 Clean key generation
-                safe_key = "kit_" + re.sub(r'[^a-z0-9]', '_', item.lower())
-                safe_key = re.sub(r'_+', '_', safe_key).strip('_')
+        for idx, item in enumerate(KIT_ITEMS):
+            col = cols[idx % 4]
+            # 🧼 Clean key generation
+            safe_key = "kit_" + re.sub(r'[^a-z0-9]', '_', item.lower())
+            safe_key = re.sub(r'_+', '_', safe_key).strip('_')
 
-                register_task_input(
-                    label=item,
-                    input_fn=cols[idx].checkbox,
-                    section=section,
-                    task_type="Emergency Supply",
-                    area="home",
-                    is_freq=False,
-                    key=safe_key,
-                    value=st.session_state.get(safe_key, False)
-                )
-                if st.session_state.get(safe_key):
-                    selected.append(item)
+            register_task_input(
+                label=item,
+                input_fn=col.checkbox,
+                section=section,
+                task_type="Emergency Supply",
+                area="home",
+                is_freq=False,
+                key=safe_key,
+                value=st.session_state.get(safe_key, False)
+            )
+            if st.session_state.get(safe_key):
+                selected.append(item)
 
         submitted = st.form_submit_button("Submit")
 
