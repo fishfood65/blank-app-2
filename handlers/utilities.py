@@ -558,6 +558,15 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
     corrected = st.session_state.setdefault("corrected_utility_providers", {})
     current_entry = corrected.setdefault(utility_key, {})
     llm_data = st.session_state.get("utility_providers", {}).get(utility_key, {})
+
+    # 🔍 Helper to compare with previous backup
+    def is_different_from_backup(current: dict, backup: dict, keys: list) -> bool:
+        """Return True if any of the target keys differ between current and backup."""
+        return any(
+            current.get(k, "").strip() != backup.get(k, "").strip()
+            for k in keys
+        )
+
     
     # Show AI response if available
     if llm_data:
@@ -605,17 +614,23 @@ def render_provider_editor_table_view(utility_key: str, provider_data: dict, sec
                 st.success(f"✅ All available AI values saved for {label} provider.")
 
             # ✅ Revert button – only shown if backup exists ; Need to have the backup wired to run with this key
-            if st.session_state.get("previous_provider_versions", {}).get(utility_key):
+            previous_versions = st.session_state.get("previous_provider_versions", {})
+            previous_entry = previous_versions.get(utility_key)
+
+            # ✅ Only show revert if backup exists and differs from current
+            if previous_entry and is_different_from_backup(current_entry, previous_entry, required_fields):
                 st.markdown("---")
                 if st.button("🔄 Revert to Previous", key=f"{section}_{utility_key}_revert_btn", disabled=disabled):
-                    previous = st.session_state["previous_provider_versions"][utility_key]
-                    st.session_state["corrected_utility_providers"][utility_key] = previous
-                    st.session_state["utility_providers"][utility_key] = previous
-                    save_provider_update_to_disk(city, zip_code, utility_key, previous)
+                    st.session_state["corrected_utility_providers"][utility_key] = previous_entry
+                    st.session_state["utility_providers"][utility_key] = previous_entry
+                    save_provider_update_to_disk(city, zip_code, utility_key, previous_entry)
                     st.success("🔄 Reverted to your previous saved version.")
-    
+                    if st.session_state.get("enable_debug_mode"):
+                        if previous_entry and not is_different_from_backup(current_entry, previous_entry, required_fields):
+                            st.info("ℹ️ Current entry matches backup — revert button hidden.")
+
         else:
-            st.warning("⚠️ Some fields from the AI response are missing. You may update manually.")
+            st.warning("⚠️ Some fields from the AI response are missing. You may reqeust an AI update.")
 
     # Full width layout
     st.markdown("#### ✏️ What would you like the AI to improve?")
@@ -982,6 +997,11 @@ def render_section_jump_buttons():
 def render_all_provider_tables(section: str = "utilities"):
 
     st.markdown("## 📇 Review and Edit Utility Providers")
+    st.info(
+    "Please review and edit each utility provider on the page. "
+    "**When you're done, scroll to the bottom and click ✅ Confirm All Utility Info to save your choices.**"
+    )
+
     for utility_key in ["electricity", "natural_gas", "water", "internet"]:
         render_provider_table(utility_key, section=section)
 

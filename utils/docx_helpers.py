@@ -10,6 +10,7 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from datetime import datetime
+from collections import OrderedDict
 
 
 def format_provider_markdown(providers: dict, version: str = "v1.0") -> str:
@@ -221,10 +222,10 @@ def add_provider_section_to_docx(doc: Document, providers: dict):
     }
 
     # Fields to render as a bullet list *below* the normal block
-    multiline_fields = {
-        "emergency_steps": "🚨 Emergency Instructions",
-        "outage_support": "📶 Outage Support Instructions"
-    }
+    multiline_fields = OrderedDict([
+        ("emergency_steps", "🚨 Emergency Instructions"),
+        ("non_emergency_tips", "🧾 Non-Emergency Tips")
+    ])
 
     for utility, info in providers.items():
         name = info.get("name", "").strip()

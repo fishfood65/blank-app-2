@@ -2,12 +2,13 @@
   "city": "San Jose",
   "zip_code": "95148",
   "utility": "electricity",
-  "timestamp": "2025-06-16T07:04:29.735125+00:00",
+  "timestamp": "2025-06-17T00:38:41.252846+00:00",
   "name": "Pacific Gas & Electric Company PG&E",
   "contact_phone": "1-800-743-5000",
   "contact_address": "77 Beale Street, San Francisco, CA 94105",
   "contact_website": "pge.com",
-  "description": "",
-  "emergency_steps": "1. If you smell natural gas, see downed power lines, or suspect another emergency situation, leave the area immediately.  \n2. Call 9-1-1 to report the emergency.  \n3. Then, contact PG&E at 1-800-743-5000 to inform them of the situation.  \n4. Do not touch or go near downed power lines as they are not insulated and can be deadly.  \n5. Stay informed through PG&E's power outage information line at 1-800-743-5002 for updates and safety tips.\n\nNon-Emergency Tips:  \n- Use the PG&E \"Report It\" app to report non-emergency issues such as trees or vegetation near powerlines, problems with PG&E equipment, and other safety concerns pge.com.  \n- Explore ways to reduce energy use and save on your bill by implementing energy-saving tips for your home pge.com.",
-  "non_emergency_tips": "- Use the PG&E \"Report It\" app to report non-emergency issues such as trees or vegetation near powerlines, problems with PG&E equipment, and other safety concerns pge.com.  \n- Explore ways to reduce energy use and save on your bill by implementing energy-saving tips for your home pge.com."
+  "description": "Pacific Gas & Electric Company PG&E is a utility company that provides natural gas and electricity to most of the northern two-thirds of California, including the San Francisco Bay Area.",
+  "emergency_steps": "1. Call 9-1-1 immediately if you encounter a downed power line and report its location.  \n2. After contacting emergency services, call PG&E at 1-800-743-5000 to report the issue.  \n3. Do not touch anyone or anything in contact with a downed power line.  \n4. Keep children and pets away from fallen electric wires.  \n5. Stay away from flooded areas and downed trees during and after a storm as these could be hiding an energized power line pgealerts.alerts.pge.com.\n\nNon-Emergency Tips:  \n1. Use the PG&E Report It app to report non-emergency safety concerns such as trees or vegetation near powerlines and problems with PG&E equipment pge.com.  \n2. Prepare for potential power outages by having a plan in place and keeping emergency supplies on hand pge.com.",
+  "non_emergency_tips": "1. Use the PG&E Report It app to report non-emergency safety concerns such as trees or vegetation near powerlines and problems with PG&E equipment pge.com.  \n2. Prepare for potential power outages by having a plan in place and keeping emergency supplies on hand pge.com.",
+  "source": "llm_batch"
 }

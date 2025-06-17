@@ -212,9 +212,6 @@ def display_provider_contact_info(
         st.warning("⚠️ No provider data available.")
         return
 
-    if provider_data.get("source") == "fallback":
-        st.warning(fallback_note)
-
     # Add provider name to title if available
 
     if provider_data.get("source") == "fallback":
@@ -242,8 +239,12 @@ def display_provider_contact_info(
 
     seen_values = set()
     for field, label in field_labels.items():
+        # ⛔️ Skip fields not in visible_fields
+        if visible_fields and field.lower() not in visible_fields:
+            continue
+
         value = provider_data.get(field, "").strip()
-        if value and value.strip().lower() != "⚠️ Not Available":
+        if value and value.lower() != "⚠️ not available":
             st.markdown(f"**{label}:** {value}")
             seen_values.add(value)
 
