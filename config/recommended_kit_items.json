@@ -1,0 +1,40 @@
+{
+  "recommended_items": [
+    "Flashlights and extra batteries",
+    "First aid kit",
+    "Non-perishable food and bottled water",
+    "Medications and personal hygiene items",
+    "Important documents (insurance, identification)",
+    "Battery-powered or hand-crank radio",
+    "Whistle (for signaling)",
+    "Dust masks (for air filtration)",
+    "Local maps and contact lists",
+    "Fire extinguisher"
+  ],
+  "per_utility": {
+    "electricity": [
+      "Flashlights and extra batteries",
+      "Battery-powered or hand-crank radio",
+      "Important documents (insurance, identification)",
+      "Non-perishable food and bottled water"
+    ],
+    "natural_gas": [
+      "Whistle (for signaling)",
+      "Important documents (insurance, identification)",
+      "Flashlights and extra batteries",
+      "Fire extinguisher",
+      "Local maps and contact lists"
+    ],
+    "water": [
+      "Non-perishable food and bottled water",
+      "Medications and personal hygiene items",
+      "Dust masks (for air filtration)",
+      "Important documents (insurance, identification)"
+    ],
+    "internet": [
+      "Battery-powered or hand-crank radio",
+      "Local maps and contact lists",
+      "Important documents (insurance, identification)"
+    ]
+  }
+}

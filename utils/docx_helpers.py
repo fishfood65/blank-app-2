@@ -11,7 +11,10 @@ from docx.oxml import OxmlElement
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from datetime import datetime
 from collections import OrderedDict
+from utils.data_helpers import load_kit_items_config, safe_strip
 
+KIT_CONFIG = load_kit_items_config()
+UTILITY_KIT_RECS = KIT_CONFIG.get("per_utility", {})
 
 def format_provider_markdown(providers: dict, version: str = "v1.0") -> str:
     """
@@ -115,6 +118,81 @@ def format_provider_markdown(providers: dict, version: str = "v1.0") -> str:
         output.append(section_block)
 
     return "\n".join([heading] + summary_lines + ["\n---\n"] + output)
+
+def render_recommended_items_for(utility: str) -> str:
+    items = UTILITY_KIT_RECS.get(utility, [])
+    if not items:
+        return "_(none specified)_"
+    return "\n".join(f"- {item}" for item in items)
+
+def generate_emergency_utilities_kit_markdown() -> str:
+    config = load_kit_items_config()
+    KIT_ITEMS = config.get("recommended_items", [])
+    PER_UTILITY = config.get("per_utility", {})
+
+    def render_recommended(utility_key):
+        items = PER_UTILITY.get(utility_key, [])
+        if not items:
+            return "_(none specified)_"
+        return "\n".join(f"- {item}" for item in items)
+
+    # Pull values from session_state
+    city = safe_strip(st.session_state.get("City", ""))
+    zip_code = safe_strip(st.session_state.get("ZIP Code", ""))
+    internet = safe_strip(st.session_state.get("Internet Provider", "⚠️ Not provided"))
+    electricity = safe_strip(st.session_state.get("electricity_provider", "⚠️ Not provided"))
+    gas = safe_strip(st.session_state.get("natural_gas_provider", "⚠️ Not provided"))
+    water = safe_strip(st.session_state.get("water_provider", "⚠️ Not provided"))
+
+    selected = st.session_state.get("homeowner_kit_stock", [])
+    missing = st.session_state.get("not_selected_items", [])
+    additional = st.session_state.get("additional_kit_items", "")
+    matched = st.session_state.get("matched_additional_items", [])
+    unmatched = st.session_state.get("unmatched_additional_items", [])
+
+    # Emergency Kit section
+    parts = [f"# 🧰 Emergency Kit Summary"]
+
+    if selected:
+        parts.append("## ✅ Kit Items You Have:")
+        parts.append("\n".join(f"- {item}" for item in selected))
+    if missing:
+        parts.append("## ⚠️ Missing Recommended Items:")
+        parts.append("\n".join(f"- {item}" for item in missing))
+    if matched:
+        parts.append("## 🔁 Additional Items Matched to Kit List:")
+        parts.append("\n".join(f"- {item}" for item in matched))
+    if unmatched:
+        parts.append("## ❓ Custom Items (Unmatched):")
+        parts.append("\n".join(f"- {item}" for item in unmatched))
+    if additional and not matched and not unmatched:
+        parts.append("## ➕ Additional User-Entered Items:")
+        parts.append(additional)
+
+    # Utilities section
+    parts.append("\n\n# 🏡 Emergency Utilities Overview")
+
+    parts.append(f"**Location:** {city}, ZIP {zip_code}\n")
+
+    def add_utility_block(label, key, provider):
+        if not provider or "⚠️" in provider:
+            return
+        parts.append(f"## {label} – {provider}")
+        parts.append(f"""### Emergency Response Guide:
+- Company Description
+- Contact Info
+- Emergency Steps
+
+**Recommended Kit Items:**  
+{render_recommended(key)}
+""")
+
+    add_utility_block("⚡ Electricity", "electricity", electricity)
+    add_utility_block("🔥 Natural Gas", "natural_gas", gas)
+    add_utility_block("💧 Water", "water", water)
+    add_utility_block("🌐 Internet", "internet", internet)
+
+    return "\n\n".join(parts).strip()
 
 def add_hyperlink(paragraph, url, text=None):
     """
@@ -300,6 +378,103 @@ def export_provider_docx(providers: dict, output_path: str = None, version: str 
         doc.save(buffer)
         buffer.seek(0)
         return buffer.read()
+
+def generate_emergency_utilities_kit_docx() -> BytesIO:
+    config = load_kit_items_config()
+    KIT_ITEMS = config.get("recommended_items", [])
+    PER_UTILITY = config.get("per_utility", {})
+
+    def add_heading(text, level=1):
+        doc.add_heading(text, level=level)
+
+    def add_paragraph(text, bold=False):
+        para = doc.add_paragraph()
+        run = para.add_run(text)
+        if bold:
+            run.bold = True
+        run.font.size = Pt(11)
+        run.font.name = 'Calibri'
+        run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Calibri')
+
+    def add_bullet_list(items):
+        for item in items:
+            doc.add_paragraph(item, style='List Bullet')
+
+    def get_session(key, fallback="⚠️ Not provided"):
+        return safe_strip(st.session_state.get(key, fallback))
+
+    # Pull data from session state
+    city = get_session("City")
+    zip_code = get_session("ZIP Code")
+    internet = get_session("Internet Provider")
+    electricity = get_session("electricity_provider")
+    gas = get_session("natural_gas_provider")
+    water = get_session("water_provider")
+
+    selected = st.session_state.get("homeowner_kit_stock", [])
+    missing = st.session_state.get("not_selected_items", [])
+    matched = st.session_state.get("matched_additional_items", [])
+    unmatched = st.session_state.get("unmatched_additional_items", [])
+    additional = st.session_state.get("additional_kit_items", "")
+
+    # Create DOCX
+    doc = Document()
+
+    # 🧰 Emergency Kit Summary
+    add_heading("🧰 Emergency Kit Summary", level=1)
+
+    if selected:
+        add_heading("✅ Kit Items You Have:", level=2)
+        add_bullet_list(selected)
+    if missing:
+        add_heading("⚠️ Missing Recommended Items:", level=2)
+        add_bullet_list(missing)
+    if matched:
+        add_heading("🔁 Additional Items Matched to Kit List:", level=2)
+        add_bullet_list(matched)
+    if unmatched:
+        add_heading("❓ Custom Items (Unmatched):", level=2)
+        add_bullet_list(unmatched)
+    if additional and not matched and not unmatched:
+        add_heading("➕ Additional User-Entered Items:", level=2)
+        add_paragraph(additional)
+
+    # 🏡 Emergency Utilities Overview
+    add_heading("🏡 Emergency Utilities Overview", level=1)
+    add_paragraph(f"Location: {city}, ZIP {zip_code}")
+
+    def render_utility_block(title, key, provider):
+        if not provider or "⚠️" in provider:
+            return
+        add_heading(f"{title} – {provider}", level=2)
+        add_paragraph("Emergency Response Guide:", bold=True)
+        add_bullet_list([
+            "Company Description",
+            "Contact Info",
+            "Emergency Steps"
+        ])
+        add_paragraph("Recommended Kit Items:", bold=True)
+        items = PER_UTILITY.get(key, [])
+        if items:
+            add_bullet_list(items)
+        else:
+            add_paragraph("_(none specified)_")
+
+        add_heading("📡 Detailed Provider Contact Info", level=1)
+
+        # Load structured provider dict from session
+        providers = st.session_state.get("corrected_utility_providers", {})
+
+        if providers:
+            add_provider_section_to_docx(doc, providers)
+        else:
+            add_paragraph("⚠️ Provider details not available.")
+
+    # Export to BytesIO
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
 
 def render_runbook_section_output(
     markdown_str: str,

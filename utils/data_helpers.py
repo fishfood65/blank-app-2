@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional, Tuple
+import spacy
 import streamlit as st
 import json
 import csv
@@ -9,6 +10,7 @@ import plotly.express as px
 from uuid import uuid4
 import re
 from collections import defaultdict
+from difflib import get_close_matches  # as fallback
 from config.sections import SECTION_METADATA, get_section_meta
 from utils.event_logger import log_event
 
@@ -615,22 +617,10 @@ def apply_provider_overrides(
     return updated, name_changed, needs_refresh
 
 
+def load_kit_items_config(config_path="config/recommended_kit_items.json"):
+    with open(config_path) as f:
+        return json.load(f)
 
-def check_missing_utility_inputs(section="utilities"):
-    """
-    Checks for missing required fields for utility runbook generation.
-    Returns a list of missing field labels.
-    """
-    missing = []
-
-    if not get_answer(key="City", section=section):
-        missing.append("City")
-    if not get_answer(key="ZIP Code", section=section):
-        missing.append("ZIP Code")
-    if not get_answer(key="Internet Provider", section=section):
-        missing.append("Internet Provider")
-
-    return missing
 
 def flatten_answers_to_dict(questions, answers):
     """
@@ -1289,6 +1279,46 @@ def get_provider_display_name(provider_data: dict, fallback_label: str = "Provid
         return contact_name
     return fallback_label
 
+def load_kit_items_config(config_path="config/recommended_kit_items.json"):
+    with open(config_path) as f:
+        return json.load(f)
+
+def normalize_item(text):
+    """Normalize item string for fuzzy matching."""
+    return re.sub(r'[^a-z0-9]', '', text.lower())
+
+def fuzzy_match_item(user_item: str, valid_items: list, threshold: float = 0.82):
+    """
+    Attempts to match user-entered item to a known emergency kit item using spaCy similarity.
+    Falls back to difflib.get_close_matches if no match is found.
+    """
+
+    nlp = spacy.load("en_core_web_sm")
+    
+    if not user_item or not valid_items:
+        return None
+
+    user_doc = nlp(user_item.lower())
+
+    best_match = None
+    best_score = 0.0
+
+    for ref in valid_items:
+        ref_doc = nlp(ref.lower())
+        score = user_doc.similarity(ref_doc)
+        if score > best_score:
+            best_score = score
+            best_match = ref
+
+    if best_score >= threshold:
+        return best_match
+
+    # Fallback using string similarity
+    fallback = get_close_matches(user_item, valid_items, n=1, cutoff=0.85)
+    return fallback[0] if fallback else None
+
+def make_safe_key(label: str) -> str:
+    return re.sub(r'_+', '_', re.sub(r'[^a-z0-9]', '_', label.lower())).strip('_')
 
 # Placeholder for future enhancement: Cloud saving logic
 # def save_to_cloud(json_data):

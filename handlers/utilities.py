@@ -118,7 +118,7 @@ def get_utilities_inputs(section: str):
     st.session_state["home_zip_code"] = zip_code
     st.session_state["home_internet_provider"] = internet_provider
 
-    return city, zip_code, internet_provider
+    return city or "", zip_code or "", internet_provider or ""
 
 def query_utility_providers(section: str, test_mode: bool = False) -> dict:
     """
@@ -1106,7 +1106,7 @@ def utilities():
 
     with st.expander("🧪 Test Corrected Provider Prompt"):
         test_prompt = generate_corrected_provider_prompt(
-            utility_key="electicity",
+            utility_key="electricity",
             city="San Jose",
             zip_code="95148",
             user_name="Pacific Gas & Electric Company PG&E",
@@ -1134,11 +1134,19 @@ def utilities():
 
     # Step 6: 🎉 Reward + Download runbook (only shown after confirmation)
     if st.session_state.get("utility_info_locked"):
+        st.subheader("🎉 Reward")
+        # Level 1 Complete - for Progress
+        st.session_state["level_progress"]["utilities"] = True
+
         st.subheader("📄 Download Utility Provider Runbook")
 
         providers = st.session_state.get("utility_providers", {})
-        if not providers:
-            st.info("⚠️ No utility provider data available.")
+        if not providers or all(not v for v in providers.values()):
+            st.info(
+                "⚠️ No confirmed utility provider data available.\n\n"
+                "Please scroll back to the section titled **“Let's gather some information. Please enter your details:”** and click the **'Find My Utility Providers'** button to begin.\n\n"
+                "After fetching results, review each provider in the correction table and press **'Accept All Values'** to confirm them before continuing."
+            )
             return
 
         markdown_str = format_provider_markdown(providers)

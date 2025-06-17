@@ -1,4 +1,6 @@
 ### Level 2 - Emergency Kit
+from config.sections import SECTION_METADATA
+from docx_helpers import generate_emergency_utilities_kit_docx, generate_emergency_utilities_kit_markdown, render_runbook_section_output
 from utils.prompt_block_utils import generate_all_prompt_blocks
 import streamlit as st
 import re
@@ -12,9 +14,12 @@ import uuid
 import json
 from utils.preview_helpers import get_active_section_label
 from utils.data_helpers import (
+    load_kit_items_config,
+    make_safe_key,
+    normalize_item,
     register_task_input, 
     get_answer, 
-    check_missing_utility_inputs
+    fuzzy_match_item
 )
 from utils.debug_utils import (
     debug_all_sections_input_capture_with_summary, 
@@ -40,23 +45,15 @@ if api_key:
 else:
     st.error("❌ OpenRouter API key is not set.")
 
-# --- Constants ---
-KIT_ITEMS = [
-    "🔦 Flashlights and extra batteries",
-    "🩹 First aid kit",
-    "🥫 Non-perishable food and bottled water",
-    "💊 Medications and personal hygiene items",
-    "📂 Important documents (insurance, identification)",
-    "📻 Battery-powered or hand-crank radio",
-    "🎺 Whistle (for signaling)",
-    "😷 Dust masks (for air filtration)",
-    "🗺️ Local maps and contact lists",
-    "🧯 Fire extinguisher"
-]
+
 # --- Helper functions (top of the file) ---
 
 def homeowner_kit_stock(section="emergency_kit"):
     selected = []
+    kit_config = load_kit_items_config()
+    KIT_ITEMS = kit_config.get("recommended_items", [])
+
+    normalized_kit = {normalize_item(item): item for item in KIT_ITEMS}
 
     with st.form(key="emergency_kit_form"):
         st.write("Select all emergency supplies you currently have:")
@@ -82,14 +79,124 @@ def homeowner_kit_stock(section="emergency_kit"):
             if st.session_state.get(safe_key):
                 selected.append(item)
 
+        # Additional items input
+        st.markdown("**Optional: Add any emergency kit items not listed above (comma-separated):**")
+        additional_input = st.text_input(
+            label="Additional Items",
+            key="additional_kit_items",
+            value=st.session_state.get("additional_kit_items", ""),
+            placeholder="e.g., gloves, blanket, walkie talkies"
+        )
+        st.session_state["additional_kit_items"] = additional_input
+
         submitted = st.form_submit_button("Submit")
 
     if submitted:
-        missing = [item for item in KIT_ITEMS if item not in selected]
-        if missing:
-            st.warning("⚠️ Consider adding the following items to your emergency kit:")
-            for item in missing:
-                st.write(f"- {item}")
+        # Normalize kit items
+        normalized_kit = {normalize_item(k): k for k in KIT_ITEMS}
+
+        # Parse and normalize user-provided additional items
+        additional_raw = [item.strip() for item in additional_input.split(",") if item.strip()]
+        additional_normalized = [normalize_item(x) for x in additional_raw]
+
+        auto_matched = []
+        unmatched = []
+
+        for norm, raw_item in zip(additional_normalized, additional_raw):
+            if norm in normalized_kit:
+                matched_item = normalized_kit[norm]
+                if matched_item not in selected:
+                    selected.append(matched_item)
+                    auto_matched.append(matched_item)
+            else:
+                # 🔍 Fuzzy match if no exact normalized match
+                fuzzy = fuzzy_match_item(raw_item, KIT_ITEMS, cutoff=0.75)
+                if fuzzy and fuzzy not in selected:
+                    selected.append(fuzzy)
+                    auto_matched.append(fuzzy)
+
+                    # Log auto-matched item
+                    safe_key = "kit_" + make_safe_key(fuzzy)
+                    register_task_input(
+                        label=matched_item,
+                        input_fn=lambda label, **kwargs: True,
+                        section=section,
+                        task_type="Emergency Supply",
+                        area="home",
+                        is_freq=False,
+                        key=safe_key,
+                        value=True
+                    )
+                else:
+                    unmatched.append(raw_item)
+
+        if auto_matched:
+            st.success(f"✅ Matched and included additional items: {', '.join(auto_matched)}")
+            st.session_state["matched_additional_items"] = auto_matched
+
+        if unmatched:
+            st.session_state["unmatched_additional_items"] = unmatched
+            st.info("🆕 Custom items (not in kit list):")
+            for item in unmatched:
+                st.write(f"- ❓ {item}")
+
+            if st.button("🔁 Retry Matching", key="retry_kit_matching"):
+                unmatched = st.session_state.get("unmatched_additional_items", [])
+                matched_items = []
+
+                for raw_item in unmatched:
+                    fuzzy = fuzzy_match_item(raw_item, KIT_ITEMS, cutoff=0.75)
+                    if fuzzy and fuzzy not in st.session_state.get("homeowner_kit_stock", []):
+                        st.session_state["homeowner_kit_stock"].append(fuzzy)
+                        matched_items.append(fuzzy)
+
+                        safe_key = "kit_" + re.sub(r'[^a-z0-9]', '_', fuzzy.lower())
+                        safe_key = re.sub(r'_+', '_', safe_key).strip('_')
+                        st.session_state[safe_key] = True  # Mark checkbox as selected
+
+                        register_task_input(
+                            label=fuzzy,
+                            input_fn=lambda label, **kwargs: True,
+                            section="emergency_kit",
+                            task_type="Emergency Supply",
+                            area="home",
+                            is_freq=False,
+                            key=safe_key,
+                            value=True
+                        )
+
+                # Clear unmatched list if everything is matched
+                still_unmatched = [i for i in unmatched if i not in matched_items]
+                st.session_state["matched_additional_items"] = matched_items
+                if still_unmatched:
+                    st.session_state["unmatched_additional_items"] = still_unmatched
+                    st.info(f"ℹ️ Still unmatched: {', '.join(still_unmatched)}")
+                else:
+                    st.session_state.pop("unmatched_additional_items", None)
+                    st.success("✅ All unmatched items successfully re-matched!")
+                
+                    # ✅ Force rerun to refresh checkboxes/UI
+                    st.rerun()
+
+            # ✅ Debug block goes here
+    if st.session_state.get("enable_debug_mode"):
+        st.markdown("### 🧪 Emergency Kit Debug Info")
+        st.json({
+            "Inventory Summary": {
+                "Selected Items": selected,
+                "Missing Items": [item for item in KIT_ITEMS if item not in selected],
+            },
+            "Additional Items": {
+                "Raw Input": additional_input,
+                "Normalized": additional_normalized,
+                "Auto-Matched": auto_matched,
+                "Unmatched": unmatched,
+                "Retry Pool": st.session_state.get("unmatched_additional_items", [])
+            },
+            "Checkbox State": {
+                "Keys": [k for k in st.session_state if k.startswith("kit_")]
+            }
+        })
 
     return selected, [item for item in KIT_ITEMS if item not in selected]
 
@@ -135,18 +242,37 @@ def emergency_kit(section="emergency_kit"):
     selected_items, not_selected_items = homeowner_kit_stock()
     st.session_state['homeowner_kit_stock'] = selected_items
     st.session_state["not_selected_items"] = not_selected_items
+    
+    # 💡 Save fuzzy matches if present
+    if "auto_matched_kit_items" in st.session_state:
+        st.session_state["matched_additional_items"] = st.session_state["auto_matched_kit_items"]
 
-    # 4. Custom additions
-    additional = register_task_input(
-        label="Add any additional emergency kit items not in the list above (comma-separated):",
-        input_fn=st.text_input,
-        section=section,
-        area="home",
-        task_type="Emergency Supply",
-        is_freq=False,
-        key="additional_kit_items",
-        value=st.session_state.get("additional_kit_items", ""),
-    )
+    # 💡 Save unmatched inputs (may be needed for retry button)
+    if "unmatched_kit_items" in st.session_state:
+        st.session_state["unmatched_additional_items"] = st.session_state["unmatched_kit_items"]
+
+    # Debug
+    if st.session_state.get("enable_debug_mode"):
+        st.markdown("### 🧪 Emergency Kit Debug Info")
+
+        st.markdown("**✅ Selected Items:**")
+        st.write(st.session_state.get("homeowner_kit_stock", []))
+
+        st.markdown("**❌ Missing Standard Items:**")
+        st.write(st.session_state.get("not_selected_items", []))
+
+        st.markdown("**🔁 Auto-Matched Additional Items:**")
+        st.write(st.session_state.get("matched_additional_items", []))
+
+        st.markdown("**❓ Unmatched Additional Items:**")
+        st.write(st.session_state.get("unmatched_additional_items", []))
+
+        st.markdown("**📦 Raw Additional Input:**")
+        st.write(st.session_state.get("additional_kit_items", ""))
+
+        st.markdown("**📌 All Checkbox Keys:**")
+        st.write([k for k in st.session_state if k.startswith("kit_")])
+
 
 # --- Main Function Start ---
 
@@ -158,8 +284,8 @@ def emergency_kit_utilities():
     if st.checkbox("🧪 Reset Emergency Kit Session State"):
         emergency_keys = [
             "generated_prompt", "runbook_buffer", "runbook_text", "user_confirmation", "homeowner_kit_stock",
-            "additional_kit_items", "not_selected_items", f"{section}_runbook_text", f"{section}_runbook_buffer", 
-            f"{section}_runbook_ready"
+            "additional_kit_items", "not_selected_items", "matched_additional_items", "unmatched_additional_items",
+            f"{section}_runbook_text", f"{section}_runbook_buffer", f"{section}_runbook_ready"
         ]
         for key in emergency_keys:
             st.session_state.pop(key, None)
@@ -172,68 +298,66 @@ def emergency_kit_utilities():
     # Step 1: Input collection
     emergency_kit()
 
-    if st.session_state.get("enable_debug_mode", False):
-        st.markdown("### 🧪 Session State Debug")
-        st.write("emergency_kit_status:", st.session_state.get("emergency_kit_status"))
-        st.write("emergency_kit_location:", st.session_state.get("emergency_kit_location"))
-        st.write("additional_kit_items:", st.session_state.get("additional_kit_items"))
-        st.markdown("### 🧪 Task Inputs")
-        st.json(st.session_state.get("task_inputs", []))
-        st.write(debug_single_get_answer(key="emergency_kit_status", section="emergency_kit"))
-        st.write(debug_single_get_answer(key="emergency_kit_location", section="emergency_kit"))
-        st.write(debug_single_get_answer(key="additional_kit_items", section="emergency_kit"))
-        debug_all_sections_input_capture_with_summary(["emergency_kit"])
-
-    missing = check_missing_utility_inputs()
-    if missing:
-        st.warning(f"⚠️ Missing required fields: {', '.join(missing)}")
-        if st.button("🔙 Back to Level 1"):
-            st.session_state["go_home"] = True
-            st.rerun()
-        return # ⬅️ Early exit
-    
-    # ✅ Automatically generate prompt blocks once providers are saved
-    blocks = generate_all_prompt_blocks(section)
-    st.success("✅ All required utility inputs are complete.")
-    st.session_state["utility_providers_saved"] = True
-    st.session_state[f"{section}_runbook_blocks"] = blocks
-    st.subheader("🎉 Reward")
-
-    #Debug preview
+    # Debug Section
     if st.session_state.get("enable_debug_mode"):
-        preview_blocks = generate_all_prompt_blocks(section)
-        st.markdown("### 🧾 Prompt Preview")
-        for block in preview_blocks:
-            st.code(block, language="markdown")
-        st.markdown("### 🧪 get_answer() Results")
-        st.write(debug_single_get_answer(key="emergency_kit_status", section="emergency_kit"))
-        st.write(debug_single_get_answer(key="emergency_kit_location", section="emergency_kit"))
-        st.write(debug_single_get_answer(key="additional_kit_items", section="emergency_kit"))
-    
-    #Step 2: Generate DOCX
-    include_priority = st.session_state.get("include_priority", True) # Ensure default for include_priority
+        st.markdown("### 🧪 Session Debug")
+        st.json({
+            "emergency_kit_status": st.session_state.get("emergency_kit_status"),
+            "emergency_kit_location": st.session_state.get("emergency_kit_location"),
+            "homeowner_kit_stock": st.session_state.get("homeowner_kit_stock"),
+            "corrected_utility_providers": list(st.session_state.get("corrected_utility_providers", {}).keys()),
+        })
 
-    def generate_kit_docx():
-        blocks = generate_all_prompt_blocks(section)
-        st.session_state[f"{section}_runbook_blocks"] = blocks  # ✅ Store for debug
-        return generate_docx_from_prompt_blocks(
-            section=section,
-            blocks=blocks, 
-            schedule_sources=get_schedule_placeholder_mapping(),   
-            include_heading=True,
-            include_priority=include_priority,
-            use_llm=True,
-            api_key=os.getenv("MISTRAL_TOKEN"),
-            doc_heading="⛑️ Utilities & Emergency Kit Runbook ",
-            debug=st.session_state.get("enable_debug_mode", False)
+    #Step 2: Check for Valid Data and Return Runbook
+    has_status = st.session_state.get("emergency_kit_status") in ["Yes", "No"]
+    has_location = bool(st.session_state.get("emergency_kit_location"))
+    has_selected_items = bool(st.session_state.get("homeowner_kit_stock"))
+    has_utilities = bool(st.session_state.get("corrected_utility_providers"))
+
+    ready_to_generate = has_status and has_location and has_selected_items and has_utilities
+
+    if ready_to_generate:
+        st.subheader("🎉 Reward")
+        # Level 2 Complete - for Progress
+        st.session_state.setdefault("level_progress", {})
+        st.session_state["level_progress"]["emergency_kit"] = True
+
+        markdown = generate_emergency_utilities_kit_markdown()
+        docx_bytes = generate_emergency_utilities_kit_docx()
+        render_runbook_section_output(
+            markdown_str=markdown,
+            docx_bytes_io=docx_bytes,
+            title="Emergency Utilities + Kit Runbook",
+            filename_prefix="emergency_utilities_kit",
+            expand_preview=True,
+        )
+    else:
+        st.warning("⚠️ Runbook not ready. Please resolve the missing items below:")
+
+        if not has_status or not has_location or not has_selected_items:
+            st.info(
+                "✅ Complete the **Emergency Kit** form above:\n"
+                "- Do you have a kit?\n"
+                "- Where is it?\n"
+                "- What’s inside?"
             )
 
-    maybe_generate_runbook(
-        section=section,
-        generator_fn=generate_kit_docx,
-        doc_heading="⛑️ Utilities & Emergency Kit Runbook",
-        filename="utilities_emergency_kit.docx",
-        button_label="📥 Generate Runbook"
-    )
+        if not has_utilities:
+            st.warning(
+                "⚠️ Utility provider details are missing.\n\n"
+                "Please go to the **🏠 Home Setup → Utility Providers** section to look up and confirm your providers."
+            )
+            
+            if SECTION_METADATA.get("utilities"):
+                if st.button("🔁 Go to Utility Providers", help="Navigate to Home Setup → Utility Providers"):
+                    st.session_state["active_section"] = "utilities"
+                    st.rerun()
+
+
+
+
+
+    
+   
 
     
