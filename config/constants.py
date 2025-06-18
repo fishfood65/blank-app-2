@@ -1,3 +1,5 @@
+UTILITY_KEYS = ["electricity", "natural_gas", "water", "internet"]
+
 SCHEDULE_HEADING_MAP = {
     "<<INSERT_MAIL_HANDLING_SCHEDULE_TABLE>>": "📆 Mail Pickup Schedule",
     "<<INSERT_TRASH_SCHEDULE_TABLE>>": "📆 Trash & Recycling Emptying Schedule",
