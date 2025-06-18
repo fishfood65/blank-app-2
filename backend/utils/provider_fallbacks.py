@@ -1,4 +1,6 @@
-# utils/provider_fallbacks.py
+import os
+from datetime import datetime
+from backend.utils.cache_helpers import get_provider_cache_path
 
 DEFAULT_PROVIDER_MAP = {
     "electricity": {
@@ -35,7 +37,7 @@ def apply_provider_overrides(
     parsed: dict,
     user_override: dict,
     fields_to_override: list = ["contact_phone", "contact_address", "contact_website", "description"]
-) -> Tuple[dict, bool, bool]:
+) -> tuple[dict, bool, bool]:
     """
     Applies user-confirmed overrides to a parsed provider block.
     
@@ -81,7 +83,7 @@ def get_best_provider_data(
     city: str,
     zip_code: str,
     debug_mode: bool = False
-) -> Tuple[dict, str, dict]:
+) -> tuple[dict, str, dict]:
     """
     Attempts to load provider data in this order:
     1. User fallback (editable overrides)
@@ -136,3 +138,28 @@ def get_best_provider_data(
             return normalize_provider_fields(cache_data), "cache", cache_data
 
     return {}, "none", {}
+
+def has_meaningful_data(d: dict) -> bool:
+    """
+    Returns True if any of the important fields have valid, non-placeholder content.
+    """
+    if not isinstance(d, dict):
+        return False
+
+    ignore_values = {"", "⚠️ not available", "not available", "n/a", "none"}
+    keys = ["name", "contact_phone", "contact_address", "contact_website"]
+
+    return any(
+        str(d.get(k, "")).strip().lower() not in ignore_values for k in keys
+    )
+
+
+def parse_timestamp(ts: str) -> datetime:
+    """
+    Parses ISO-formatted timestamp string to datetime object.
+    Returns datetime.min on failure.
+    """
+    try:
+        return datetime.fromisoformat(ts)
+    except Exception:
+        return datetime.min

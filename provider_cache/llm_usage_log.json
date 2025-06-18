@@ -1,0 +1,50 @@
+[
+  {
+    "model": "openai/gpt-4o:online",
+    "prompt_tokens": 2008,
+    "response_tokens": 307,
+    "total_tokens": 2315,
+    "timestamp": "2025-06-18T08:04:32.260992",
+    "prompt_preview": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n\nPlease identify the **main \u26a1 Electricity provider** for this location an"
+  },
+  {
+    "model": "openai/gpt-4o:online",
+    "prompt_tokens": 1885,
+    "response_tokens": 343,
+    "total_tokens": 2228,
+    "timestamp": "2025-06-18T08:04:44.603981",
+    "prompt_preview": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n\nPlease identify the **main \u26a1 Electricity provider** for this location an"
+  },
+  {
+    "model": "openai/gpt-4o:online",
+    "prompt_tokens": 1771,
+    "response_tokens": 271,
+    "total_tokens": 2042,
+    "timestamp": "2025-06-18T08:05:53.394531",
+    "prompt_preview": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n\nPlease identify the **main \u26a1 Electricity provider** for this location an"
+  },
+  {
+    "model": "openai/gpt-4o:online",
+    "prompt_tokens": 1773,
+    "response_tokens": 309,
+    "total_tokens": 2082,
+    "timestamp": "2025-06-18T08:08:13.271855",
+    "prompt_preview": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n\nPlease identify the **main \ud83d\udd25 Natural Gas provider** for this location an"
+  },
+  {
+    "model": "openai/gpt-4o:online",
+    "prompt_tokens": 2771,
+    "response_tokens": 345,
+    "total_tokens": 3116,
+    "timestamp": "2025-06-18T08:08:24.201434",
+    "prompt_preview": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n\nPlease identify the **main \ud83d\udca7 Water provider** for this location and retu"
+  },
+  {
+    "model": "openai/gpt-4o:online",
+    "prompt_tokens": 1944,
+    "response_tokens": 404,
+    "total_tokens": 2348,
+    "timestamp": "2025-06-18T08:08:32.023816",
+    "prompt_preview": "You are a reliable assistant generating emergency utility documentation for a household in:\n- City: San Jose\n- ZIP Code: 95148\n- Internet Provider (user provided): Comcast\n\nPlease identify the **main "
+  }
+]
